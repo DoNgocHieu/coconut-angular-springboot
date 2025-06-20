@@ -1,0 +1,488 @@
+/* Theme variables are available globally via styles.scss */
+
+.music-player {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  transform: translateY(0);
+  transition: transform var(--transition-medium);
+
+  &.hidden {
+    transform: translateY(100%);
+  }
+  .player-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    align-items: center;
+    padding: 12px 24px;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+/* ===== TRACK INFO ===== */
+.track-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+
+  .track-image {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    flex-shrink: 0;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .track-details {
+    flex: 1;
+    min-width: 0;
+
+    .track-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .track-artist {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .favorite-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+    }
+
+    i.active {
+      color: var(--accent-primary);
+    }
+  }
+}
+
+/* ===== PLAYER CONTROLS ===== */
+.player-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  .control-buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .control-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        color: var(--text-primary);
+        background: var(--surface-hover);
+      }
+
+      &.active {
+        color: var(--accent-primary);
+      }
+    }    .play-pause {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-primary);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: var(--accent-hover);
+        transform: scale(1.05);
+      }
+
+      i {
+        margin-left: 1px;
+      }
+    }
+  }
+  .progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    width: 100%;
+
+    .time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      min-width: 35px;
+      text-align: center;
+
+      &.current {
+        text-align: right;
+      }
+
+      &.total {
+        text-align: left;
+      }
+    }
+
+    .progress-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+
+      .progress-range {
+        width: 100%;
+        height: 4px;
+        background: var(--bg-tertiary);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+
+        &::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.2);
+          }
+        }
+
+        &::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.2);
+          }
+        }
+
+        &::-webkit-slider-track {
+          height: 4px;
+          background: var(--bg-tertiary);
+          border-radius: 2px;
+        }
+
+        &::-moz-range-track {
+          height: 4px;
+          background: var(--bg-tertiary);
+          border-radius: 2px;
+          border: none;
+        }
+
+        // Progress fill effect using CSS gradient
+        background: linear-gradient(
+          to right,
+          var(--accent-primary) 0%,
+          var(--accent-primary) var(--progress, 0%),
+          var(--bg-tertiary) var(--progress, 0%),
+          var(--bg-tertiary) 100%        );
+      }
+    }
+  }
+}
+
+/* ===== ADDITIONAL CONTROLS ===== */
+.additional-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  .option-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      color: var(--text-secondary);
+      background: var(--surface-hover);
+    }
+  }
+
+  .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .volume-slider {
+      width: 80px;
+      display: flex;
+      align-items: center;
+
+      .volume-range {
+        width: 100%;
+        height: 4px;
+        background: var(--bg-tertiary);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+
+        &::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.2);
+          }
+        }
+
+        &::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          border: none;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.2);
+          }
+        }
+
+        &::-webkit-slider-track {
+          height: 4px;
+          background: var(--bg-tertiary);
+          border-radius: 2px;
+        }
+
+        &::-moz-range-track {
+          height: 4px;
+          background: var(--bg-tertiary);
+          border-radius: 2px;
+          border: none;
+        }
+
+        // Volume fill effect
+        background: linear-gradient(
+          to right,
+          var(--accent-primary) 0%,
+          var(--accent-primary) var(--volume, 80%),
+          var(--bg-tertiary) var(--volume, 80%),
+          var(--bg-tertiary) 100%
+        );
+      }
+    }
+  }
+}
+
+/* ===== PLAYER OPTIONS ===== */
+.player-options {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  .option-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      color: var(--text-secondary);
+      background: var(--surface-hover);
+    }
+  }
+
+  .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .volume-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        color: var(--text-secondary);
+        background: var(--surface-hover);
+      }
+    }
+
+    .volume-slider {
+      width: 80px;
+
+      .volume-range {
+        width: 100%;
+        height: 4px;
+        background: var(--bg-tertiary);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+
+        &::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          cursor: pointer;
+        }
+
+        &::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          background: var(--accent-primary);
+          border-radius: 50%;
+          border: none;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .music-player .player-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .track-info {
+    justify-content: center;
+  }
+
+  .player-controls .progress-container {
+    max-width: 100%;
+  }
+
+  .player-options {
+    justify-content: center;
+
+    .volume-control .volume-slider {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .track-info {
+    .track-image {
+      width: 48px;
+      height: 48px;
+    }
+
+    .track-details {
+      .track-title {
+        font-size: 0.8rem;
+      }
+
+      .track-artist {
+        font-size: 0.7rem;
+      }
+    }
+  }
+
+  .player-controls {
+    .control-buttons {
+      gap: 12px;
+
+      .control-btn {
+        font-size: 14px;
+        padding: 6px;
+      }
+
+      .play-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+    }
+
+    .progress-container {
+      .time-display {
+        font-size: 0.7rem;
+        min-width: 30px;
+      }
+    }
+  }
+
+  .player-options .option-btn {
+    font-size: 12px;
+    padding: 6px;
+  }
+}

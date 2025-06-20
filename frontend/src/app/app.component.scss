@@ -1,0 +1,16 @@
+/* Theme variables are available globally via styles.scss */
+
+.app-container {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  min-height: calc(100vh - var(--header-height) - 80px); /* 80px for music player */
+  padding-bottom: 80px; /* Space for fixed music player */
+}
