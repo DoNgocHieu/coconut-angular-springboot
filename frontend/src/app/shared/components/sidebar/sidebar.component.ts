@@ -10,6 +10,7 @@ import { MusicPlayerService } from '../../../core/services/music-player.service'
   standalone: true,
   imports: [CommonModule],
   template: `
+    <div class="sidebar-overlay" [class.show]="open" (click)="toggle()"></div>
     <div class="sidebar" [class.open]="open">
       <div class="sidebar-header">
         <h3><i class="fas fa-list"></i> My List</h3>
@@ -29,10 +30,20 @@ import { MusicPlayerService } from '../../../core/services/music-player.service'
               <div class="song-title">{{ song.title }}</div>
               <div class="song-artist">{{ song.artist?.name || 'Unknown Artist' }}</div>
             </div>
-            <i *ngIf="song.id === currentTrackId" class="fas fa-volume-up playing-icon"></i>
+            <i *ngIf="song.id === currentTrackId" class="playing-bars">
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+            </i>
+            <button class="delete-btn" (click)="removeFromMyList(song, $event)">
+              <i class="fas fa-trash"></i>
+            </button>
           </li>
         </ul>
       </div>
+    </div>
+    <div *ngIf="userMessage" class="copy-toast">
+      {{ userMessage }}
     </div>
   `,
   styleUrls: ['./sidebar.component.scss']
@@ -41,6 +52,7 @@ export class SidebarComponent implements OnInit {
   open = false;
   myList: Music[] = [];
   currentTrackId: number | null = null;
+  userMessage: string = '';
 
   constructor(
     private sidebarService: SidebarService,
@@ -85,5 +97,23 @@ export class SidebarComponent implements OnInit {
 
   toggle() {
     this.sidebarService.toggle();
+  }
+
+  showUserMessage(msg: string) {
+    this.userMessage = msg;
+    setTimeout(() => this.userMessage = '', 2000);
+  }
+
+  removeFromMyList(song: Music, event: MouseEvent) {
+    event.stopPropagation();
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userId = currentUser.id;
+    if (!userId) return;
+    this.userMusicService.removeFromMyList(song.id, userId).subscribe({
+      next: () => {
+        this.sidebarService.notifyMyListChanged();
+        this.showUserMessage('Đã xóa khỏi danh sách!');
+      }
+    });
   }
 }
