@@ -45,6 +45,12 @@ public class PlaylistService {
         return playlists.map(PlaylistDTO::new);
     }
 
+    // Admin method to get all playlists (public and private)
+    public Page<PlaylistDTO> getAllPlaylistsForAdmin(Pageable pageable) {
+        Page<Playlist> playlists = playlistRepository.findAll(pageable);
+        return playlists.map(PlaylistDTO::new);
+    }
+
     public Page<PlaylistDTO> getUserPlaylists(Long userId, Pageable pageable) {
         Page<Playlist> playlists = playlistRepository.findByUserIdOrderByUpdatedAtDesc(userId, pageable);
         return playlists.map(PlaylistDTO::new);
@@ -202,5 +208,19 @@ public class PlaylistService {
             playlistEntity.setUpdatedAt(LocalDateTime.now());
             playlistRepository.save(playlistEntity);
         }
+    }
+
+    public PlaylistDTO togglePlaylistPrivacy(Long playlistId) {
+        Optional<Playlist> optionalPlaylist = playlistRepository.findById(playlistId);
+        if (!optionalPlaylist.isPresent()) {
+            throw new RuntimeException("Playlist not found with id: " + playlistId);
+        }
+
+        Playlist playlist = optionalPlaylist.get();
+        playlist.setIsPublic(!playlist.getIsPublic());
+        playlist.setUpdatedAt(LocalDateTime.now());
+
+        Playlist savedPlaylist = playlistRepository.save(playlist);
+        return new PlaylistDTO(savedPlaylist);
     }
 }

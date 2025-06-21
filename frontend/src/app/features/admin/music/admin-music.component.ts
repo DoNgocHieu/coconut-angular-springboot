@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AdminMusicService, MusicCreateRequest, MusicUpdateRequest, MusicFilters } from '../../../core/services/admin-music.service';
 import { MusicService } from '../../../core/services/music.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { FirebaseStorageService } from '../../../core/services/firebase-storage.service';
 import { Music, MusicType, Category } from '../../../core/models/music.model';
 import { PageResponse, PaginationParams } from '../../../core/models/api.model';
 import { User } from '../../../core/models/auth.model';
@@ -12,11 +13,183 @@ import { User } from '../../../core/models/auth.model';
 @Component({
   selector: 'app-admin-music',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],  encapsulation: ViewEncapsulation.None,
+  styles: [`
+    .modal-overlay {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      background: rgba(0, 0, 0, 0.8) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 9999 !important;
+      padding: 1rem !important;
+    }    .modal-overlay .modal {
+      background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 16px !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+      width: 100% !important;
+      max-width: 600px !important;
+      min-width: 500px !important;
+      max-height: 90vh !important;
+      overflow-y: auto !important;
+    }
+    .modal-overlay .modal .modal-header {
+      padding: 1.5rem !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+    }
+    .modal-overlay .modal .modal-header h3 {
+      margin: 0 !important;
+      color: #ffffff !important;
+      font-size: 1.25rem !important;
+      font-weight: 600 !important;
+    }
+    .modal-overlay .modal .modal-header .btn-close {
+      background: none !important;
+      border: none !important;
+      color: #6a6a6a !important;
+      font-size: 1.5rem !important;
+      cursor: pointer !important;
+      padding: 0.25rem !important;
+      border-radius: 50% !important;
+    }
+    .modal-overlay .modal .modal-header .btn-close:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-body {
+      padding: 2rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group {
+      margin-bottom: 1.5rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group label {
+      display: block !important;
+      margin-bottom: 0.75rem !important;
+      color: #b3b3b3 !important;
+      font-weight: 500 !important;
+      font-size: 0.875rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group input,
+    .modal-overlay .modal .modal-body .form-group textarea,
+    .modal-overlay .modal .modal-body .form-group select {
+      width: 100% !important;
+      padding: 0.75rem 1rem !important;
+      background: #282828 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 8px !important;
+      color: #ffffff !important;
+      font-size: 0.875rem !important;
+      box-sizing: border-box !important;
+    }
+    .modal-overlay .modal .modal-body .form-group input:focus,
+    .modal-overlay .modal .modal-body .form-group textarea:focus,
+    .modal-overlay .modal .modal-body .form-group select:focus {
+      outline: none !important;
+      border-color: #1db954 !important;
+      box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3) !important;
+      background: #3e3e3e !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload {
+      border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+      border-radius: 8px !important;
+      padding: 2rem !important;
+      text-align: center !important;
+      transition: all 0.2s ease !important;
+      cursor: pointer !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload:hover {
+      border-color: #1db954 !important;
+      background: rgba(29, 185, 84, 0.05) !important;
+    }    .modal-overlay .modal .modal-body .form-group .file-upload input[type="file"] {
+      display: none !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area {
+      border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+      border-radius: 8px !important;
+      padding: 2rem !important;
+      text-align: center !important;
+      transition: all 0.2s ease !important;
+      cursor: pointer !important;
+      background: rgba(40, 40, 40, 0.5) !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area:hover {
+      border-color: #1db954 !important;
+      background: rgba(29, 185, 84, 0.05) !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area .file-input {
+      display: none !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area .upload-icon {
+      font-size: 2rem !important;
+      color: #6a6a6a !important;
+      margin-bottom: 1rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area .upload-text {
+      color: #b3b3b3 !important;
+      margin-bottom: 0.5rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area .browse-link {
+      color: #1db954 !important;
+      font-weight: 500 !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area .upload-hint {
+      font-size: 0.75rem !important;
+      color: #6a6a6a !important;
+    }
+    .modal-overlay .modal .modal-footer {
+      padding: 1.5rem 2rem !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+      display: flex !important;
+      justify-content: flex-end !important;
+      gap: 1rem !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.5rem !important;
+      padding: 0.75rem 1.5rem !important;
+      border: none !important;
+      border-radius: 8px !important;
+      font-weight: 500 !important;
+      font-size: 0.875rem !important;
+      cursor: pointer !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn.btn-secondary {
+      background: #282828 !important;
+      color: #b3b3b3 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn.btn-secondary:hover {
+      background: #3e3e3e !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary) {
+      background: linear-gradient(135deg, #1db954 0%, #1ed760 100%) !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary):hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .error {
+      color: #e22134 !important;
+      font-size: 0.8rem !important;
+      margin-top: 0.25rem !important;
+    }
+  `],
   template: `
-    <div class="admin-music">      <div class="music-header">
-        <h1>Music Management</h1>
-        <button class="admin-btn btn-primary" (click)="showCreateForm()">
+    <div class="admin-music">
+      <div class="music-header">
+        <h1>Music Management</h1>        <button class="admin-btn btn-primary" (click)="showCreateForm()">
           <i class="fas fa-plus"></i> Add New Music
         </button>
       </div>
@@ -43,18 +216,18 @@ import { User } from '../../../core/models/auth.model';
               <option [value]="false">Inactive</option>
             </select>
           </div>          <div class="filter-actions">
-            <button class="admin-btn btn-secondary" (click)="clearFilters()">Clear</button>
-            <button class="admin-btn btn-primary" (click)="loadMusic()">Search</button>
+            <button class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+            <button class="btn btn-primary" (click)="loadMusic()">Search</button>
           </div>
         </div>
       </div>
 
       <!-- Bulk Actions -->      <div class="bulk-actions" *ngIf="selectedMusic.length > 0">
         <span>{{selectedMusic.length}} item(s) selected</span>
-        <button class="admin-btn btn-secondary" (click)="bulkToggleActive(true)">Activate</button>
-        <button class="admin-btn btn-secondary" (click)="bulkToggleActive(false)">Deactivate</button>
-        <button class="admin-btn btn-danger" (click)="bulkDelete()">Delete</button>
-        <button class="admin-btn btn-secondary" (click)="clearSelection()">Clear</button>
+        <button class="btn btn-secondary" (click)="bulkToggleActive(true)">Activate</button>
+        <button class="btn btn-secondary" (click)="bulkToggleActive(false)">Deactivate</button>
+        <button class="btn btn-danger" (click)="bulkDelete()">Delete</button>
+        <button class="btn btn-secondary" (click)="clearSelection()">Clear</button>
       </div>
 
       <!-- Music Table -->
@@ -82,13 +255,11 @@ import { User } from '../../../core/models/auth.model';
               <td>
                 <input type="checkbox" [checked]="isSelected(music.id)" (change)="toggleSelection(music.id, $event)">
               </td>              <td>
-                <img [src]="music.imageUrl || 'https://via.placeholder.com/50x50/e0e0e0/666666?text=♪'" [alt]="music.title" class="music-thumb">
+                <img [src]="music.imageUrl || 'https://via.placeholder.com/50x50/e0e0e0/666666?text=♪'" [alt]="music.title" class="music-cover">
               </td>
               <td>
-                <div class="music-title">
-                  <span class="title">{{music.title}}</span>
-                  <small class="artist" *ngIf="music.artist">{{music.artist.name}}</small>
-                </div>
+                <div class="music-title">{{music.title}}</div>
+                <div class="music-artist" *ngIf="music.artist">{{music.artist.name}}</div>
               </td>
               <td>{{music.category?.name || 'No Category'}}</td>
               <td>{{formatDuration(music.durationSeconds)}}</td>
@@ -104,55 +275,53 @@ import { User } from '../../../core/models/auth.model';
                   {{music.isActive ? 'Active' : 'Inactive'}}
                 </span>
               </td>
-              <td>{{music.createdAt | date:'short'}}</td>              <td class="actions">
-                <button class="btn-icon" (click)="viewMusic(music)" title="View">
-                  <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-icon" (click)="editMusic(music)" title="Edit">
+              <td>{{music.createdAt | date:'short'}}</td>              <td class="action-buttons">
+                <button class="btn btn-success" (click)="editMusic(music)" title="Edit">
                   <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn-icon" (click)="toggleStatus(music)" title="Toggle Status">
-                  <i class="fas" [class.fa-toggle-on]="music.isActive" [class.fa-toggle-off]="!music.isActive"></i>
-                </button>
-                <button class="btn-icon danger" (click)="deleteMusic(music)" title="Delete">
+                <button class="btn btn-danger" (click)="deleteMusic(music)" title="Delete">
                   <i class="fas fa-trash"></i>
                 </button>
               </td>
             </tr>
           </tbody>
-        </table>        <div class="no-data" *ngIf="musicList.length === 0 && !loading">
-          <i class="fas fa-music"></i>
-          <p>No music found</p>
-          <p><small>Current user: {{authService.getCurrentUser()?.username}} (Admin: {{authService.isAdmin()}})</small></p>
-          <p><small>Token: {{authService.getToken() ? 'Present' : 'Missing'}}</small></p>
-          <button class="admin-btn btn-secondary" (click)="loadMusic()">Retry</button>
+        </table>        <div class="empty-state" *ngIf="musicList.length === 0 && !loading">
+          <div class="empty-icon">
+            <i class="fas fa-music"></i>
+          </div>
+          <div class="empty-title">No music found</div>
+          <div class="empty-description">
+            <p>Current user: {{authService.getCurrentUser()?.username}} (Admin: {{authService.isAdmin()}})</p>
+            <p>Token: {{authService.getToken() ? 'Present' : 'Missing'}}</p>
+          </div>
+          <button class="btn btn-secondary" (click)="loadMusic()">Retry</button>
         </div>
       </div>      <!-- Pagination -->
-      <div class="pagination" *ngIf="pageInfo.totalElements > 0">
+      <div class="pagination-container" *ngIf="pageInfo.totalElements > 0">
         <div class="pagination-info">
           Showing {{(pageInfo.number * pageInfo.size) + 1}} to {{Math.min((pageInfo.number + 1) * pageInfo.size, pageInfo.totalElements)}} of {{pageInfo.totalElements}} results
         </div>
         <div class="pagination-controls">
-          <button class="page-btn" [disabled]="pageInfo.first" (click)="goToPage(0)">
+          <button class="pagination-btn" [disabled]="pageInfo.first" (click)="goToPage(0)">
             <i class="fas fa-angle-double-left"></i>
           </button>
-          <button class="page-btn" [disabled]="pageInfo.first" (click)="goToPage(pageInfo.number - 1)">
+          <button class="pagination-btn" [disabled]="pageInfo.first" (click)="goToPage(pageInfo.number - 1)">
             <i class="fas fa-angle-left"></i>
           </button>
 
           <span class="page-numbers">
             <button *ngFor="let page of getPageNumbers()"
-                    class="page-btn"
+                    class="pagination-btn"
                     [class.active]="page === pageInfo.number"
                     (click)="goToPage(page)">
               {{page + 1}}
             </button>
           </span>
 
-          <button class="page-btn" [disabled]="pageInfo.last" (click)="goToPage(pageInfo.number + 1)">
+          <button class="pagination-btn" [disabled]="pageInfo.last" (click)="goToPage(pageInfo.number + 1)">
             <i class="fas fa-angle-right"></i>
           </button>
-          <button class="page-btn" [disabled]="pageInfo.last" (click)="goToPage(pageInfo.totalPages - 1)">
+          <button class="pagination-btn" [disabled]="pageInfo.last" (click)="goToPage(pageInfo.totalPages - 1)">
             <i class="fas fa-angle-double-right"></i>
           </button>
         </div>
@@ -162,9 +331,7 @@ import { User } from '../../../core/models/auth.model';
       <div class="loading-overlay" *ngIf="loading">
         <div class="spinner"></div>
       </div>
-    </div>
-
-    <!-- Create/Edit Modal -->
+    </div>    <!-- Create/Edit Modal -->
     <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <div class="modal-header">
@@ -173,27 +340,107 @@ import { User } from '../../../core/models/auth.model';
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <form [formGroup]="musicForm" (ngSubmit)="onSubmit()">
-          <div class="modal-body">
+        <form [formGroup]="musicForm" (ngSubmit)="onSubmit()"><div class="modal-body">
             <div class="form-group">
               <label for="title">Title *</label>
               <input type="text" id="title" formControlName="title" placeholder="Enter music title">
               <div class="error" *ngIf="musicForm.get('title')?.touched && musicForm.get('title')?.errors?.['required']">
                 Title is required
               </div>
-            </div>
-
+            </div>            <!-- Music File Upload -->
             <div class="form-group">
-              <label for="fileUrl">File URL *</label>
-              <input type="url" id="fileUrl" formControlName="fileUrl" placeholder="Enter music file URL">
-              <div class="error" *ngIf="musicForm.get('fileUrl')?.touched && musicForm.get('fileUrl')?.errors?.['required']">
-                File URL is required
+              <label>Music File (MP3) *</label>
+              <div class="file-upload-area" [class.dragover]="false">
+                <input
+                  type="file"
+                  accept="audio/mp3,audio/mpeg"
+                  (change)="onMusicFileSelected($event)"
+                  class="file-input"
+                  id="musicFile">
+                <div class="upload-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text" *ngIf="!selectedMusicFile">
+                  <span class="browse-link">Choose MP3 file</span> or drag here
+                </div>
+                <div class="upload-text" *ngIf="selectedMusicFile">
+                  {{selectedMusicFile.name}}
+                </div>
+                <div class="upload-hint">Supported formats: MP3</div>
+
+                <div *ngIf="uploadingMusic" class="upload-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill" [style.width.%]="musicFileProgress"></div>
+                  </div>
+                  <div class="progress-text">{{musicFileProgress}}%</div>
+                </div>
+
+                <div *ngIf="selectedMusicFile" class="file-preview">
+                  <div class="preview-header">
+                    <div class="file-info">
+                      <i class="file-icon fas fa-music"></i>
+                      <div class="file-details">
+                        <div class="file-name">{{selectedMusicFile.name}}</div>
+                        <div class="file-size">{{formatFileSize(selectedMusicFile.size)}}</div>
+                      </div>
+                    </div>
+                    <button type="button" class="remove-file-btn" (click)="removeMusicFile()">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-
+              <div class="error" *ngIf="!selectedMusicFile && !musicForm.get('fileUrl')?.value">
+                Music file is required
+              </div>
+            </div>            <!-- Image File Upload -->
             <div class="form-group">
-              <label for="imageUrl">Image URL</label>
-              <input type="url" id="imageUrl" formControlName="imageUrl" placeholder="Enter image URL">
+              <label>Cover Image</label>
+              <div class="file-upload-area image-upload" [class.dragover]="false">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  (change)="onImageFileSelected($event)"
+                  class="file-input"
+                  id="imageFile">
+                <div class="upload-icon">
+                  <i class="fas fa-image"></i>
+                </div>
+                <div class="upload-text" *ngIf="!selectedImageFile">
+                  <span class="browse-link">Choose image</span> or drag here
+                </div>
+                <div class="upload-text" *ngIf="selectedImageFile">
+                  {{selectedImageFile.name}}
+                </div>
+                <div class="upload-hint">Supported formats: JPG, PNG, WEBP, GIF</div>
+
+                <div *ngIf="uploadingImage" class="upload-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill" [style.width.%]="imageFileProgress"></div>
+                  </div>
+                  <div class="progress-text">{{imageFileProgress}}%</div>
+                </div>
+
+                <div *ngIf="selectedImageFile" class="file-preview">
+                  <div class="preview-header">
+                    <div class="file-info">
+                      <i class="file-icon fas fa-image"></i>
+                      <div class="file-details">
+                        <div class="file-name">{{selectedImageFile.name}}</div>
+                        <div class="file-size">{{formatFileSize(selectedImageFile.size)}}</div>
+                      </div>
+                    </div>
+                    <button type="button" class="remove-file-btn" (click)="removeImageFile()">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+
+                  <!-- Image Preview -->
+                  <div class="image-preview">
+                    <img [src]="getImagePreview()" alt="Preview">
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-row">
@@ -220,26 +467,22 @@ import { User } from '../../../core/models/auth.model';
                 <select id="typeMusic" formControlName="typeMusic">
                   <option *ngFor="let type of musicTypes" [value]="type.value">{{type.label}}</option>
                 </select>
-              </div>
-
-              <div class="form-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" formControlName="isActive">
-                  <span>Active</span>
-                </label>
+              </div>              <div class="form-group">
+                <div class="checkbox-container">
+                  <input type="checkbox" formControlName="isActive" id="isActive">
+                  <label for="isActive">Active</label>
+                </div>
               </div>
             </div>
           </div>          <div class="modal-footer">
-            <button type="button" class="admin-btn btn-secondary" (click)="closeModal()">Cancel</button>
-            <button type="submit" class="admin-btn btn-primary" [disabled]="musicForm.invalid || submitting">
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="musicForm.invalid || submitting">
               {{submitting ? 'Saving...' : (isEditMode ? 'Update' : 'Create')}}
             </button>
           </div>
         </form>
       </div>
-    </div>
-
-    <!-- View Modal -->
+    </div>    <!-- View Modal -->
     <div class="modal-overlay" *ngIf="showViewModal" (click)="closeViewModal()">
       <div class="modal modal-large" (click)="$event.stopPropagation()">
         <div class="modal-header">
@@ -275,11 +518,9 @@ import { User } from '../../../core/models/auth.model';
               Your browser does not support the audio element.
             </audio>
           </div>
-        </div>
-      </div>
+        </div>      </div>
     </div>
-  `,
-  styleUrls: ['./admin-music.component.scss']
+  `
 })
 export class AdminMusicComponent implements OnInit {
   musicList: Music[] = [];
@@ -288,10 +529,17 @@ export class AdminMusicComponent implements OnInit {
   musicForm!: FormGroup;
   showModal = false;
   showViewModal = false;
-  isEditMode = false;
-  selectedMusicItem: Music | null = null;
+  isEditMode = false;  selectedMusicItem: Music | null = null;
   loading = false;
   submitting = false;
+
+  // File upload properties
+  selectedMusicFile: File | null = null;
+  selectedImageFile: File | null = null;
+  musicFileProgress = 0;
+  imageFileProgress = 0;
+  uploadingMusic = false;
+  uploadingImage = false;
   // Pagination
   pageInfo: PageResponse<Music> = {
     content: [],
@@ -336,10 +584,11 @@ export class AdminMusicComponent implements OnInit {
     private musicService: MusicService,
     private categoryService: CategoryService,
     public authService: AuthService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private firebaseStorage: FirebaseStorageService
   ) {
     this.initForm();
-  }  ngOnInit() {
+  }ngOnInit() {
     console.log('AdminMusicComponent initialized');
 
     // Check current user status
@@ -365,12 +614,11 @@ export class AdminMusicComponent implements OnInit {
       }
     });
   }
-
   initForm() {
     this.musicForm = this.fb.group({
       title: ['', Validators.required],
-      fileUrl: ['', Validators.required],
-      imageUrl: [''],
+      fileUrl: [''], // Will be populated after upload
+      imageUrl: [''], // Will be populated after upload
       durationSeconds: ['', [Validators.required, Validators.min(1)]],
       categoryId: [''],
       typeMusic: [MusicType.NEW_MUSIC],
@@ -449,34 +697,48 @@ export class AdminMusicComponent implements OnInit {
     this.selectedMusicItem = music;
     this.showViewModal = true;
   }
-
-  onSubmit() {
+  async onSubmit() {
     if (this.musicForm.valid) {
+      // Check if music file is provided (either uploaded or existing URL)
+      if (!this.selectedMusicFile && !this.musicForm.get('fileUrl')?.value) {
+        alert('Please provide a music file');
+        return;
+      }
+
       this.submitting = true;
-      const formValue = this.musicForm.value;
 
-      const request = {
-        ...formValue,
-        categoryId: formValue.categoryId || null
-      };
+      try {
+        // Upload files if any are selected
+        await this.uploadFiles();
 
-      const operation = this.isEditMode
-        ? this.adminMusicService.updateMusic(this.selectedMusicItem!.id, request)
-        : this.adminMusicService.createMusic(request);
+        const formValue = this.musicForm.value;
+        const request = {
+          ...formValue,
+          categoryId: formValue.categoryId || null
+        };
 
-      operation.subscribe({
-        next: (response) => {
-          if (response.success) {
-            this.closeModal();
-            this.loadMusic();
+        const operation = this.isEditMode
+          ? this.adminMusicService.updateMusic(this.selectedMusicItem!.id, request)
+          : this.adminMusicService.createMusic(request);
+
+        operation.subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.closeModal();
+              this.loadMusic();
+            }
+            this.submitting = false;
+          },
+          error: (error) => {
+            console.error('Error saving music:', error);
+            this.submitting = false;
           }
-          this.submitting = false;
-        },
-        error: (error) => {
-          console.error('Error saving music:', error);
-          this.submitting = false;
-        }
-      });
+        });
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        alert('Error uploading files. Please try again.');
+        this.submitting = false;
+      }
     }
   }
 
@@ -603,15 +865,112 @@ export class AdminMusicComponent implements OnInit {
   formatMusicType(type: MusicType): string {
     return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   }
-
   closeModal() {
     this.showModal = false;
     this.selectedMusicItem = null;
     this.musicForm.reset();
+    this.resetFileUploads();
   }
 
   closeViewModal() {
     this.showViewModal = false;
     this.selectedMusicItem = null;
+  }
+
+  // File Upload Methods
+  onMusicFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file && this.firebaseStorage.validateMusicFile(file)) {
+      this.selectedMusicFile = file;
+    } else {
+      alert('Please select a valid MP3 file (max 50MB)');
+      event.target.value = '';
+    }
+  }
+
+  onImageFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file && this.firebaseStorage.validateImageFile(file)) {
+      this.selectedImageFile = file;
+    } else {
+      alert('Please select a valid image file (JPEG, PNG, WebP, GIF, max 5MB)');
+      event.target.value = '';
+    }
+  }
+
+  removeMusicFile() {
+    this.selectedMusicFile = null;
+    this.musicFileProgress = 0;
+    const fileInput = document.getElementById('musicFile') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
+
+  removeImageFile() {
+    this.selectedImageFile = null;
+    this.imageFileProgress = 0;
+    const fileInput = document.getElementById('imageFile') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
+
+  getImagePreview(): string {
+    if (this.selectedImageFile) {
+      return URL.createObjectURL(this.selectedImageFile);
+    }
+    return '';
+  }
+
+  formatFileSize(bytes: number): string {
+    return this.firebaseStorage.formatFileSize(bytes);
+  }
+
+  resetFileUploads() {
+    this.selectedMusicFile = null;
+    this.selectedImageFile = null;
+    this.musicFileProgress = 0;
+    this.imageFileProgress = 0;
+    this.uploadingMusic = false;
+    this.uploadingImage = false;
+  }
+
+  async uploadFiles(): Promise<void> {
+    const uploads: Promise<void>[] = [];
+
+    // Upload music file if selected
+    if (this.selectedMusicFile) {
+      this.uploadingMusic = true;
+      const musicUpload = this.firebaseStorage.uploadMusicFile(this.selectedMusicFile)
+        .toPromise()
+        .then(url => {
+          this.musicForm.patchValue({ fileUrl: url });
+          this.uploadingMusic = false;
+          this.musicFileProgress = 100;
+        })
+        .catch(error => {
+          console.error('Error uploading music file:', error);
+          this.uploadingMusic = false;
+          throw error;
+        });
+      uploads.push(musicUpload);
+    }
+
+    // Upload image file if selected
+    if (this.selectedImageFile) {
+      this.uploadingImage = true;
+      const imageUpload = this.firebaseStorage.uploadImageFile(this.selectedImageFile)
+        .toPromise()
+        .then(url => {
+          this.musicForm.patchValue({ imageUrl: url });
+          this.uploadingImage = false;
+          this.imageFileProgress = 100;
+        })
+        .catch(error => {
+          console.error('Error uploading image file:', error);
+          this.uploadingImage = false;
+          throw error;
+        });
+      uploads.push(imageUpload);
+    }
+
+    await Promise.all(uploads);
   }
 }

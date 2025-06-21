@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AdminService, DashboardStats, CategoryMusicStats, UserTrends, SystemHealth } from '../../../core/services/admin.service';
@@ -6,7 +6,133 @@ import { AdminService, DashboardStats, CategoryMusicStats, UserTrends, SystemHea
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule],  encapsulation: ViewEncapsulation.None,
+  styles: [`
+    .modal-overlay {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      background: rgba(0, 0, 0, 0.8) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 9999 !important;
+      padding: 1rem !important;
+    }
+    .modal-overlay .modal {
+      background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 16px !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+      width: 100% !important;
+      max-width: 600px !important;
+      min-width: 500px !important;
+      max-height: 90vh !important;
+      overflow-y: auto !important;
+    }
+    .modal-overlay .modal .modal-header {
+      padding: 1.5rem !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+    }
+    .modal-overlay .modal .modal-header h3 {
+      margin: 0 !important;
+      color: #ffffff !important;
+      font-size: 1.25rem !important;
+      font-weight: 600 !important;
+    }
+    .modal-overlay .modal .modal-header .btn-close {
+      background: none !important;
+      border: none !important;
+      color: #6a6a6a !important;
+      font-size: 1.5rem !important;
+      cursor: pointer !important;
+      padding: 0.25rem !important;
+      border-radius: 50% !important;
+    }
+    .modal-overlay .modal .modal-header .btn-close:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-body {
+      padding: 2rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group {
+      margin-bottom: 1.5rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group label {
+      display: block !important;
+      margin-bottom: 0.75rem !important;
+      color: #b3b3b3 !important;
+      font-weight: 500 !important;
+      font-size: 0.875rem !important;
+    }
+    .modal-overlay .modal .modal-body .form-group input,
+    .modal-overlay .modal .modal-body .form-group textarea,
+    .modal-overlay .modal .modal-body .form-group select {
+      width: 100% !important;
+      padding: 0.75rem 1rem !important;
+      background: #282828 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 8px !important;
+      color: #ffffff !important;
+      font-size: 0.875rem !important;
+      box-sizing: border-box !important;
+    }
+    .modal-overlay .modal .modal-body .form-group input:focus,
+    .modal-overlay .modal .modal-body .form-group textarea:focus,
+    .modal-overlay .modal .modal-body .form-group select:focus {
+      outline: none !important;
+      border-color: #1db954 !important;
+      box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3) !important;
+      background: #3e3e3e !important;
+    }
+    .modal-overlay .modal .modal-footer {
+      padding: 1.5rem 2rem !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+      display: flex !important;
+      justify-content: flex-end !important;
+      gap: 1rem !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.5rem !important;
+      padding: 0.75rem 1.5rem !important;
+      border: none !important;
+      border-radius: 8px !important;
+      font-weight: 500 !important;
+      font-size: 0.875rem !important;
+      cursor: pointer !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn.btn-secondary {
+      background: #282828 !important;
+      color: #b3b3b3 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn.btn-secondary:hover {
+      background: #3e3e3e !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary) {
+      background: linear-gradient(135deg, #1db954 0%, #1ed760 100%) !important;
+      color: #ffffff !important;
+    }
+    .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary):hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .error {
+      color: #e22134 !important;
+      font-size: 0.8rem !important;
+      margin-top: 0.25rem !important;
+    }
+  `],
   template: `
     <div class="admin-dashboard">
       <div class="dashboard-header">
@@ -193,11 +319,9 @@ import { AdminService, DashboardStats, CategoryMusicStats, UserTrends, SystemHea
             <i class="fas fa-list"></i>
             <span>Manage Playlists</span>
           </a>
-        </div>
-      </div>
+        </div>      </div>
     </div>
-  `,
-  styleUrls: ['./admin-dashboard.component.scss']
+  `
 })
 export class AdminDashboardComponent implements OnInit {
   dashboardStats: DashboardStats | null = null;

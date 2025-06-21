@@ -230,8 +230,7 @@ export class RegisterComponent {
     if (strength < 40) return 'Weak';
     if (strength < 70) return 'Medium';
     return 'Strong';
-  }
-  onSubmit() {
+  }  onSubmit() {
     this.showErrors = true;
 
     if (!this.isFormValid()) {
@@ -242,48 +241,8 @@ export class RegisterComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    // For development: use mock registration since backend is not ready
-    this.mockRegister();
-  }
-
-  private mockRegister() {
-    // Simulate API call delay
-    setTimeout(() => {
-      try {
-        // Check if user already exists (mock check)
-        const existingUsers = ['admin', 'test', 'demo'];
-        if (existingUsers.includes(this.registerData.username.toLowerCase())) {
-          this.isLoading = false;
-          this.errorMessage = 'Username already exists. Please choose a different username.';
-          return;
-        }
-
-        // Mock successful registration
-        this.isLoading = false;
-        this.successMessage = 'Registration successful! You can now log in with your credentials.';
-
-        // Auto login after successful registration
-        setTimeout(() => {
-          const mockAuthResponse = {
-            userId: Math.floor(Math.random() * 1000) + 1,
-            username: this.registerData.username,
-            email: this.registerData.email,
-            accessToken: 'mock-access-token-' + Date.now(),
-            refreshToken: 'mock-refresh-token-' + Date.now(),
-            tokenType: 'Bearer',
-            isAdmin: false
-          };
-
-          this.authService.setAuthDataPublic(mockAuthResponse);
-          this.router.navigate(['/home']);
-        }, 1500);
-
-      } catch (error) {
-        this.isLoading = false;
-        this.errorMessage = 'An unexpected error occurred. Please try again.';
-        console.error('Mock registration error:', error);
-      }
-    }, 1000);
+    // Use real API call to backend
+    this.realRegister();
   }
 
   private realRegister() {
@@ -293,8 +252,13 @@ export class RegisterComponent {
         this.isLoading = false;
         if (response.success) {
           this.successMessage = response.message || 'Registration successful! Please check your email to verify your account.';
+          // Redirect to login page after successful registration
           setTimeout(() => {
-            this.router.navigate(['/home']);
+            this.router.navigate(['/auth/login'], {
+              queryParams: {
+                message: 'Registration successful! Please check your email to verify your account before logging in.'
+              }
+            });
           }, 3000);
         } else {
           this.errorMessage = response.message || 'Registration failed';

@@ -46,10 +46,12 @@ public class UserPrincipal implements UserDetails {
 
     public Long getId() {
         return id;
+    }    public String getEmail() {
+        return email;
     }
 
-    public String getEmail() {
-        return email;
+    public boolean isVerified() {
+        return isVerified;
     }
 
     public boolean isAdmin() {
@@ -84,10 +86,8 @@ public class UserPrincipal implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() {
         return true;
-    }
-
-    @Override
+    }    @Override
     public boolean isEnabled() {
-        return isVerified;
+        return true; // Let the AuthService handle email verification logic
     }
 }

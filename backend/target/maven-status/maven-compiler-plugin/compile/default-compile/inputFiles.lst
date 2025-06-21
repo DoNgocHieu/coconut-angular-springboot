@@ -5,6 +5,7 @@ D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusi
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\service\PlaylistService.java
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\config\SampleMusicResponse.java
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\repository\PlaylistRepository.java
+D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\controller\AdminPlaylistController.java
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\entity\Playlist.java
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\entity\Banner.java
 D:\works\coding\coconut-angular-springboot\backend\src\main\java\com\coconutmusic\entity\MusicType.java

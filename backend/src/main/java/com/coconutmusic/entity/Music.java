@@ -28,14 +28,12 @@ public class Music {
     @NotNull
     @Min(1)
     @Column(name = "duration_seconds", nullable = false)
-    private Integer durationSeconds;
-
-    @NotBlank
-    @Column(name = "file_url", nullable = false)
+    private Integer durationSeconds;    @NotBlank
+    @Column(name = "file_url", nullable = false, length = 1000)
     private String fileUrl;
 
-    @Column(name = "image_url")
-    private String imageUrl;    @ManyToOne(fetch = FetchType.EAGER)
+    @Column(name = "image_url", length = 1000)
+    private String imageUrl;@ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
 

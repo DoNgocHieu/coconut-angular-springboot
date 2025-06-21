@@ -1,10 +1,13 @@
 com\coconutmusic\config\StaticResourceConfig.class
 com\coconutmusic\config\DataSeeder$2.class
 com\coconutmusic\service\AdminUserService.class
+com\coconutmusic\dto\request\UserCreateRequest.class
 com\coconutmusic\dto\request\CategoryUpdateRequest.class
+com\coconutmusic\controller\AdminController.class
 com\coconutmusic\repository\PlaylistRepository.class
 com\coconutmusic\repository\MusicRepository.class
 com\coconutmusic\repository\FavoriteRepository.class
+com\coconutmusic\controller\AdminUserController.class
 com\coconutmusic\entity\PlaylistMusic.class
 com\coconutmusic\dto\request\AddToFavoritesRequest.class
 com\coconutmusic\service\AdminMusicService.class
@@ -15,9 +18,11 @@ com\coconutmusic\service\EmailService.class
 com\coconutmusic\dto\response\ApiResponse.class
 com\coconutmusic\dto\PlaylistDTO.class
 com\coconutmusic\security\CustomUserDetailsService.class
+com\coconutmusic\controller\AdminMusicController.class
 com\coconutmusic\dto\ArtistSimpleDto.class
 com\coconutmusic\exception\UnauthorizedException.class
 com\coconutmusic\dto\request\LoginRequest.class
+com\coconutmusic\exception\GlobalExceptionHandler.class
 com\coconutmusic\repository\UserRepository.class
 com\coconutmusic\config\DataSeeder$1.class
 com\coconutmusic\controller\PlaylistController.class
@@ -60,9 +65,11 @@ com\coconutmusic\entity\Category.class
 com\coconutmusic\service\UserService.class
 com\coconutmusic\config\SampleMusicResponse.class
 com\coconutmusic\repository\BannerRepository.class
+com\coconutmusic\controller\AdminCategoryController.class
 com\coconutmusic\dto\request\CategoryCreateRequest.class
 com\coconutmusic\entity\MusicType.class
 com\coconutmusic\exception\ResourceNotFoundException.class
 com\coconutmusic\dto\CategorySimpleDto.class
 com\coconutmusic\entity\Music.class
 com\coconutmusic\dto\PlaylistCreateRequest.class
+com\coconutmusic\config\DataSeeder$SampleDataResponse.class

@@ -1,0 +1,258 @@
+/* Admin Modal Styles - Global with highest specificity */
+
+/* Use ::ng-deep to bypass Angular component encapsulation */
+:host ::ng-deep .modal-overlay,
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  padding: 1rem !important;
+}
+
+:host ::ng-deep .modal,
+.modal {
+  background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  min-width: 500px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+:host ::ng-deep .modal .modal-header,
+.modal .modal-header {
+  padding: 1.5rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+:host ::ng-deep .modal .modal-header h2,
+:host ::ng-deep .modal .modal-header h3,
+.modal .modal-header h2,
+.modal .modal-header h3 {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+}
+
+body .modal-overlay .modal .modal-header .modal-close,
+body .modal-overlay .modal .modal-header .close-btn,
+body .modal-overlay .modal .modal-header .btn-close {
+  background: none !important;
+  border: none !important;
+  color: #6a6a6a !important;
+  font-size: 1.5rem !important;
+  cursor: pointer !important;
+  padding: 0.25rem !important;
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+}
+
+body .modal-overlay .modal .modal-header .modal-close:hover,
+body .modal-overlay .modal .modal-header .close-btn:hover,
+body .modal-overlay .modal .modal-header .btn-close:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+body .modal-overlay .modal .modal-body {
+  padding: 2rem !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group {
+  margin-bottom: 1.5rem !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group label {
+  display: block !important;
+  margin-bottom: 0.75rem !important;
+  color: #b3b3b3 !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group input,
+body .modal-overlay .modal .modal-body .form-group textarea,
+body .modal-overlay .modal .modal-body .form-group select,
+body .modal-overlay .modal .modal-body .form-group .admin-input {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  background: #282828 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 0.875rem !important;
+  transition: all 0.3s ease !important;
+  margin-bottom: 0.5rem !important;
+  box-sizing: border-box !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group input::placeholder,
+body .modal-overlay .modal .modal-body .form-group textarea::placeholder {
+  color: #6a6a6a !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group input:focus,
+body .modal-overlay .modal .modal-body .form-group textarea:focus,
+body .modal-overlay .modal .modal-body .form-group select:focus {
+  outline: none !important;
+  border-color: #1db954 !important;
+  box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3) !important;
+  background: #3e3e3e !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group textarea {
+  min-height: 100px !important;
+  resize: vertical !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group .error-message,
+body .modal-overlay .modal .modal-body .form-group .error {
+  color: #e22134 !important;
+  font-size: 0.8rem !important;
+  margin-top: 0.25rem !important;
+  display: block !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group .checkbox-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  padding: 0.75rem !important;
+  background: #282828 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  margin-bottom: 0 !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group .checkbox-container:hover {
+  background: #3e3e3e !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group .checkbox-container input[type="checkbox"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  accent-color: #1db954 !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+}
+
+body .modal-overlay .modal .modal-body .form-group .checkbox-container label {
+  color: #ffffff !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+}
+
+body .modal-overlay .modal .modal-footer {
+  padding: 1.5rem 2rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 1rem !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn,
+body .modal-overlay .modal .modal-footer .admin-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  padding: 0.75rem 1.5rem !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn.btn-secondary,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-secondary {
+  background: #282828 !important;
+  color: #b3b3b3 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn.btn-secondary:hover,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-secondary:hover {
+  background: #3e3e3e !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn.btn-danger,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-danger {
+  background: #e22134 !important;
+  color: #ffffff !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn.btn-danger:hover,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-danger:hover {
+  background: #c81e2e !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn:not(.btn-secondary):not(.btn-danger),
+body .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary):not(.btn-danger),
+body .modal-overlay .modal .modal-footer .btn.btn-primary,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-primary {
+  background: linear-gradient(135deg, #1db954 0%, #1ed760 100%) !important;
+  color: #ffffff !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn:not(.btn-secondary):not(.btn-danger):hover,
+body .modal-overlay .modal .modal-footer .admin-btn:not(.btn-secondary):not(.btn-danger):hover,
+body .modal-overlay .modal .modal-footer .btn.btn-primary:hover,
+body .modal-overlay .modal .modal-footer .admin-btn.btn-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn:disabled,
+body .modal-overlay .modal .modal-footer .admin-btn:disabled {
+  background: #282828 !important;
+  color: #535353 !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+body .modal-overlay .modal .modal-footer .btn:disabled:hover,
+body .modal-overlay .modal .modal-footer .admin-btn:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

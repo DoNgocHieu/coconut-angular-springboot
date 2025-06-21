@@ -1,348 +1,108 @@
-@import '../../../../styles/admin-theme.scss';
+// Modal Styles
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
 
-.admin-dashboard {
-  padding: 2rem;
-  background: var(--admin-bg-primary);
-  min-height: 100vh;
-  color: var(--admin-text-primary);
+.modal {
+  background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  width: 100%;
+  max-width: 600px;
+  min-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
 
-  .dashboard-header {
-    margin-bottom: 2rem;
-
-    h1 {
-      color: var(--admin-text-primary);
-      margin: 0 0 0.5rem 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 600;
-      font-size: 2rem;
-
-      i {
-        color: var(--admin-accent-primary);
-      }
-    }
-
-    p {
-      color: var(--admin-text-secondary);
-      margin: 0;
-      font-size: 1.1rem;
-    }
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .stat-card {
-    @extend .admin-card;
+  .modal-header {
     padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
+    justify-content: space-between;
     align-items: center;
 
-    .stat-icon {
-      width: 60px;      height: 60px;
-      border-radius: var(--admin-border-radius-lg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 1rem;
-
-      i {
-        font-size: 1.5rem;
-        color: var(--admin-text-primary);
-      }
-
-      &.music { background: var(--admin-gradient-primary); }
-      &.users { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-      &.categories { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-      &.playlists { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-      &.artists { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-      &.admins { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
-    }
-
-    .stat-content {
-      h3 {
-        margin: 0 0 0.25rem 0;
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--admin-text-primary);
-      }
-
-      p {
-        margin: 0 0 0.25rem 0;
-        color: var(--admin-text-secondary);
-        font-weight: 500;
-      }
-
-      small {
-        color: var(--admin-text-muted);
-        font-size: 0.9rem;
-      }
-    }
-  }
-
-  .dashboard-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-bottom: 2rem;
-
-    @media (max-width: 768px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .content-section {
-    @extend .admin-card;
-    padding: 1.5rem;
-
-    h2 {
-      margin: 0 0 1.5rem 0;
-      color: var(--admin-text-primary);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    h3 {
+      margin: 0;
+      color: #ffffff;
       font-size: 1.25rem;
       font-weight: 600;
-
-      i {
-        color: var(--admin-accent-primary);
-      }
-    }
-  }
-
-  .activity-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  .activity-card {
-    text-align: center;
-    padding: 1rem;
-    background: var(--admin-bg-tertiary);
-    border: 1px solid var(--admin-border-subtle);
-    border-radius: var(--admin-border-radius);
-    transition: all 0.3s ease;
-
-    &:hover {
-      background: var(--admin-bg-elevated);
-      border-color: var(--admin-border-strong);
     }
 
-    .activity-number {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--admin-accent-primary);
-      margin-bottom: 0.25rem;
-    }
-
-    .activity-label {
-      color: var(--admin-text-secondary);
-      font-size: 0.9rem;
-    }
-  }
-
-  .top-music-list {
-    .music-item {
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: #999999;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
       display: flex;
-      align-items: center;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid var(--admin-border-subtle);      &:last-child {
-        border-bottom: none;
-      }
-
-      .music-rank {
-        width: 30px;
-        text-align: center;
-        font-weight: 700;
-        color: var(--admin-accent-primary);
-      }
-
-      .music-cover {
-        width: 40px;
-        height: 40px;
-        margin: 0 1rem;
-
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: var(--admin-border-radius);
-        }
-      }
-
-      .music-info {
-        flex: 1;
-
-        h4 {
-          margin: 0 0 0.25rem 0;
-          font-size: 0.9rem;
-          color: var(--admin-text-primary);
-          font-weight: 500;
-        }
-
-        p {
-          margin: 0;
-          font-size: 0.8rem;
-          color: var(--admin-text-secondary);
-        }
-      }
-
-      .music-stats {
-        .play-count {
-          background: rgba(29, 185, 84, 0.2);
-          color: var(--admin-accent-primary);
-          padding: 0.25rem 0.5rem;
-          border-radius: var(--admin-border-radius);
-          font-size: 0.8rem;
-
-          i {
-            margin-right: 0.25rem;
-          }
-        }
-      }
-    }
-  }
-
-  .category-stats {
-    .category-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .category-name {
-        width: 120px;
-        font-size: 0.9rem;
-        color: var(--admin-text-primary);
-        font-weight: 500;
-      }
-
-      .category-bar {
-        flex: 1;
-        height: 8px;
-        background: var(--admin-bg-tertiary);
-        border-radius: var(--admin-border-radius);
-        margin: 0 1rem;
-        position: relative;
-
-        .category-fill {
-          height: 100%;
-          background: var(--admin-gradient-primary);
-          border-radius: var(--admin-border-radius);
-          transition: width 0.3s ease;
-        }
-      }
-
-      .category-count {
-        width: 40px;
-        text-align: right;
-        font-weight: 600;
-        color: var(--admin-text-primary);
-        font-size: 0.9rem;
-      }
-    }
-  }
-
-  .health-grid {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .health-card {
-    .health-status {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-
-      &.up {
-        color: var(--admin-success);
-      }
-
-      &.down {
-        color: var(--admin-error);
-      }
-
-      i {
-        width: 20px;
-      }
-    }
-
-    .memory-bar {
-      height: 6px;
-      background: var(--admin-bg-tertiary);
-      border-radius: 3px;
-      position: relative;
-
-      .memory-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--admin-success), var(--admin-warning));
-        border-radius: 3px;
-        transition: width 0.3s ease;
-      }
-    }
-  }
-
-  .quick-actions {
-    @extend .admin-card;
-    padding: 1.5rem;
-
-    h2 {
-      margin: 0 0 1.5rem 0;
-      color: var(--admin-text-primary);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 600;
-
-      i {
-        color: var(--admin-warning);
-      }
-    }
-
-    .actions-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-
-    .action-card {
-      display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 1.5rem;
-      background: var(--admin-bg-tertiary);
-      border: 1px solid var(--admin-border-subtle);
-      border-radius: var(--admin-border-radius);
-      text-decoration: none;
-      color: var(--admin-text-secondary);
-      transition: all 0.3s ease;
+      border-radius: 50%;
+      transition: all 0.2s ease;
 
       &:hover {
-        background: var(--admin-accent-primary);
-        color: var(--admin-text-primary);
-        transform: translateY(-2px);
-        box-shadow: var(--admin-shadow-medium);
-        border-color: var(--admin-accent-primary);
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
       }
+    }
+  }
 
-      i {        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-      }
+  .modal-body {
+    padding: 1.5rem;
+  }
 
-      span {
-        font-weight: 500;
+  .modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .admin-btn {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &:hover {
+      background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    &.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
       }
     }
   }
 }
+
+/* Import shared admin styles */
+@import '../../../../styles/admin-shared.scss';

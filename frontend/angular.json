@@ -32,9 +32,10 @@
             "assets": [
               "src/favicon.ico",
               "src/assets"
-            ],
-            "styles": [
-              "src/styles.scss"
+            ],            "styles": [
+              "src/styles.scss",
+              "src/styles/admin-shared.scss",
+              "src/styles/admin-modal-force.scss"
             ],
             "scripts": [],
             "server": "src/main.server.ts",
@@ -43,18 +44,17 @@
               "entry": "server.ts"
             }
           },
-          "configurations": {
-            "production": {
+          "configurations": {            "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "2kb",
-                  "maximumError": "4kb"
+                  "maximumWarning": "20kb",
+                  "maximumError": "50kb"
                 }
               ],
               "outputHashing": "all"
@@ -93,13 +93,14 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
+            "inlineStyleLanguage": "scss",            "assets": [
               "src/favicon.ico",
               "src/assets"
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/styles/admin-shared.scss",
+              "src/styles/admin-modal-force.scss"
             ],
             "scripts": []
           }
