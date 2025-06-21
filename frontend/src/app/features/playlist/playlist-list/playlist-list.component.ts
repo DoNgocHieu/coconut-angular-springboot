@@ -339,9 +339,15 @@ export class PlaylistListComponent implements OnInit {
           console.log('Playlists loaded:', this.playlists.length, 'playlists');
         }
         this.isLoading = false;
-      },
-      error: (error) => {
+      },      error: (error) => {
         console.error('Error loading playlists:', error);
+        if (error.status === 403) {
+          console.log('User not authenticated, showing empty playlists');
+          this.playlists = [];
+          this.totalItems = 0;
+          this.totalPages = 0;
+          this.currentPage = 0;
+        }
         this.isLoading = false;
       }
     });

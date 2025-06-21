@@ -24,16 +24,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         AuthResponse authResponse = authService.login(loginRequest);
         return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
-    }
-
-    @PostMapping("/register")
+    }    @PostMapping("/register")
     public ResponseEntity<ApiResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        AuthResponse authResponse = authService.register(registerRequest);
-        return ResponseEntity.ok(ApiResponse.success("Registration successful. Please check your email to verify your account.", authResponse));
+        ApiResponse response = authService.register(registerRequest);
+        return ResponseEntity.ok(response);
+    }    @GetMapping("/verify")
+    public ResponseEntity<ApiResponse> verifyEmailGet(@RequestParam String token) {
+        authService.verifyEmail(token);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully. You can now access all features."));
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<ApiResponse> verifyEmail(@RequestParam String token) {
+    public ResponseEntity<ApiResponse> verifyEmailPost(@RequestParam String token) {
         authService.verifyEmail(token);
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully. You can now access all features."));
     }
@@ -50,11 +52,15 @@ public class AuthController {
             @RequestParam @NotBlank String newPassword) {
         authService.resetPassword(token, newPassword);
         return ResponseEntity.ok(ApiResponse.success("Password reset successfully. You can now login with your new password."));
-    }
-
-    @PostMapping("/logout")
+    }    @PostMapping("/logout")
     public ResponseEntity<ApiResponse> logout() {
         // For JWT, logout is handled on client side by removing the token
         return ResponseEntity.ok(ApiResponse.success("Logout successful"));
+    }
+
+    // DEBUG ENDPOINT - Remove in production
+    @GetMapping("/debug/verify-token/{username}")
+    public ResponseEntity<ApiResponse> getVerifyToken(@PathVariable String username) {
+        return ResponseEntity.ok(authService.getVerifyTokenForDebug(username));
     }
 }

@@ -27,8 +27,7 @@ import { Banner } from '../../core/models/playlist.model';
               <i class="fas fa-user-plus"></i>
               Join Now
             </a>
-          </div>
-        </div>        <div class="hero-animation">
+          </div>        </div>        <div class="hero-animation">
           <div class="music-note"><i class="fas fa-music"></i></div>
           <div class="music-note"><i class="fas fa-musical-note"></i></div>
           <div class="music-note"><i class="fas fa-headphones"></i></div>

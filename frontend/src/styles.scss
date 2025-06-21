@@ -1,6 +1,8 @@
 /* You can add global styles to this file, and also import other style files */
 @import 'styles/theme.scss';
 @import 'styles/admin-theme.scss';
+@import 'styles/admin-shared.scss';
+@import 'styles/admin-modal-force.scss';
 
 // Reset and Base Styles
 * {
@@ -213,4 +215,281 @@ textarea:focus {
       }
     }
   }
+}
+
+/* Admin Modal Styles - Direct Global Override */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  padding: 1rem !important;
+}
+
+.modal {
+  background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  min-width: 500px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+.modal .modal-header {
+  padding: 1.5rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.modal .modal-header h2,
+.modal .modal-header h3 {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+}
+
+.modal .modal-header .close-btn,
+.modal .modal-header .btn-close {
+  background: transparent !important;
+  border: none !important;
+  color: #999999 !important;
+  font-size: 1.5rem !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+}
+
+.modal .modal-header .close-btn:hover,
+.modal .modal-header .btn-close:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.modal .modal-body {
+  padding: 1.5rem !important;
+}
+
+.modal .modal-footer {
+  padding: 1rem 1.5rem 1.5rem !important;
+  display: flex !important;
+  gap: 0.75rem !important;
+  justify-content: flex-end !important;
+}
+
+.modal .form-group {
+  margin-bottom: 1.5rem !important;
+}
+
+.modal .form-group label {
+  display: block !important;
+  margin-bottom: 0.5rem !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+}
+
+.modal .form-group input,
+.modal .form-group select,
+.modal .form-group textarea {
+  width: 100% !important;
+  padding: 0.75rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 0.9rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.modal .form-group input:focus,
+.modal .form-group select:focus,
+.modal .form-group textarea:focus {
+  outline: none !important;
+  border-color: #007bff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+}
+
+.modal .form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.modal .checkbox-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+.modal .checkbox-group input[type="checkbox"] {
+  width: auto !important;
+  margin: 0 !important;
+}
+
+.modal .checkbox-group label {
+  margin: 0 !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+}
+
+.modal .admin-btn {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.modal .admin-btn:hover {
+  background: linear-gradient(135deg, #0056b3 0%, #004494 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3) !important;
+}
+
+.modal .admin-btn.secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.modal .admin-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Additional button variants for admin pages */
+.modal .admin-btn.btn-primary,
+.modal .admin-btn.primary {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+  color: white !important;
+}
+
+.modal .admin-btn.btn-secondary,
+.modal .admin-btn.secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.modal .admin-btn.btn-danger,
+.modal .admin-btn.danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+  color: white !important;
+}
+
+.modal .admin-btn.btn-success,
+.modal .admin-btn.success {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+  color: white !important;
+}
+
+.modal .admin-btn.btn-warning,
+.modal .admin-btn.warning {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
+  color: #212529 !important;
+}
+
+/* Additional input variants */
+.modal .admin-input,
+.modal .form-control {
+  width: 100% !important;
+  padding: 0.75rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 0.9rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.modal .admin-input:focus,
+.modal .form-control:focus {
+  outline: none !important;
+  border-color: #007bff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+}
+
+.modal .admin-input::placeholder,
+.modal .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Checkbox container styling */
+.modal .checkbox-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+.modal .checkbox-container input[type="checkbox"] {
+  width: auto !important;
+  margin: 0 !important;
+}
+
+.modal .checkbox-container label {
+  margin: 0 !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+}
+
+/* Force apply modal styles to ALL admin components */
+app-admin-categories .modal-overlay,
+app-admin-users .modal-overlay,
+app-admin-music .modal-overlay,
+app-admin-playlists .modal-overlay,
+app-admin-dashboard .modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  padding: 1rem !important;
+}
+
+app-admin-categories .modal,
+app-admin-users .modal,
+app-admin-music .modal,
+app-admin-playlists .modal,
+app-admin-dashboard .modal {
+  background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  min-width: 500px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
 }

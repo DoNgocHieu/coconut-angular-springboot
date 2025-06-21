@@ -75,6 +75,11 @@
 					Forgot password?
 				</a>
 			</div>
+			<div *ngIf="successMessage" class="success-alert">
+				<i class="fas fa-check-circle"></i>
+				{{ successMessage }}
+			</div>
+
 			<div *ngIf="errorMessage" class="error-alert">
 				<i class="fas fa-exclamation-triangle"></i>
 				{{ errorMessage }}

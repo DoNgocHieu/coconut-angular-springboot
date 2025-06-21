@@ -1,7 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoginRequest } from '../../../core/models/auth.model';
 
@@ -12,7 +12,7 @@ import { LoginRequest } from '../../../core/models/auth.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   loginData: LoginRequest = {
     usernameOrEmail: '',
     password: ''
@@ -23,18 +23,29 @@ export class LoginComponent {
   isLoading = false;
   showErrors = false;
   errorMessage = '';
+  successMessage = '';
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
+
+  ngOnInit() {
+    // Check for message from registration
+    this.route.queryParams.subscribe(params => {
+      if (params['message']) {
+        this.successMessage = params['message'];
+      }
+    });
+  }
 
   togglePassword() {
     this.showPassword = !this.showPassword;
-  }
-  onSubmit() {
+  }  onSubmit() {
     this.showErrors = true;
     this.errorMessage = '';
+    this.successMessage = '';
 
     if (!this.loginData.usernameOrEmail || !this.loginData.password) {
       return;
@@ -42,8 +53,8 @@ export class LoginComponent {
 
     this.isLoading = true;
 
-    // For development: use mock login since backend is not ready
-    this.mockLogin();
+    // Use real API call to backend
+    this.realLogin();
   }
 
   private mockLogin() {
@@ -70,13 +81,12 @@ export class LoginComponent {
             username: this.loginData.usernameOrEmail.includes('@') ?
                      this.loginData.usernameOrEmail.split('@')[0] :
                      this.loginData.usernameOrEmail,
-            email: this.loginData.usernameOrEmail.includes('@') ?
-                  this.loginData.usernameOrEmail :
+            email: this.loginData.usernameOrEmail.includes('@') ?                  this.loginData.usernameOrEmail :
                   `${this.loginData.usernameOrEmail}@coconutmusic.com`,
             accessToken: 'mock-access-token-' + Date.now(),
             refreshToken: 'mock-refresh-token-' + Date.now(),
             tokenType: 'Bearer',
-            isAdmin: this.loginData.usernameOrEmail === 'admin'
+            admin: this.loginData.usernameOrEmail === 'admin'
           };
 
           this.authService.setAuthDataPublic(mockAuthResponse);
@@ -93,29 +103,36 @@ export class LoginComponent {
       }
     }, 1000);
   }
-
   private realLogin() {
-    // Keep the real API call for when backend is ready
     this.authService.login(this.loginData).subscribe({
       next: (response) => {
-        console.log('Login successful:', response);
-        this.router.navigate(['/']);
+        this.isLoading = false;
+        if (response.success && response.data) {
+          // Save auth data and navigate to home
+          this.authService.setAuthDataPublic(response.data);
+          console.log('Login successful:', response);
+          this.router.navigate(['/home']);
+        } else {
+          this.errorMessage = response.message || 'Login failed';
+        }
       },
       error: (error) => {
+        this.isLoading = false;
         console.error('Login error:', error);
         if (error.status === 0) {
           this.errorMessage = 'Cannot connect to server. Please check your internet connection.';
         } else if (error.status === 401) {
           this.errorMessage = 'Invalid username/email or password.';
         } else if (error.status === 400) {
-          this.errorMessage = 'Invalid login data. Please check your inputs.';
+          // Handle email verification error specifically
+          if (error.error?.message?.includes('verify your email')) {
+            this.errorMessage = error.error.message;
+          } else {
+            this.errorMessage = 'Invalid login data. Please check your inputs.';
+          }
         } else {
           this.errorMessage = error.error?.message || 'Login failed. Please try again.';
         }
-        this.isLoading = false;
-      },
-      complete: () => {
-        this.isLoading = false;
       }
     });
   }

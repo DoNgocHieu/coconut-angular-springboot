@@ -59,6 +59,20 @@
           background: var(--accent-primary);
           border-radius: 1px;
         }
+
+        &.admin-nav-link {
+          color: var(--accent-primary);
+          font-weight: 600;
+
+          &:hover {
+            color: #1ed760;
+            transform: translateY(-1px);
+          }
+
+          &.active {
+            color: var(--accent-primary);
+          }
+        }
       }
     }
   }

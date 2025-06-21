@@ -15,12 +15,12 @@ import { Subscription } from 'rxjs';
         <a routerLink="/" class="logo">
           <i class="fas fa-music logo-icon"></i>
           <span>Coconut Music</span>
-        </a>
-        <nav class="nav-links">
+        </a>        <nav class="nav-links">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
           <a routerLink="/music" routerLinkActive="active">Nhạc</a>
           <a routerLink="/categories" routerLinkActive="active">Thể loại</a>
           <a routerLink="/playlists" routerLinkActive="active">Playlists</a>
+          <a routerLink="/admin" routerLinkActive="active" class="admin-nav-link">Admin</a>
         </nav>
       </div>
 

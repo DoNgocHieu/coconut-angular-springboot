@@ -1,5 +1,7 @@
 package com.coconutmusic.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class AuthResponse {
     private String accessToken;
     private String refreshToken;
@@ -7,6 +9,7 @@ public class AuthResponse {
     private Long userId;
     private String username;
     private String email;
+    @JsonProperty("isAdmin")
     private boolean isAdmin;
 
     public AuthResponse(String accessToken, String refreshToken, Long userId, String username, String email, boolean isAdmin) {
@@ -65,9 +68,8 @@ public class AuthResponse {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public boolean isAdmin() {
+    }    @JsonProperty("isAdmin")
+    public boolean getIsAdmin() {
         return isAdmin;
     }
 

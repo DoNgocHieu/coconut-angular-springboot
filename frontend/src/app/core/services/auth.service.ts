@@ -34,16 +34,8 @@ export class AuthService {
         })
       );
   }
-
-  register(registerRequest: RegisterRequest): Observable<ApiResponse<AuthResponse>> {
-    return this.http.post<ApiResponse<AuthResponse>>(`${this.API_URL}/register`, registerRequest)
-      .pipe(
-        tap(response => {
-          if (response.success && response.data) {
-            this.setAuthData(response.data);
-          }
-        })
-      );
+  register(registerRequest: RegisterRequest): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.API_URL}/register`, registerRequest);
   }
 
   logout(): Observable<ApiResponse> {
@@ -75,14 +67,12 @@ export class AuthService {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('accessToken', authResponse.accessToken);
       localStorage.setItem('refreshToken', authResponse.refreshToken);
-    }
-
-    const user: User = {
+    }    const user: User = {
       id: authResponse.userId,
       username: authResponse.username,
       email: authResponse.email,
       isVerified: true,
-      isAdmin: authResponse.isAdmin,
+      isAdmin: authResponse.admin, // Changed from authResponse.isAdmin to authResponse.admin
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

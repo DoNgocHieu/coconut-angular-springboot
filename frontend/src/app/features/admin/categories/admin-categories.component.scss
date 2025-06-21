@@ -1,345 +1,142 @@
-@import '../../../../styles/admin-theme.scss';
+// Modal Styles
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
 
-// Admin Categories Styles
-.admin-categories {
-  padding: 2rem;
-  background: var(--admin-bg-primary);
-  min-height: 100vh;
-  color: var(--admin-text-primary);
-  font-family: var(--admin-font-primary);
+.modal {
+  background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  width: 100%;
+  max-width: 600px;
+  min-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
 
-  .categories-header {
+  .modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
-    @extend .admin-card;
-    padding: 1.5rem;
 
-    h1 {
+    h3 {
       margin: 0;
-      color: var(--admin-text-primary);
-      font-size: 1.875rem;
-      font-weight: 700;
-      background: var(--admin-gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #ffffff;
+      font-size: 1.25rem;
+      font-weight: 600;
     }
 
-    .btn-primary {
-      @extend .admin-btn;
-      @extend .btn-primary;
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: #999999;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
     }
   }
 
-  // Filters Section
-  .filters-section {
-    @extend .admin-card;
+  .modal-body {
     padding: 1.5rem;
-    margin-bottom: 1.5rem;
-
-    .filters-row {
-      display: flex;
-      gap: 1rem;
-      align-items: end;
-      flex-wrap: wrap;
-
-      .filter-group {
-        flex: 1;
-        min-width: 200px;
-
-        label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
-          color: var(--admin-text-secondary);
-        }
-
-        input, select {
-          @extend .admin-input;
-        }
-      }
-
-      .filter-actions {
-        display: flex;
-        gap: 0.5rem;
-
-        .btn {
-          @extend .admin-btn;
-
-          &.btn-outline {
-            @extend .btn-secondary;
-          }
-
-          &.btn-primary {
-            @extend .btn-primary;
-          }
-        }
-      }
-    }
   }
 
-  // Categories Table
-  .categories-table-container {
-    @extend .admin-card;
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-
-    .categories-table {
-      @extend .admin-table;
-
-      th {
-        font-weight: 600;
-        color: var(--admin-text-secondary);
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      tbody tr {
-        transition: all 0.3s ease;
-
-        &:hover {
-          background: var(--admin-surface-hover);
-        }
-
-        &.selected {
-          background: rgba(29, 185, 84, 0.1);
-          border-left: 3px solid var(--admin-accent-primary);
-        }
-      }
-
-      .category-name {
-        font-weight: 500;
-        color: var(--admin-text-primary);
-      }
-
-      .category-description {
-        color: var(--admin-text-secondary);
-        font-size: 0.875rem;
-        max-width: 300px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--admin-border-radius-lg);
-        font-size: 0.75rem;
-        font-weight: 500;
-        border: 1px solid transparent;
-
-        &.active {
-          background-color: rgba(29, 185, 84, 0.2);
-          color: var(--admin-success);
-          border-color: rgba(29, 185, 84, 0.3);
-        }
-
-        &.inactive {
-          background-color: rgba(226, 33, 52, 0.2);
-          color: var(--admin-error);
-          border-color: rgba(226, 33, 52, 0.3);
-        }
-      }
-
-      .actions {
-        white-space: nowrap;
-
-        .btn-icon {
-          background: none;
-          border: none;
-          padding: 0.5rem;
-          margin: 0 0.25rem;
-          border-radius: var(--admin-border-radius);
-          cursor: pointer;
-          color: var(--admin-text-muted);
-          transition: all 0.3s ease;
-
-          &:hover {
-            background: var(--admin-surface-hover);
-            color: var(--admin-text-primary);
-          }
-
-          &.danger:hover {
-            background: rgba(226, 33, 52, 0.2);
-            color: var(--admin-error);
-          }
-
-          i {
-            font-size: 0.875rem;
-          }
-        }
-      }
-    }
-
-    .empty-state {
-      @extend .admin-empty-state;
-
-      button {
-        @extend .admin-btn;
-        @extend .btn-secondary;
-        margin-top: 1rem;
-      }
-    }
-  }
-
-  // Pagination
-  .pagination {
-    @extend .admin-pagination;
-
-    .btn {
-      @extend .page-btn;
-    }
-
-    .pagination-info {
-      @extend .page-info;
-    }
-  }
-
-  // Modal Styles
-  .modal-overlay {
-    @extend .admin-modal-overlay;
-  }
-
-  .modal {
-    @extend .admin-modal;
-
-    .modal-header {
-      h3 {
-        margin: 0;
-        color: var(--admin-text-primary);
-        font-size: 1.25rem;
-        font-weight: 600;
-      }
-
-      .btn-close {
-        @extend .close-btn;
-      }
-    }
-
-    .modal-body {
-      .form-group {
-        @extend .admin-form-group;
-
-        label {
-          color: var(--admin-text-secondary);
-          font-weight: 500;
-        }
-
-        input, textarea, select {
-          @extend .admin-input;
-        }
-
-        textarea {
-          min-height: 100px;
-          resize: vertical;
-        }
-
-        .error {
-          color: var(--admin-error);
-          font-size: 0.8rem;
-          margin-top: 0.25rem;
-        }
-
-        .checkbox-container {
-          @extend .admin-checkbox;
-        }
-      }
-    }
-
-    .modal-footer {
-      .btn {
-        @extend .admin-btn;
-
-        &.btn-secondary {
-          @extend .btn-secondary;
-        }
-
-        &.btn-primary {
-          @extend .btn-primary;
-        }
-      }
-    }
-  }
-
-  // Bulk Actions
-  .bulk-actions {
-    @extend .admin-card;
-    padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
+  .modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
 
-    span {
+  .form-group {
+    margin-bottom: 1.5rem;
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
       font-weight: 500;
-      color: var(--admin-text-secondary);
+      font-size: 0.9rem;
     }
 
-    .btn {
-      @extend .admin-btn;
-      @extend .btn-small;
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
 
-      &.btn-outline {
-        @extend .btn-secondary;
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
       }
 
-      &.btn-danger {
-        @extend .btn-danger;
-      }
-
-      &.btn-link {
-        background: none;
-        border: none;
-        color: var(--admin-text-muted);
-        padding: 0.5rem;
-
-        &:hover {
-          color: var(--admin-text-primary);
-        }
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.5);
       }
     }
   }
 
-  // Loading
-  .loading-spinner {
-    @extend .admin-loading;
+  .admin-btn {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 
-    .spinner {
-      @extend .admin-spinner;
-    }
-  }
-
-  // Responsive
-  @media (max-width: 768px) {
-    padding: 1rem;
-
-    .categories-header {
-      flex-direction: column;
-      gap: 1rem;
-      align-items: stretch;
-    }
-
-    .filters-section .filters-row {
-      flex-direction: column;
-      align-items: stretch;
-
-      .filter-group {
-        min-width: auto;
-      }
+    &:hover {
+      background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
     }
 
-    .categories-table-container {
-      overflow-x: auto;
+    &.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
 
-      .categories-table {
-        min-width: 600px;
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
       }
     }
   }
 }
+
+/* Import shared admin styles */
+@import '../../../../styles/admin-shared.scss';

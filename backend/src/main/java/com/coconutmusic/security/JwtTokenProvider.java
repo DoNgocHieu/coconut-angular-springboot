@@ -57,6 +57,33 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    // Generate token directly from User entity (without Authentication)
+    public String generateTokenForUser(com.coconutmusic.entity.User user) {
+        Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .setSubject(Long.toString(user.getId()))
+                .claim("username", user.getUsername())
+                .claim("email", user.getEmail())
+                .claim("isAdmin", user.getIsAdmin())
+                .setIssuedAt(new Date())
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String generateRefreshTokenForUser(com.coconutmusic.entity.User user) {
+        Date expiryDate = new Date(System.currentTimeMillis() + jwtRefreshExpirationInMs);
+
+        return Jwts.builder()
+                .setSubject(Long.toString(user.getId()))
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     public Long getUserIdFromJWT(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

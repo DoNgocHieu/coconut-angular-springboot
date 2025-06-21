@@ -35,7 +35,7 @@ export interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class AdminPlaylistService {
-  private apiUrl = `${environment.apiUrl}/playlists`;
+  private apiUrl = `${environment.apiUrl}/admin/playlists`;
 
   constructor(private http: HttpClient) {}
   // Get all playlists with admin privileges
@@ -91,6 +91,11 @@ export class AdminPlaylistService {
   // Remove music from playlist
   removeMusicFromPlaylist(playlistId: number, musicId: number): Observable<ApiResponse<any>> {
     return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/${playlistId}/music/${musicId}`);
+  }
+
+  // Toggle playlist privacy
+  togglePlaylistPrivacy(id: number): Observable<ApiResponse<Playlist>> {
+    return this.http.patch<ApiResponse<Playlist>>(`${this.apiUrl}/${id}/privacy`, {});
   }
 
   // Bulk delete playlists
