@@ -45,12 +45,12 @@ import { Subscription } from 'rxjs';
             </div>
             <span class="user-name">{{ currentUser.username }}</span>
             <i class="fas fa-chevron-down dropdown-icon" [class.rotated]="isDropdownOpen"></i>
-          </div>
-
-          <!-- User is not logged in -->
+          </div>          <!-- User is not logged in -->
           <div *ngIf="!currentUser" class="auth-buttons">
-            <a routerLink="/auth/login" class="login-btn">Đăng nhập</a>
-            <a routerLink="/auth/register" class="register-btn">Đăng ký</a>
+            <button (click)="goToLogin()" class="login-btn" type="button">Đăng nhập</button>
+            <button (click)="goToRegister()" class="register-btn" type="button">Đăng ký</button>
+            <!-- Backup links -->
+            <a routerLink="/auth/login" class="login-btn backup-link" (click)="testClick('login')">Login Link</a>
           </div>
 
           <!-- Dropdown menu for logged in users -->
@@ -73,6 +73,11 @@ import { Subscription } from 'rxjs';
               <a routerLink="/recently-played" class="dropdown-item" (click)="closeDropdown()">
                 <i class="fas fa-history"></i>
                 <span>Nghe gần đây</span>
+              </a>
+              <!-- Admin link for admin users -->
+              <a *ngIf="currentUser?.isAdmin" routerLink="/admin" class="dropdown-item admin-link" (click)="closeDropdown()">
+                <i class="fas fa-cog"></i>
+                <span>Admin Panel</span>
               </a>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item logout-item" (click)="logout()">
@@ -140,6 +145,21 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.router.navigate(['/auth/login']);
       }
     });
+  }
+
+  testClick(type: string) {
+    console.log(`${type} button clicked!`);
+    alert(`${type} button clicked!`);
+  }
+
+  goToLogin() {
+    console.log('Going to login...');
+    this.router.navigate(['/auth/login']);
+  }
+
+  goToRegister() {
+    console.log('Going to register...');
+    this.router.navigate(['/auth/register']);
   }
 
   // Close dropdown when clicking outside

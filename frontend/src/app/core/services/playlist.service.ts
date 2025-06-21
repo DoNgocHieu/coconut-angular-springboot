@@ -82,4 +82,13 @@ export class PlaylistService {
   getPlaylistMusic(playlistId: number): Observable<ApiResponse<Music[]>> {
     return this.http.get<ApiResponse<Music[]>>(`${this.apiUrl}/${playlistId}/music`);
   }
+
+  // Admin method to get all playlists (public and private)
+  getAllPlaylistsForAdmin(page: number = 0, size: number = 20): Observable<ApiResponse<PageableResponse<Playlist>>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    return this.http.get<ApiResponse<PageableResponse<Playlist>>>(this.apiUrl, { params });
+  }
 }

@@ -71,8 +71,7 @@ export class AuthService {
     return this.http.post<ApiResponse>(`${this.API_URL}/reset-password`, null, {
       params: { token, newPassword }
     });
-  }
-  private setAuthData(authResponse: AuthResponse): void {
+  }  private setAuthData(authResponse: AuthResponse): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('accessToken', authResponse.accessToken);
       localStorage.setItem('refreshToken', authResponse.refreshToken);
@@ -88,43 +87,52 @@ export class AuthService {
       updatedAt: new Date().toISOString()
     };
 
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    }
+
+    console.log('Setting auth data:', user);
     this.currentUserSubject.next(user);
     this.isLoggedInSubject.next(true);
   }
-
   private clearAuthData(): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('currentUser');
     }
     this.currentUserSubject.next(null);
     this.isLoggedInSubject.next(false);
-  }
-  private loadStoredAuth(): void {
+  }private loadStoredAuth(): void {
     if (isPlatformBrowser(this.platformId)) {
       const token = localStorage.getItem('accessToken');
-      if (token) {
-        // TODO: Validate token and get user info from backend
-        // For now, create a mock user for development
-        const mockUser: User = {
-          id: 1,
-          username: 'user_demo',
-          email: 'user@coconutmusic.com',
-          isVerified: true,
-          isAdmin: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        this.currentUserSubject.next(mockUser);
-        this.isLoggedInSubject.next(true);
+      const storedUser = localStorage.getItem('currentUser');
+
+      if (token && storedUser) {
+        try {
+          const user: User = JSON.parse(storedUser);
+          console.log('Loading stored auth data:', user);
+          this.currentUserSubject.next(user);
+          this.isLoggedInSubject.next(true);
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          this.clearAuthData();
+        }
+      } else {
+        this.clearAuthData();
       }
     }
   }
-
   getToken(): string | null {
     if (isPlatformBrowser(this.platformId)) {
-      return localStorage.getItem('accessToken');
+      const token = localStorage.getItem('accessToken');
+      console.log('AuthService.getToken() called - Token exists:', !!token);
+      if (token) {
+        console.log('Token preview:', token.substring(0, 50) + '...');
+      }
+      return token;
     }
+    console.log('AuthService.getToken() - Not in browser platform');
     return null;
   }
 
@@ -135,21 +143,8 @@ export class AuthService {
   isAdmin(): boolean {
     const user = this.currentUserSubject.value;
     return user?.isAdmin || false;
-  }
-  getCurrentUser(): User | null {
+  }  getCurrentUser(): User | null {
     return this.currentUserSubject.value;
-  }  // Mock login for development/testing
-  mockLogin(): void {
-    const mockAuthResponse: AuthResponse = {
-      userId: 1,
-      username: 'user_demo',
-      email: 'user@coconutmusic.com',
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-      tokenType: 'Bearer',
-      isAdmin: false
-    };
-    this.setAuthData(mockAuthResponse);
   }
 
   // Public method to set auth data (for mock registration)

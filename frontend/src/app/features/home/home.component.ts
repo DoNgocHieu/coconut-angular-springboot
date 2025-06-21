@@ -27,10 +27,6 @@ import { Banner } from '../../core/models/playlist.model';
               <i class="fas fa-user-plus"></i>
               Join Now
             </a>
-            <button class="btn btn-secondary" (click)="testLogin()">
-              <i class="fas fa-user"></i>
-              Test Login
-            </button>
           </div>
         </div>        <div class="hero-animation">
           <div class="music-note"><i class="fas fa-music"></i></div>
@@ -306,14 +302,9 @@ export class HomeComponent implements OnInit {
     if (days === 0) return 'Today';
     if (days === 1) return '1 day ago';
     if (days < 7) return `${days} days ago`;
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-    return `${Math.floor(days / 30)} months ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;    return `${Math.floor(days / 30)} months ago`;
   }
-  // Test method for mock login
-  testLogin() {
-    this.authService.mockLogin();
-    console.log('Mock login successful');
-  }
+
   isFavorite(musicId: number): boolean {
     return this.favoriteStates[musicId] || false;
   }
