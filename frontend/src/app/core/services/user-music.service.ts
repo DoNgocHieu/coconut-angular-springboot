@@ -120,6 +120,39 @@ export class UserMusicService {
     return this.http.delete<ApiResponse<void>>(`${this.API_URL}/recently-played`);
   }
 
+  // Thêm vào my-list
+  addToMyList(musicId: number): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/my-list`, { musicId }).pipe(
+      catchError(error => {
+        console.warn('API not available, using localStorage fallback for addToMyList');
+        // Có thể viết fallback tương tự như addToFavoritesStorage_Fallback nếu muốn
+        return of({ success: false, message: 'API not available' });
+      })
+    );
+  }
+
+  // Xóa khỏi my-list
+  removeFromMyList(musicId: number): Observable<any> {
+    return this.http.delete<any>(`${this.API_URL}/my-list/${musicId}`).pipe(
+      catchError(error => {
+        console.warn('API not available, using localStorage fallback for removeFromMyList');
+        return of({ success: false, message: 'API not available' });
+      })
+    );
+  }
+
+  // Kiểm tra có trong my-list không
+  isInMyList(musicId: number): Observable<boolean> {
+    return this.http.get<{ isInMyList: boolean }>(`${this.API_URL}/my-list/check/${musicId}`)
+      .pipe(
+        map((response: any) => response.isInMyList),
+        catchError(() => {
+          // Fallback nếu muốn dùng localStorage
+          return of(false);
+        })
+      );
+  }
+
   // ===== STORAGE HELPERS =====
   private getFavoritesFromStorage(): number[] {
     try {

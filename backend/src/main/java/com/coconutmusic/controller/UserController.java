@@ -5,6 +5,7 @@ import com.coconutmusic.dto.request.AddToRecentlyPlayedRequest;
 import com.coconutmusic.dto.response.ApiResponse;
 import com.coconutmusic.entity.Favorite;
 import com.coconutmusic.entity.History;
+import com.coconutmusic.entity.MyList;
 import com.coconutmusic.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -25,7 +26,7 @@ public class UserController {
     private UserService userService;
 
     // ===== FAVORITES =====
-      @GetMapping("/favorites")
+    @GetMapping("/favorites")
     public ResponseEntity<ApiResponse> getUserFavorites(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -35,7 +36,9 @@ public class UserController {
         Page<Favorite> favorites = userService.getUserFavorites(userId, pageable);
 
         return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
-    }    @PostMapping("/favorites")
+    }
+
+    @PostMapping("/favorites")
     public ResponseEntity<ApiResponse> addToFavorites(
             @RequestBody AddToFavoritesRequest request,
             @RequestParam(defaultValue = "1") Long userId) {
@@ -70,7 +73,9 @@ public class UserController {
         Map<String, Boolean> response = new HashMap<>();
         response.put("isFavorite", isFavorite);
         return ResponseEntity.ok(response);
-    }    // ===== RECENTLY PLAYED =====
+    }
+
+    // ===== RECENTLY PLAYED =====
 
     @GetMapping("/recently-played")
     public ResponseEntity<ApiResponse> getUserRecentlyPlayed(
@@ -91,5 +96,55 @@ public class UserController {
 
         History history = userService.addToRecentlyPlayed(userId, request.getMusicId());
         return ResponseEntity.ok(ApiResponse.success("Added to recently played successfully", history));
+    }
+
+    // ===== MY LIST =====
+
+    // Lấy danh sách my-list
+    @GetMapping("/my-list")
+    public ResponseEntity<ApiResponse> getMyList(
+            @RequestParam(defaultValue = "1") Long userId) {
+
+        java.util.List<MyList> myList = userService.getMyList(userId);
+
+        return ResponseEntity.ok(ApiResponse.success("My list retrieved successfully", myList));
+    }
+
+    // Thêm vào my-list
+    @PostMapping("/my-list")
+    public ResponseEntity<ApiResponse> addToMyList(
+            @RequestBody Map<String, Long> request,
+            @RequestParam(defaultValue = "1") Long userId) {
+        try {
+            Long musicId = request.get("musicId");
+            userService.addToMyList(userId, musicId);
+            return ResponseEntity.ok(ApiResponse.success("Added to my list successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Xóa khỏi my-list
+    @DeleteMapping("/my-list/{musicId}")
+    public ResponseEntity<ApiResponse> removeFromMyList(
+            @PathVariable Long musicId,
+            @RequestParam(defaultValue = "1") Long userId) {
+        try {
+            userService.removeFromMyList(userId, musicId);
+            return ResponseEntity.ok(ApiResponse.success("Removed from my list successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Kiểm tra có trong my-list không
+    @GetMapping("/my-list/check/{musicId}")
+    public ResponseEntity<Map<String, Boolean>> checkInMyList(
+            @PathVariable Long musicId,
+            @RequestParam(defaultValue = "1") Long userId) {
+        boolean isInMyList = userService.isInMyList(userId, musicId);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("isInMyList", isInMyList);
+        return ResponseEntity.ok(response);
     }
 }

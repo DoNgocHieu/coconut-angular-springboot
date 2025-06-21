@@ -117,8 +117,11 @@ import { Music, MusicType } from '../../../core/models/music.model';
             <button (click)="$event.stopPropagation(); toggleFavorite(music)" class="action-btn">
               <i class="fas fa-heart" [class.active]="isFavorite(music.id)"></i>
             </button>
-            <button (click)="$event.stopPropagation(); addToPlaylist(music)" class="action-btn">
+            <button *ngIf="!myListStates[music.id]" (click)="$event.stopPropagation(); addToPlaylist(music)" class="action-btn">
               <i class="fas fa-plus"></i>
+            </button>
+            <button *ngIf="myListStates[music.id]" (click)="$event.stopPropagation(); removeFromPlaylist(music)" class="action-btn">
+              <i class="fas fa-minus"></i>
             </button>
             <button (click)="$event.stopPropagation(); shareMusic(music)" class="action-btn">
               <i class="fas fa-share"></i>
@@ -163,8 +166,11 @@ import { Music, MusicType } from '../../../core/models/music.model';
             <button (click)="$event.stopPropagation(); toggleFavorite(music)" class="action-btn">
               <i class="fas fa-heart" [class.active]="isFavorite(music.id)"></i>
             </button>
-            <button (click)="$event.stopPropagation(); addToPlaylist(music)" class="action-btn">
+            <button *ngIf="!myListStates[music.id]" (click)="$event.stopPropagation(); addToPlaylist(music)" class="action-btn">
               <i class="fas fa-plus"></i>
+            </button>
+            <button *ngIf="myListStates[music.id]" (click)="$event.stopPropagation(); removeFromPlaylist(music)" class="action-btn">
+              <i class="fas fa-minus"></i>
             </button>
             <button (click)="$event.stopPropagation(); shareMusic(music)" class="action-btn">
               <i class="fas fa-share"></i>
@@ -210,6 +216,7 @@ export class MusicListComponent implements OnInit {
   sortBy = 'createdAt';
   viewMode: 'grid' | 'list' = 'grid';
   favoriteStates: { [key: number]: boolean } = {}; // Track favorite states
+  myListStates: { [key: number]: boolean } = {};
 
   // Pagination
   currentPage = 0;
@@ -258,6 +265,7 @@ export class MusicListComponent implements OnInit {
           this.totalPages = response.data.totalPages;
           this.totalItems = response.data.totalElements;
           this.loadFavoriteStates();
+          this.loadMyListStates();
         }
       },
       error: (error) => {
@@ -296,6 +304,12 @@ export class MusicListComponent implements OnInit {
     this.musicList.forEach(music => {
       this.userMusicService.isFavorite(music.id).subscribe(isFavorite => {
         this.favoriteStates[music.id] = isFavorite;
+      });
+    });
+  }  loadMyListStates() {
+    this.musicList.forEach(music => {
+      this.userMusicService.isInMyList(music.id).subscribe(isInMyList => {
+        this.myListStates[music.id] = isInMyList;
       });
     });
   }
@@ -375,8 +389,27 @@ export class MusicListComponent implements OnInit {
   }
 
   addToPlaylist(music: Music) {
-    // TODO: Show playlist selection modal
-    console.log('Add to playlist:', music.title);
+    this.userMusicService.addToMyList(music.id).subscribe({
+      next: () => {
+        this.myListStates[music.id] = true;
+        console.log('Added to my list:', music.title);
+      },
+      error: (error) => {
+        console.error('Error adding to my list:', error);
+      }
+    });
+  }
+
+  removeFromPlaylist(music: Music) {
+    this.userMusicService.removeFromMyList(music.id).subscribe({
+      next: () => {
+        this.myListStates[music.id] = false;
+        console.log('Removed from my list:', music.title);
+      },
+      error: (error) => {
+        console.error('Error removing from my list:', error);
+      }
+    });
   }
 
   shareMusic(music: Music) {
