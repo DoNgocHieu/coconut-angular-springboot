@@ -6,14 +6,25 @@ import { MusicService } from './core/services/music.service';
 import { MusicPlayerService } from './core/services/music-player.service';
 import { HeaderComponent } from './shared/components/header/header.component';
 import { MusicPlayerComponent } from './shared/components/music-player/music-player.component';
+import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { Observable } from 'rxjs';
 import { Music } from './core/models/music.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterModule, HeaderComponent, MusicPlayerComponent],  template: `
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterModule,
+    HeaderComponent,
+    MusicPlayerComponent,
+    SidebarComponent
+  ],
+  template: `
     <div class="app-container">
+      <app-sidebar></app-sidebar>
+
       <!-- Header -->
       <app-header></app-header>
 

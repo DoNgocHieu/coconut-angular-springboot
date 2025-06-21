@@ -20,7 +20,7 @@ public class MyList {
     @JsonIgnore
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "music_id", nullable = false)
     private Music music;
 

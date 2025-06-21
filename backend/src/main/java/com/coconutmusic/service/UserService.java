@@ -1,5 +1,6 @@
 package com.coconutmusic.service;
 
+import com.coconutmusic.dto.MyListDTO;
 import com.coconutmusic.entity.Favorite;
 import com.coconutmusic.entity.History;
 import com.coconutmusic.entity.Music;
@@ -84,9 +85,12 @@ public class UserService {
     }
 
     // ===== MY LIST =====
-public java.util.List<MyList> getMyList(Long userId) {
+public java.util.List<MyListDTO> getMyList(Long userId) {
     getUserById(userId);
-    return myListRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+    return myListRepository.findByUser_IdOrderByCreatedAtDesc(userId)
+        .stream()
+        .map(MyListDTO::new)
+        .toList();
 }
 
 public MyList addToMyList(Long userId, Long musicId) {

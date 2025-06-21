@@ -1,5 +1,6 @@
 package com.coconutmusic.controller;
 
+import com.coconutmusic.dto.MyListDTO;
 import com.coconutmusic.dto.request.AddToFavoritesRequest;
 import com.coconutmusic.dto.request.AddToRecentlyPlayedRequest;
 import com.coconutmusic.dto.response.ApiResponse;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
@@ -102,21 +104,22 @@ public class UserController {
 
     // Lấy danh sách my-list
     @GetMapping("/my-list")
-    public ResponseEntity<ApiResponse> getMyList(
-            @RequestParam(defaultValue = "1") Long userId) {
-
-        java.util.List<MyList> myList = userService.getMyList(userId);
-
-        return ResponseEntity.ok(ApiResponse.success("My list retrieved successfully", myList));
+    public ResponseEntity<ApiResponse> getMyList(@RequestParam Long userId) {
+        try {
+            List<MyListDTO> myList = userService.getMyList(userId);
+            return ResponseEntity.ok(ApiResponse.success("My list retrieved successfully", myList));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("An unexpected error occurred: " + e.getMessage()));
+        }
     }
 
     // Thêm vào my-list
     @PostMapping("/my-list")
-    public ResponseEntity<ApiResponse> addToMyList(
-            @RequestBody Map<String, Long> request,
-            @RequestParam(defaultValue = "1") Long userId) {
+    public ResponseEntity<ApiResponse> addToMyList(@RequestBody Map<String, Long> request) {
         try {
             Long musicId = request.get("musicId");
+            Long userId = request.get("userId");
             userService.addToMyList(userId, musicId);
             return ResponseEntity.ok(ApiResponse.success("Added to my list successfully"));
         } catch (Exception e) {
@@ -124,12 +127,12 @@ public class UserController {
         }
     }
 
-    // Xóa khỏi my-list
     @DeleteMapping("/my-list/{musicId}")
     public ResponseEntity<ApiResponse> removeFromMyList(
             @PathVariable Long musicId,
-            @RequestParam(defaultValue = "1") Long userId) {
+            @RequestBody Map<String, Long> request) {
         try {
+            Long userId = request.get("userId");
             userService.removeFromMyList(userId, musicId);
             return ResponseEntity.ok(ApiResponse.success("Removed from my list successfully"));
         } catch (Exception e) {

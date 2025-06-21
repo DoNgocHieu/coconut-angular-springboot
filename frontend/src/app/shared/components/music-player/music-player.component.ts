@@ -2,6 +2,7 @@ import { Component, Input, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angul
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Music } from '../../../core/models/music.model';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
+import { SidebarService } from '../../../core/services/sidebar.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -62,9 +63,13 @@ import { Subscription } from 'rxjs';
 
         <!-- Additional Controls -->
         <div class="additional-controls">
-          <button class="option-btn" (click)="showQueue()">
-            <i class="fas fa-list"></i>
-          </button>
+          <button
+  class="option-btn"
+  [class.queue-active]="sidebarOpen"
+  (click)="showQueue()"
+>
+  <i class="fas fa-list"></i>
+</button>
           <div class="volume-control">
             <button class="option-btn" (click)="toggleMute()">
               <i class="fas" [class.fa-volume-up]="!isMuted && volume > 50"
@@ -105,11 +110,17 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   private progressInterval: any;
   private subscriptions: Subscription[] = [];
   private playPromise: Promise<void> | null = null;
+  sidebarOpen = false;
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: any,
-    private musicPlayerService: MusicPlayerService
-  ) {}  ngOnInit() {
+    private musicPlayerService: MusicPlayerService,
+    private sidebarService: SidebarService
+  ) {
+    this.sidebarService.open$.subscribe(open => {
+      this.sidebarOpen = open;
+    });
+  }  ngOnInit() {
     console.log('🎵 MusicPlayerComponent ngOnInit, platform browser:', isPlatformBrowser(this.platformId));
     if (isPlatformBrowser(this.platformId)) {
       this.audio = new Audio();
@@ -318,8 +329,7 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   }
 
   showQueue() {
-    console.log('Show queue');
-    // TODO: Show queue modal
+    this.sidebarService.toggle();
   }
 
   toggleFullscreen() {

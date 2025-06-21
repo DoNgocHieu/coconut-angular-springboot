@@ -120,38 +120,43 @@ export class UserMusicService {
     return this.http.delete<ApiResponse<void>>(`${this.API_URL}/recently-played`);
   }
 
-  // Thêm vào my-list
-  addToMyList(musicId: number): Observable<any> {
-    return this.http.post<any>(`${this.API_URL}/my-list`, { musicId }).pipe(
-      catchError(error => {
-        console.warn('API not available, using localStorage fallback for addToMyList');
-        // Có thể viết fallback tương tự như addToFavoritesStorage_Fallback nếu muốn
-        return of({ success: false, message: 'API not available' });
-      })
-    );
-  }
+
+
+addToMyList(musicId: number, userId: string): Observable<any> {
+  return this.http.post<any>(`${this.API_URL}/my-list`, { musicId, userId }).pipe(
+    catchError(error => {
+      console.warn('API not available, using localStorage fallback for addToMyList');
+      return of({ success: false, message: 'API not available' });
+    })
+  );
+}
 
   // Xóa khỏi my-list
-  removeFromMyList(musicId: number): Observable<any> {
-    return this.http.delete<any>(`${this.API_URL}/my-list/${musicId}`).pipe(
-      catchError(error => {
-        console.warn('API not available, using localStorage fallback for removeFromMyList');
-        return of({ success: false, message: 'API not available' });
-      })
-    );
-  }
+ removeFromMyList(musicId: number, userId: number): Observable<any> {
+  return this.http.request<any>('delete', `${this.API_URL}/my-list/${musicId}`, {
+    body: { userId }
+  }).pipe(
+    catchError(error => {
+      console.warn('API not available, using localStorage fallback for removeFromMyList');
+      return of({ success: false, message: 'API not available' });
+    })
+  );
+}
 
   // Kiểm tra có trong my-list không
-  isInMyList(musicId: number): Observable<boolean> {
-    return this.http.get<{ isInMyList: boolean }>(`${this.API_URL}/my-list/check/${musicId}`)
-      .pipe(
-        map((response: any) => response.isInMyList),
-        catchError(() => {
-          // Fallback nếu muốn dùng localStorage
-          return of(false);
-        })
-      );
-  }
+isInMyList(musicId: number): Observable<boolean> {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const userId = currentUser.id;
+  return this.http.get<{ isInMyList: boolean }>(
+    `${this.API_URL}/my-list/check/${musicId}?userId=${userId}`
+  ).pipe(
+    map((response: any) => response.isInMyList),
+    catchError(() => {
+      // Fallback nếu muốn dùng localStorage
+      return of(false);
+    })
+  );
+}
 
   // ===== STORAGE HELPERS =====
   private getFavoritesFromStorage(): number[] {
@@ -352,5 +357,11 @@ export class UserMusicService {
       artist: { id: 1, name: 'Mock Artist', isActive: true, createdAt: '', updatedAt: '' },
       category: { id: 1, name: 'Mock Category', isActive: true, createdAt: '', updatedAt: '' }
     };
+  }
+
+  getMyList(userId: number): Observable<Music[]> {
+    return this.http.get<any>(`${this.API_URL}/my-list`, { params: { userId } }).pipe(
+      map(res => res.data)
+    );
   }
 }
