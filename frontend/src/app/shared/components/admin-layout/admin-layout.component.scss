@@ -1,0 +1,172 @@
+@import '../../../../styles/admin-theme.scss';
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--admin-bg-primary);
+  font-family: var(--admin-font-primary);
+
+  .admin-sidebar {
+    width: 260px;
+    background: var(--admin-gradient-dark);
+    color: var(--admin-text-primary);
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    border-right: 1px solid var(--admin-border-subtle);
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--admin-border-subtle);
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--admin-text-primary);
+
+        i {
+          color: var(--admin-accent-primary);
+          font-size: 1.5rem;
+        }
+      }
+    }
+
+    .sidebar-menu {
+      padding: 1rem 0;
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        color: var(--admin-text-secondary);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+        position: relative;
+
+        &:hover {
+          background: var(--admin-surface-hover);
+          color: var(--admin-text-primary);
+          border-left-color: var(--admin-accent-primary);
+        }
+
+        &.active {
+          background: var(--admin-gradient-primary);
+          color: var(--admin-text-primary);
+          border-left-color: var(--admin-accent-primary-dark);
+          box-shadow: var(--admin-shadow-small);
+
+          i {
+            color: var(--admin-text-primary);
+          }
+        }
+
+        i {
+          width: 20px;
+          text-align: center;
+          color: var(--admin-text-muted);
+          transition: color 0.3s ease;
+        }
+
+        span {
+          font-weight: 500;
+        }
+      }
+    }
+
+    .sidebar-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1rem;
+      border-top: 1px solid var(--admin-border-subtle);
+      background: var(--admin-bg-secondary);
+
+      .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--admin-error);
+        color: var(--admin-text-primary);
+        border: none;
+        border-radius: var(--admin-border-radius);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+
+        &:hover {
+          background: #c81e2e;
+          transform: translateY(-2px);
+          box-shadow: var(--admin-shadow-medium);
+        }
+
+        i {
+          width: 20px;
+          text-align: center;
+        }
+
+        span {
+          font-weight: 500;
+        }
+      }
+
+      .back-to-site {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--admin-bg-tertiary);
+        color: var(--admin-text-secondary);
+        text-decoration: none;
+        border-radius: var(--admin-border-radius);
+        border: 1px solid var(--admin-border-subtle);
+        transition: all 0.3s ease;
+        font-weight: 500;
+
+        &:hover {
+          background: var(--admin-bg-elevated);
+          color: var(--admin-text-primary);
+          border-color: var(--admin-border-strong);
+          transform: translateY(-2px);
+        }
+
+        i {
+          width: 20px;
+          text-align: center;
+        }
+
+        span {
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  .admin-content {
+    flex: 1;
+    margin-left: 260px;
+    overflow-x: hidden;
+    background: var(--admin-bg-primary);
+  }
+
+  @media (max-width: 768px) {
+    .admin-sidebar {
+      transform: translateX(-100%);
+    }
+
+    .admin-content {
+      margin-left: 0;
+    }
+  }
+}

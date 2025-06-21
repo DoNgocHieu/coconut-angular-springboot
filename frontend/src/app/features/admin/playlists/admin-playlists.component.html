@@ -1,0 +1,386 @@
+<div class="admin-playlists">
+	<!-- Header -->
+	<div class="playlists-header">
+		<h1>Playlist Management</h1>
+		<button class="admin-btn" (click)="openCreateModal()">
+			<i class="fas fa-plus"></i>
+			Create Playlist
+		</button>
+	</div>
+
+	<!-- Filters -->
+	<div class="filters-section">
+		<div class="filters-row">
+			<div class="filter-group">
+				<label>Search</label>
+				<input
+					type="text"
+					[(ngModel)]="filters.search"
+					placeholder="Search playlists..."
+					(input)="onSearchChange()"
+				/>
+			</div>
+
+			<div class="filter-group">
+				<label>Owner</label>
+				<input
+					type="text"
+					[(ngModel)]="filters.owner"
+					placeholder="Filter by owner..."
+					(input)="onFilterChange()"
+				/>
+			</div>
+
+			<div class="filter-group">
+				<label>Visibility</label>
+				<select
+					[(ngModel)]="filters.isPublic"
+					(change)="onFilterChange()"
+				>
+					<option value="">All</option>
+					<option value="true">Public</option>
+					<option value="false">Private</option>
+				</select>
+			</div>
+
+			<div class="filter-actions">
+				<button
+					class="admin-btn btn-secondary"
+					(click)="resetFilters()"
+				>
+					<i class="fas fa-refresh"></i>
+					Reset
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bulk Actions -->
+	<div class="bulk-actions" *ngIf="selectedPlaylists.length > 0">
+		<span>{{ selectedPlaylists.length }} playlist(s) selected</span>
+		<div>
+			<button class="admin-btn btn-danger" (click)="bulkDelete()">
+				<i class="fas fa-trash"></i>
+				Delete Selected
+			</button>
+		</div>
+	</div>
+
+	<!-- Playlists Table -->
+	<div class="playlists-table-container">
+		<table class="playlists-table" *ngIf="playlists.length > 0">
+			<thead>
+				<tr>
+					<th>
+						<input
+							type="checkbox"
+							[checked]="isAllSelected()"
+							[indeterminate]="isPartiallySelected()"
+							(change)="toggleSelectAll($event)"
+						/>
+					</th>
+					<th>Thumbnail</th>
+					<th>Name</th>
+					<th>Description</th>
+					<th>Owner</th>
+					<th>Songs</th>
+					<th>Visibility</th>
+					<th>Created</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr
+					*ngFor="
+						let playlist of playlists;
+						trackBy: trackByPlaylistId
+					"
+					[class.selected]="isSelected(playlist.id)"
+				>
+					<td>
+						<input
+							type="checkbox"
+							[checked]="isSelected(playlist.id)"
+							(change)="toggleSelection(playlist.id, $event)"
+						/>
+					</td>
+					<td>
+						<img
+							[src]="getPlaylistThumbnail(playlist)"
+							[alt]="playlist.name"
+							class="playlist-thumb"
+							(error)="onImageError($event)"
+						/>
+					</td>
+					<td>
+						<div class="playlist-info">
+							<span class="name">{{ playlist.name }}</span>
+						</div>
+					</td>
+					<td>
+						<span
+							class="playlist-description"
+							[title]="playlist.description"
+						>
+							{{ playlist.description || '-' }}
+						</span>
+					</td>
+					<td>
+						<span class="playlist-owner">{{
+							playlist.user?.username || 'System'
+						}}</span>
+					</td>
+					<td>
+						<span class="playlist-count">{{
+							playlist.songCount || 0
+						}}</span>
+					</td>
+					<td>
+						<span
+							class="visibility-badge"
+							[class]="playlist.isPublic ? 'public' : 'private'"
+						>
+							{{ playlist.isPublic ? 'Public' : 'Private' }}
+						</span>
+					</td>
+					<td>
+						<span>{{ formatDate(playlist.createdAt) }}</span>
+					</td>
+					<td class="actions">
+						<button
+							class="btn-icon"
+							(click)="viewPlaylist(playlist)"
+							title="View Details"
+						>
+							<i class="fas fa-eye"></i>
+						</button>
+						<button
+							class="btn-icon"
+							(click)="openEditModal(playlist)"
+							title="Edit"
+						>
+							<i class="fas fa-edit"></i>
+						</button>
+						<button
+							class="btn-icon danger"
+							(click)="deletePlaylist(playlist)"
+							title="Delete"
+						>
+							<i class="fas fa-trash"></i>
+						</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<!-- No Data -->
+		<div class="no-data" *ngIf="playlists.length === 0 && !loading">
+			<div class="no-data-content">
+				<i class="fas fa-music no-data-icon"></i>
+				<h3>No playlists found</h3>
+				<p>{{ getNoDataMessage() }}</p>
+				<button
+					class="admin-btn"
+					(click)="openCreateModal()"
+					*ngIf="!hasActiveFilters()"
+				>
+					<i class="fas fa-plus"></i>
+					Create First Playlist
+				</button>
+			</div>
+		</div>
+
+		<!-- Loading -->
+		<div class="loading" *ngIf="loading">
+			<i class="fas fa-spinner fa-spin"></i>
+			<span>Loading playlists...</span>
+		</div>
+	</div>
+
+	<!-- Pagination -->
+	<div class="pagination-container" *ngIf="playlists.length > 0">
+		<div class="pagination-controls">
+			<div class="pagination-info">
+				Showing {{ getStartRecord() }} to {{ getEndRecord() }} of
+				{{ totalElements }} playlists
+			</div>
+
+			<div class="pagination-buttons">
+				<button
+					[disabled]="currentPage === 0"
+					(click)="changePage(currentPage - 1)"
+				>
+					<i class="fas fa-chevron-left"></i>
+					Previous
+				</button>
+
+				<span class="page-info">
+					Page {{ currentPage + 1 }} of {{ totalPages }}
+				</span>
+
+				<button
+					[disabled]="currentPage === totalPages - 1"
+					(click)="changePage(currentPage + 1)"
+				>
+					Next
+					<i class="fas fa-chevron-right"></i>
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+	<div class="modal-content" (click)="$event.stopPropagation()">
+		<div class="modal-header">
+			<h2>{{ isEditMode ? 'Edit Playlist' : 'Create New Playlist' }}</h2>
+			<button class="modal-close" (click)="closeModal()">
+				<i class="fas fa-times"></i>
+			</button>
+		</div>
+
+		<form [formGroup]="playlistForm" (ngSubmit)="onSubmit()">
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="name">Name *</label>
+					<input
+						type="text"
+						id="name"
+						formControlName="name"
+						class="form-control"
+						[class.error]="
+							playlistForm.get('name')?.invalid &&
+							playlistForm.get('name')?.touched
+						"
+						placeholder="Enter playlist name"
+					/>
+					<div
+						class="error-message"
+						*ngIf="
+							playlistForm.get('name')?.invalid &&
+							playlistForm.get('name')?.touched
+						"
+					>
+						<span
+							*ngIf="playlistForm.get('name')?.errors?.['required']"
+							>Name is required</span
+						>
+						<span
+							*ngIf="playlistForm.get('name')?.errors?.['minlength']"
+							>Name must be at least 2 characters</span
+						>
+						<span
+							*ngIf="playlistForm.get('name')?.errors?.['maxlength']"
+							>Name cannot exceed 100 characters</span
+						>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="description">Description</label>
+					<textarea
+						id="description"
+						formControlName="description"
+						class="form-control"
+						rows="3"
+						placeholder="Enter playlist description (optional)"
+					></textarea>
+				</div>
+
+				<div class="form-group">
+					<label class="checkbox-label">
+						<input type="checkbox" formControlName="isPublic" />
+						<span class="checkmark"></span>
+						Public Playlist
+					</label>
+					<small class="form-text"
+						>Public playlists can be viewed by all users</small
+					>
+				</div>
+
+				<div class="form-group" *ngIf="isEditMode">
+					<label for="owner">Owner</label>
+					<input
+						type="text"
+						id="owner"
+						[value]="currentPlaylist?.user?.username || 'System'"
+						class="form-control"
+						readonly
+					/>
+				</div>
+			</div>
+
+			<div class="modal-footer">
+				<button
+					type="button"
+					class="admin-btn btn-secondary"
+					(click)="closeModal()"
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					class="admin-btn"
+					[disabled]="playlistForm.invalid || submitting"
+				>
+					<i class="fas fa-spinner fa-spin" *ngIf="submitting"></i>
+					<i class="fas fa-save" *ngIf="!submitting"></i>
+					{{ isEditMode ? 'Update' : 'Create' }}
+				</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+	<div class="modal-content small" (click)="$event.stopPropagation()">
+		<div class="modal-header">
+			<h2>Confirm Deletion</h2>
+			<button class="modal-close" (click)="closeDeleteModal()">
+				<i class="fas fa-times"></i>
+			</button>
+		</div>
+
+		<div class="modal-body">
+			<div class="delete-confirmation">
+				<i class="fas fa-exclamation-triangle warning-icon"></i>
+				<div class="delete-message">
+					<p *ngIf="playlistToDelete">
+						Are you sure you want to delete the playlist "<strong>{{
+							playlistToDelete.name
+						}}</strong
+						>"?
+					</p>
+					<p *ngIf="selectedPlaylists.length > 1">
+						Are you sure you want to delete
+						<strong>{{ selectedPlaylists.length }}</strong> selected
+						playlists?
+					</p>
+					<p class="warning-text">This action cannot be undone.</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal-footer">
+			<button
+				type="button"
+				class="admin-btn btn-secondary"
+				(click)="closeDeleteModal()"
+			>
+				Cancel
+			</button>
+			<button
+				type="button"
+				class="admin-btn btn-danger"
+				(click)="confirmDelete()"
+				[disabled]="deleting"
+			>
+				<i class="fas fa-spinner fa-spin" *ngIf="deleting"></i>
+				<i class="fas fa-trash" *ngIf="!deleting"></i>
+				Delete
+			</button>
+		</div>
+	</div>
+</div>

@@ -167,12 +167,24 @@
           font-weight: 500;
           font-size: 14px;
           transition: all var(--transition-fast);
+          border: none;
+          cursor: pointer;
+        }
+
+        .backup-link {
+          margin-left: 10px;
+          font-size: 12px;
         }
 
         .login-btn {
           color: var(--text-primary);
           background: transparent;
           border: 1px solid var(--border-subtle);
+          /* Debug styles */
+          pointer-events: auto !important;
+          cursor: pointer !important;
+          position: relative;
+          z-index: 10;
 
           &:hover {
             background: var(--surface-hover);
@@ -183,6 +195,11 @@
         .register-btn {
           color: white;
           background: var(--accent-primary);
+          /* Debug styles */
+          pointer-events: auto !important;
+          cursor: pointer !important;
+          position: relative;
+          z-index: 10;
 
           &:hover {
             background: var(--accent-hover);
