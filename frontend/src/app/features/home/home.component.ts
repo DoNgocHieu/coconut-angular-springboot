@@ -5,14 +5,13 @@ import { MusicService } from '../../core/services/music.service';
 import { MusicPlayerService } from '../../core/services/music-player.service';
 import { UserMusicService } from '../../core/services/user-music.service';
 import { AuthService } from '../../core/services/auth.service';
-import { TestModalComponent } from '../../test-modal.component';
 import { Music, MusicType } from '../../core/models/music.model';
 import { Banner } from '../../core/models/playlist.model';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, TestModalComponent],
+  imports: [CommonModule, RouterModule],
   template: `
     <div class="home-container">
       <!-- Hero Section -->
@@ -33,12 +32,6 @@ import { Banner } from '../../core/models/playlist.model';
           <div class="music-note"><i class="fas fa-musical-note"></i></div>
           <div class="music-note"><i class="fas fa-headphones"></i></div>
         </div>
-      </section>
-
-      <!-- Test Modal Section -->
-      <section style="padding: 20px; text-align: center; background: #1e1e1e; margin: 20px 0; border-radius: 10px;">
-        <h3 style="color: white; margin-bottom: 15px;">🔧 Test Modal (Development Only)</h3>
-        <app-test-modal></app-test-modal>
       </section>
 
       <!-- Featured Music Sections -->
