@@ -2,7 +2,11 @@ import { Component, Input, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angul
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Music } from '../../../core/models/music.model';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
+
+import { UserMusicService } from '../../../core/services/user-music.service';
+
 import { SidebarService } from '../../../core/services/sidebar.service';
+
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -92,6 +96,12 @@ import { Subscription } from 'rxjs';
         </div>
       </div>
     </div>
+
+    <!-- Toast Message -->
+    <div *ngIf="message" class="toast" [class.success]="message.type === 'success'" [class.error]="message.type === 'error'">
+      <i class="fas" [class.fa-check-circle]="message.type === 'success'" [class.fa-exclamation-circle]="message.type === 'error'"></i>
+      {{ message.text }}
+    </div>
   `,
   styleUrls: ['./music-player.component.scss']
 })
@@ -101,26 +111,22 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   isPlaying = false;
   currentTime = 0;
   duration = 0;
-  volume = 80;
-  isMuted = false;
+  volume = 80;  isMuted = false;
   isFavorite = false;
   isShuffled = false;
   isRepeated = false;
+  message: { type: 'success' | 'error', text: string } | null = null;
   private audio: HTMLAudioElement | null = null;
   private progressInterval: any;
   private subscriptions: Subscription[] = [];
   private playPromise: Promise<void> | null = null;
-  sidebarOpen = false;
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: any,
     private musicPlayerService: MusicPlayerService,
-    private sidebarService: SidebarService
-  ) {
-    this.sidebarService.open$.subscribe(open => {
-      this.sidebarOpen = open;
-    });
-  }  ngOnInit() {
+    private userMusicService: UserMusicService
+  ) {}
+  ngOnInit() {
     console.log('🎵 MusicPlayerComponent ngOnInit, platform browser:', isPlatformBrowser(this.platformId));
     if (isPlatformBrowser(this.platformId)) {
       this.audio = new Audio();
@@ -178,13 +184,11 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
 
     this.audio.addEventListener('timeupdate', () => {
       this.currentTime = this.audio!.currentTime;
-    });
-
-    this.audio.addEventListener('ended', () => {
-      console.log('🎵 Track ended, moving to next');
+    });    this.audio.addEventListener('ended', () => {
+      console.log('🎵 Track ended, auto-playing next track');
       this.isPlaying = false;
-      this.musicPlayerService.pauseTrack();
-      this.nextTrack();
+      // Use onTrackEnded to handle auto-play with proper play count increment
+      this.musicPlayerService.onTrackEnded();
     });
 
     this.audio.addEventListener('play', () => {
@@ -210,11 +214,11 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     this.audio.src = track.fileUrl;
 
     console.log('🎵 Audio src set to:', this.audio.src);
-    console.log('🎵 Calling audio.load()...');
-
-    this.audio.load();
+    console.log('🎵 Calling audio.load()...');    this.audio.load();
     this.currentTime = 0;
-    this.isFavorite = track.isFavorite || false;
+
+    // Check if track is favorited
+    this.checkFavoriteStatus(track.id);
 
     console.log('🎵 Audio element after load:', {
       src: this.audio.src,
@@ -299,14 +303,49 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     this.isMuted = !this.isMuted;
     this.audio.muted = this.isMuted;
   }
-
   toggleFavorite() {
-    this.isFavorite = !this.isFavorite;
-    if (this.currentTrack) {
-      this.currentTrack.isFavorite = this.isFavorite;
+    if (!this.currentTrack) return;
+
+    if (this.isFavorite) {
+      // Remove from favorites
+      this.userMusicService.removeFromFavorites(this.currentTrack.id).subscribe({        next: (response) => {
+          if (response.success) {
+            this.isFavorite = false;
+            this.showMessage('success', `Removed "${this.currentTrack?.title}" from favorites!`);
+            console.log('✅ Removed from favorites:', this.currentTrack?.title);
+          }
+        },        error: (error) => {
+          console.error('❌ Error removing from favorites:', error);
+          this.showMessage('error', 'Failed to remove from favorites. Please try again.');
+        }
+      });
+    } else {
+      // Add to favorites
+      this.userMusicService.addToFavorites(this.currentTrack.id).subscribe({        next: (response) => {
+          if (response.success) {
+            this.isFavorite = true;
+            this.showMessage('success', `Added "${this.currentTrack?.title}" to favorites!`);
+            console.log('✅ Added to favorites:', this.currentTrack?.title);
+          }
+        },        error: (error) => {
+          console.error('❌ Error adding to favorites:', error);
+          this.showMessage('error', 'Failed to add to favorites. Please try again.');
+        }
+      });
     }
-    // TODO: Update favorite status via API
-    console.log('Toggle favorite:', this.currentTrack?.title, this.isFavorite);
+  }
+
+  private checkFavoriteStatus(musicId: number) {
+    this.userMusicService.isFavorite(musicId).subscribe({
+      next: (isFavorite) => {
+        this.isFavorite = isFavorite;
+        console.log('🎵 Favorite status for track:', musicId, isFavorite);
+      },
+      error: (error) => {
+        console.error('❌ Error checking favorite status:', error);
+        this.isFavorite = false;
+      }
+    });
   }
 
   toggleShuffle() {
@@ -331,11 +370,19 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   showQueue() {
     this.sidebarService.toggle();
   }
-
   toggleFullscreen() {
     console.log('Toggle fullscreen');
     // TODO: Implement fullscreen mode
-  }  formatTime(seconds: number): string {
+  }
+
+  showMessage(type: 'success' | 'error', text: string) {
+    this.message = { type, text };
+    setTimeout(() => {
+      this.message = null;
+    }, 3000);
+  }
+
+  formatTime(seconds: number): string {
     if (!seconds || isNaN(seconds)) return '0:00';
 
     const minutes = Math.floor(seconds / 60);

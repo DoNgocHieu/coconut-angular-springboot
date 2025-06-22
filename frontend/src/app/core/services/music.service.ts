@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { Music, Category, Artist, MusicType } from '../models/music.model';
 import { ApiResponse, PageResponse, PaginationParams } from '../models/api.model';
 import { environment } from '../../../environments/environment';
@@ -10,7 +10,6 @@ import { environment } from '../../../environments/environment';
 })
 export class MusicService {
   private readonly API_URL = `${environment.apiUrl}/music`;
-
   // Current playing state
   private currentTrackSubject = new BehaviorSubject<Music | null>(null);
   private playlistSubject = new BehaviorSubject<Music[]>([]);
@@ -20,6 +19,9 @@ export class MusicService {
   private shuffleSubject = new BehaviorSubject<boolean>(false);
   private repeatSubject = new BehaviorSubject<'off' | 'one' | 'all'>('off');
 
+  // Event emitter for when music starts playing (for recently played tracking)
+  private musicPlayedSubject = new Subject<Music>();
+
   // Public observables
   public currentTrack$ = this.currentTrackSubject.asObservable();
   public playlist$ = this.playlistSubject.asObservable();
@@ -28,7 +30,7 @@ export class MusicService {
   public volume$ = this.volumeSubject.asObservable();
   public shuffle$ = this.shuffleSubject.asObservable();
   public repeat$ = this.repeatSubject.asObservable();
-
+  public musicPlayed$ = this.musicPlayedSubject.asObservable();
   constructor(private http: HttpClient) { }
 
   // API Methods
@@ -73,11 +75,9 @@ export class MusicService {
     }
     return this.http.get<ApiResponse<PageResponse<Music>>>(`${this.API_URL}/category/${categoryId}`, { params: httpParams });
   }
-
   incrementPlayCount(musicId: number): Observable<ApiResponse> {
-    return this.http.post<ApiResponse>(`${this.API_URL}/play/${musicId}`, {});
+    return this.http.post<ApiResponse>(`${this.API_URL}/${musicId}/play`, {});
   }
-
   // Player Control Methods
   playMusic(music: Music, playlist?: Music[]): void {
     this.currentTrackSubject.next(music);
@@ -88,7 +88,17 @@ export class MusicService {
     }
 
     // Increment play count
-    this.incrementPlayCount(music.id).subscribe();
+    this.incrementPlayCount(music.id).subscribe({
+      next: () => {
+        console.log('✅ Play count incremented for:', music.title);
+      },
+      error: (error) => {
+        console.warn('⚠️  Failed to increment play count:', error);
+      }
+    });
+
+    // Emit event that music is being played (for recently played tracking)
+    this.musicPlayedSubject.next(music);
   }
 
   pauseMusic(): void {
@@ -146,6 +156,27 @@ export class MusicService {
 
   setRepeatMode(mode: 'off' | 'one' | 'all'): void {
     this.repeatSubject.next(mode);
+  }
+
+  // Auto-play when track ends
+  onTrackEnded(): void {
+    const repeatMode = this.repeatSubject.value;
+
+    if (repeatMode === 'one') {
+      // Repeat current track
+      const currentTrack = this.currentTrackSubject.value;
+      if (currentTrack) {
+        this.playMusic(currentTrack);
+      }
+    } else {
+      // Move to next track
+      this.nextTrack();
+    }
+  }
+
+  // Method to be called when user manually seeks to end or track duration is reached
+  completeCurrentTrack(): void {
+    this.onTrackEnded();
   }
 
   // Utility Methods

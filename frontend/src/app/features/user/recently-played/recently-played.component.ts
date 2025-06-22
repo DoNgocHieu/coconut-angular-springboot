@@ -18,11 +18,10 @@ import { Music, MusicType } from '../../../core/models/music.model';
             <i class="fas fa-history"></i>
             Recently Played
           </h1>
-          <p>Your music listening history</p>
-          <div class="stats" *ngIf="recentlyPlayed.length > 0">
+          <p>Your music listening history</p>          <div class="stats" *ngIf="recentlyPlayed.length > 0">
             <span class="stat-item">
               <i class="fas fa-music"></i>
-              {{ recentlyPlayed.length }} bài hát gần đây
+              {{ recentlyPlayed.length }} bài hát gần đây (tối đa 10 bài)
             </span>
           </div>
         </div>

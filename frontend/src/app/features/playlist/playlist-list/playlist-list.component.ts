@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PlaylistService } from '../../../core/services/playlist.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserMusicService } from '../../../core/services/user-music.service';
 import { Playlist } from '../../../core/models/playlist.model';
 
 @Component({
@@ -310,33 +311,50 @@ export class PlaylistListComponent implements OnInit {
 
   // Messages
   message: { type: 'success' | 'error', text: string } | null = null;
-
   constructor(
     private playlistService: PlaylistService,
     private authService: AuthService,
+    private userMusicService: UserMusicService,
     private router: Router
-  ) {}
-  ngOnInit() {
+  ) {}  ngOnInit() {
     this.loadPlaylists();
+    this.loadPlaylistFavoriteStates();
     // Close context menu on outside click only in browser
     if (typeof document !== 'undefined') {
       document.addEventListener('click', () => {
         this.showContextMenu = false;
       });
     }
-  }  loadPlaylists() {
+  }
+
+  loadPlaylistFavoriteStates() {
+    // Load favorite states for all playlists
+    this.playlists.forEach(playlist => {
+      this.userMusicService.isFavoritePlaylist(playlist.id).subscribe({
+        next: (isFavorite) => {
+          playlist.isLiked = isFavorite;
+        },
+        error: (error) => {
+          console.warn('Could not load favorite state for playlist:', playlist.id);
+          playlist.isLiked = false;
+        }
+      });
+    });
+  }loadPlaylists() {
     this.isLoading = true;
     console.log('Loading playlists...');
 
     this.playlistService.getPlaylists().subscribe({
       next: (response) => {
-        console.log('Playlists response:', response);
-        if (response.success) {
+        console.log('Playlists response:', response);        if (response.success) {
           this.playlists = response.data.content;
           this.totalItems = response.data.totalElements;
           this.totalPages = response.data.totalPages;
           this.currentPage = response.data.number;
           console.log('Playlists loaded:', this.playlists.length, 'playlists');
+
+          // Load favorite states after playlists are loaded
+          this.loadPlaylistFavoriteStates();
         }
         this.isLoading = false;
       },      error: (error) => {
@@ -478,10 +496,42 @@ export class PlaylistListComponent implements OnInit {
     this.contextMenuPlaylist = playlist;
     this.showContextMenu = true;
   }
-
   toggleLike(playlist: Playlist) {
-    playlist.isLiked = !playlist.isLiked;
-    console.log('Toggle like:', playlist.name, playlist.isLiked);
+    const wasLiked = playlist.isLiked;
+
+    if (wasLiked) {
+      // Remove from favorites
+      this.userMusicService.removeFromFavoritePlaylists(playlist.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            playlist.isLiked = false;
+            this.showMessage('success', `Removed "${playlist.name}" from favorites!`);
+          } else {
+            this.showMessage('error', response.message || 'Failed to remove from favorites');
+          }
+        },
+        error: (error) => {
+          console.error('Error removing playlist from favorites:', error);
+          this.showMessage('error', 'Failed to remove from favorites. Please try again.');
+        }
+      });
+    } else {
+      // Add to favorites
+      this.userMusicService.addToFavoritePlaylists(playlist.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            playlist.isLiked = true;
+            this.showMessage('success', `Added "${playlist.name}" to favorites!`);
+          } else {
+            this.showMessage('error', response.message || 'Failed to add to favorites');
+          }
+        },
+        error: (error) => {
+          console.error('Error adding playlist to favorites:', error);
+          this.showMessage('error', 'Failed to add to favorites. Please try again.');
+        }
+      });
+    }
   }
 
   duplicatePlaylist(playlist: Playlist) {
