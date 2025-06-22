@@ -38,6 +38,33 @@ public class MusicResponseDto {
         this.artist = artist;
     }
 
+    public MusicResponseDto(com.coconutmusic.entity.Music music) {
+        this.id = music.getId();
+        this.title = music.getTitle();
+        this.durationSeconds = music.getDurationSeconds();
+        this.fileUrl = music.getFileUrl();
+        this.imageUrl = music.getImageUrl();
+        this.typeMusic = music.getTypeMusic();
+        this.createdAt = music.getCreatedAt();
+        this.updatedAt = music.getUpdatedAt();
+        if (music.getCategory() != null) {
+            this.category = new CategorySimpleDto(
+            music.getCategory().getId(),
+            music.getCategory().getName(),
+            music.getCategory().getDescription(),
+            music.getCategory().getImageUrl(),
+            music.getCategory().getIsActive()
+            );
+        } else {
+            this.category = null;
+        }
+        this.artist = music.getArtist() != null ? new ArtistSimpleDto(
+            music.getArtist().getId(),
+            music.getArtist().getName(),
+            music.getArtist().getAvatarUrl() 
+        ) : null;
+    }
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

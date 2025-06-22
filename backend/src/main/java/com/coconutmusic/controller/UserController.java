@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user-admin")
@@ -232,7 +233,9 @@ public class UserController {
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error checking favorite playlist status: " + e.getMessage()));
         }
-    }    @GetMapping("/simple-favorite-playlists")
+    }    
+  
+    @GetMapping("/simple-favorite-playlists")
     public ResponseEntity<ApiResponse> getFavoritePlaylistsSimple(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -338,7 +341,8 @@ public class UserController {
                 .body(ApiResponse.error("Error creating test user: " + e.getMessage()));
         }
     }
-      @PostMapping("/test-add-favorite-music/{userId}/{musicId}")
+      
+    @PostMapping("/test-add-favorite-music/{userId}/{musicId}")
     public ResponseEntity<ApiResponse> testAddFavoriteMusic(
             @PathVariable Long userId,
             @PathVariable Long musicId) {
@@ -348,6 +352,8 @@ public class UserController {
             if (existingFavorite.isPresent()) {
                 return ResponseEntity.ok(ApiResponse.success("Music already in favorites", false));
             }
+
+         
 
             // Get user and music entities
             var user = userRepository.findById(userId);
@@ -520,5 +526,56 @@ public class UserController {
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error getting test data: " + e.getMessage()));
         }
+    }
+
+    // ===== MY LIST =====
+
+    // Lấy danh sách my-list
+    @GetMapping("/my-list")
+    public ResponseEntity<ApiResponse> getMyList(@RequestParam Long userId) {
+        try {
+            List<MyListDTO> myList = userService.getMyList(userId);
+            return ResponseEntity.ok(ApiResponse.success("My list retrieved successfully", myList));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.error("An unexpected error occurred: " + e.getMessage()));
+        }
+    }
+
+    // Thêm vào my-list
+    @PostMapping("/my-list")
+    public ResponseEntity<ApiResponse> addToMyList(@RequestBody Map<String, Long> request) {
+        try {
+            Long musicId = request.get("musicId");
+            Long userId = request.get("userId");
+            userService.addToMyList(userId, musicId);
+            return ResponseEntity.ok(ApiResponse.success("Added to my list successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/my-list/{musicId}")
+    public ResponseEntity<ApiResponse> removeFromMyList(
+            @PathVariable Long musicId,
+            @RequestBody Map<String, Long> request) {
+        try {
+            Long userId = request.get("userId");
+            userService.removeFromMyList(userId, musicId);
+            return ResponseEntity.ok(ApiResponse.success("Removed from my list successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Kiểm tra có trong my-list không
+    @GetMapping("/my-list/check/{musicId}")
+    public ResponseEntity<Map<String, Boolean>> checkInMyList(
+            @PathVariable Long musicId,
+            @RequestParam(defaultValue = "1") Long userId) {
+        boolean isInMyList = userService.isInMyList(userId, musicId);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("isInMyList", isInMyList);
+        return ResponseEntity.ok(response);
     }
 }

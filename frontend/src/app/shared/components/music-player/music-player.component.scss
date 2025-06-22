@@ -536,4 +536,18 @@
     transform: translateX(0);
     opacity: 1;
   }
+/* filepath: f:\coconut-angular-springboot\frontend\src\app\shared\components\music-player\music-player.component.scss */
+
+/* Màu khi nhấn (active) */
+.option-btn:active,
+.option-btn.active {
+  background: #1db954;
+  color: #fff;
+}
+
+/* Màu khi sidebar đang mở (nếu muốn đồng bộ với trạng thái sidebar) */
+.sidebar.open ~ .music-player .option-btn.queue-active,
+.music-player .option-btn.queue-active {
+  background: #1db954;
+  color: #fff;
 }
