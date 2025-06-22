@@ -7,7 +7,7 @@ import { MusicPlayerService } from '../../../core/services/music-player.service'
 import { UserMusicService } from '../../../core/services/user-music.service';
 import { PlaylistService } from '../../../core/services/playlist.service';
 import { Music, MusicType } from '../../../core/models/music.model';
-import { SidebarService } from '../../../core/services/sidebar.service';
+
 
 @Component({
   selector: 'app-music-list',
@@ -165,27 +165,12 @@ import { SidebarService } from '../../../core/services/sidebar.service';
                 {{ formatDuration(music.durationSeconds) }}</span
               >
             </div>
-          </div>
-          <div class="music-actions">
+          </div>          <div class="music-actions">
             <button
               (click)="$event.stopPropagation(); toggleFavorite(music)"
               class="action-btn"
             >
               <i class="fas fa-heart" [class.active]="isFavorite(music.id)"></i>
-            </button>
-            <button
-              *ngIf="!myListStates[music.id]"
-              (click)="$event.stopPropagation(); addToPlaylist(music)"
-              class="action-btn"
-            >
-              <i class="fas fa-plus"></i>
-            </button>
-            <button
-              *ngIf="myListStates[music.id]"
-              (click)="$event.stopPropagation(); removeFromPlaylist(music)"
-              class="action-btn"
-            >
-              <i class="fas fa-minus"></i>
             </button>
             <button
               (click)="$event.stopPropagation(); shareMusic(music)"
@@ -256,23 +241,8 @@ import { SidebarService } from '../../../core/services/sidebar.service';
           <div class="col-actions">
             <button
               (click)="$event.stopPropagation(); toggleFavorite(music)"
-              class="action-btn"
-            >
+              class="action-btn"            >
               <i class="fas fa-heart" [class.active]="isFavorite(music.id)"></i>
-            </button>
-            <button
-              *ngIf="!myListStates[music.id]"
-              (click)="$event.stopPropagation(); addToPlaylist(music)"
-              class="action-btn"
-            >
-              <i class="fas fa-plus"></i>
-            </button>
-            <button
-              *ngIf="myListStates[music.id]"
-              (click)="$event.stopPropagation(); removeFromPlaylist(music)"
-              class="action-btn"
-            >
-              <i class="fas fa-minus"></i>
             </button>
             <button
               (click)="$event.stopPropagation(); shareMusic(music)"
@@ -321,14 +291,12 @@ import { SidebarService } from '../../../core/services/sidebar.service';
 export class MusicListComponent implements OnInit {
   musicList: Music[] = [];
   isLoading = false;
-  searchQuery = '';
-  selectedType = '';
+  searchQuery = '';  selectedType = '';
   selectedCategoryId: number | null = null;
   selectedCategoryName: string | null = null;
   sortBy = 'createdAt';
   viewMode: 'grid' | 'list' = 'grid';
   favoriteStates: { [key: number]: boolean } = {}; // Track favorite states
-  myListStates: { [key: number]: boolean } = {};
   copySuccess = false;
   userMessage = '';
 
@@ -336,13 +304,11 @@ export class MusicListComponent implements OnInit {
   currentPage = 0;
   pageSize = 20;
   totalPages = 0;
-  totalItems = 0;
-  constructor(
+  totalItems = 0;  constructor(
     private musicService: MusicService,
     private musicPlayerService: MusicPlayerService,
     private userMusicService: UserMusicService,
-    private route: ActivatedRoute,
-    private sidebarService: SidebarService
+    private route: ActivatedRoute
   ) {}
   ngOnInit() {
     // Subscribe to query parameters to handle category filtering
@@ -383,13 +349,11 @@ export class MusicListComponent implements OnInit {
       observable = this.musicService.getAllMusic(params);
     }
     observable.subscribe({
-      next: (response) => {
-        if (response.success && response.data) {
+      next: (response) => {        if (response.success && response.data) {
           this.musicList = response.data.content;
           this.totalPages = response.data.totalPages;
           this.totalItems = response.data.totalElements;
           this.loadFavoriteStates();
-          this.loadMyListStates();
         }
       },
       error: (error: any) => {
@@ -446,20 +410,7 @@ export class MusicListComponent implements OnInit {
     // Initialize favorite states for current music list
     this.musicList.forEach((music) => {
       this.userMusicService.isFavorite(music.id).subscribe((isFavorite) => {
-        this.favoriteStates[music.id] = isFavorite;
-      });
-    });
-  }
-  loadMyListStates() {
-    const currentUser = localStorage.getItem('currentUser');
-    if (!currentUser) {
-      console.log('Chưa đăng nhập, không load my list');
-      return;
-    }
-    this.musicList.forEach((music) => {
-      this.userMusicService.isInMyList(music.id).subscribe((isInMyList) => {
-        this.myListStates[music.id] = isInMyList;
-      });
+        this.favoriteStates[music.id] = isFavorite;      });
     });
   }
 
@@ -531,45 +482,7 @@ export class MusicListComponent implements OnInit {
         error: (error: any) => {
           console.error('Error adding to favorites:', error);
         },
-      });
-    }
-  }
-
-  addToPlaylist(music: Music) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const userId = currentUser.id;
-    if (!userId) {
-      this.showUserMessage('Vui lòng đăng nhập để lưu vào danh sách nghe của bạn!');
-      return;
-    }
-    this.userMusicService.addToMyList(music.id, userId).subscribe({
-      next: () => {
-        this.myListStates[music.id] = true;
-        this.showUserMessage('Thêm bài hát vào danh sách nghe!');
-        // Phát sự kiện cập nhật sidebar (nếu có)
-        this.sidebarService.notifyMyListChanged(); // <-- thêm dòng này nếu có Subject trong SidebarService
-        console.log('Added to my list:', music.title);
-      },
-      error: (error: any) => {
-        console.error('Error adding to my list:', error);
-      },
-    });
-  }
-
-  removeFromPlaylist(music: Music) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const userId = currentUser.id;
-    this.userMusicService.removeFromMyList(music.id, userId).subscribe({
-      next: () => {
-        this.myListStates[music.id] = false;
-        // Cập nhật sidebar ngay
-        this.sidebarService.notifyMyListChanged();
-        this.showUserMessage('Đã xóa khỏi danh sách nghe!');
-      },
-      error: (error: any) => {
-        console.error('Error removing from my list:', error);
-      },
-    });
+      });    }
   }
 
   shareMusic(music: Music) {
@@ -650,8 +563,8 @@ export class MusicListComponent implements OnInit {
     this.userMessage = msg;
     setTimeout(() => (this.userMessage = ''), 1300);
   }
-
   showQueue() {
-    this.sidebarService.open();
+    // Queue functionality removed
+    console.log('Queue functionality has been removed');
   }
 }

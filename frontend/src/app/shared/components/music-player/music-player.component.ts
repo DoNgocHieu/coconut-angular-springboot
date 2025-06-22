@@ -5,7 +5,7 @@ import { MusicPlayerService } from '../../../core/services/music-player.service'
 
 import { UserMusicService } from '../../../core/services/user-music.service';
 
-import { SidebarService } from '../../../core/services/sidebar.service';
+
 
 import { Subscription } from 'rxjs';
 
@@ -66,14 +66,9 @@ import { Subscription } from 'rxjs';
         </div>
 
         <!-- Additional Controls -->
-        <div class="additional-controls">
-          <button
-  class="option-btn"
-  [class.queue-active]="sidebarOpen"
-  (click)="showQueue()"
->
-  <i class="fas fa-list"></i>
-</button>
+        <div class="additional-controls">          <button class="option-btn" (click)="showQueue()" disabled>
+            <i class="fas fa-list"></i>
+          </button>
           <div class="volume-control">
             <button class="option-btn" (click)="toggleMute()">
               <i class="fas" [class.fa-volume-up]="!isMuted && volume > 50"
@@ -366,9 +361,9 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     console.log('Next track');
     this.musicPlayerService.nextTrack();
   }
-
   showQueue() {
-    this.sidebarService.toggle();
+    // Queue functionality removed - this button is now disabled
+    console.log('Queue functionality has been removed');
   }
   toggleFullscreen() {
     console.log('Toggle fullscreen');

@@ -59,23 +59,26 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                // Public endpoints
+            .authorizeHttpRequests(authz -> authz                // Public endpoints
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/music/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()                .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()                .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/music/*/play").permitAll() // Allow play count increment
+                .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/playlists/*").permitAll() // Allow get single playlist
-                .requestMatchers(HttpMethod.GET, "/api/playlists/*/music").permitAll() // Allow get playlist music                .requestMatchers("/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/playlists/*/music").permitAll() // Allow get playlist music
+                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/user/**").permitAll() // Temporary: Allow user endpoints for testing
-                .requestMatchers("/api/user-admin/**").permitAll() // Temporary: Allow user-admin endpoints for testing                // Admin endpoints
+                .requestMatchers("/api/user-admin/**").permitAll() // Temporary: Allow user-admin endpoints for testing
+                // Admin endpoints
                 .requestMatchers("/api/admin/**").permitAll() // Temporarily allow for testing
                 // .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                 // User endpoints (commented out for testing)
                 // .requestMatchers("/api/user/**").hasRole("USER")
                 .requestMatchers("/api/playlists/**").hasRole("USER")
-                .requestMatchers(HttpMethod.POST, "/api/music/play/**").hasRole("USER")
 
                 // All other requests need authentication
                 .anyRequest().authenticated()
