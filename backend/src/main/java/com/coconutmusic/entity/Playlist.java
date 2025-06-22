@@ -1,5 +1,6 @@
 package com.coconutmusic.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -23,10 +24,9 @@ public class Playlist {
     private String name;
 
     @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    private String description;    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @Column(name = "is_public")
@@ -45,6 +45,7 @@ public class Playlist {
 
     // Relationships
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<PlaylistMusic> playlistMusic;
 
     // Constructors

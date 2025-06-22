@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { Music } from '../models/music.model';
+import { Playlist } from '../models/playlist.model';
 import { ApiResponse, PageResponse, PaginationParams } from '../models/api.model';
 import { environment } from '../../../environments/environment';
 
@@ -20,11 +21,18 @@ export interface FavoriteMusic {
   userId: number;
 }
 
+export interface FavoritePlaylist {
+  id: number;
+  playlist: Playlist;
+  addedAt: string;
+  userId: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class UserMusicService {
-  private readonly API_URL = `${environment.apiUrl}/user`;
+  private readonly API_URL = `${environment.apiUrl}/user-admin`;
 
   // Local storage for favorites and recently played (until backend is ready)
   private favoritesSubject = new BehaviorSubject<number[]>(this.getFavoritesFromStorage());
@@ -39,7 +47,7 @@ export class UserMusicService {
     const size = params?.size || 20;
 
     return this.http.get<ApiResponse<PageResponse<FavoriteMusic>>>(
-      `${this.API_URL}/favorites?page=${page}&size=${size}`
+      `${this.API_URL}/simple-favorites?page=${page}&size=${size}`
     ).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for getFavorites');
@@ -47,9 +55,51 @@ export class UserMusicService {
       })
     );
   }
+  // ===== FAVORITE PLAYLISTS =====
+  getFavoritePlaylists(params?: PaginationParams): Observable<ApiResponse<PageResponse<FavoritePlaylist>>> {
+    const page = params?.page || 0;
+    const size = params?.size || 20;
 
+    return this.http.get<ApiResponse<PageResponse<FavoritePlaylist>>>(
+      `${this.API_URL}/simple-favorite-playlists?page=${page}&size=${size}`
+    ).pipe(
+      catchError(error => {
+        console.warn('API not available, using localStorage fallback for getFavoritePlaylists');
+        return this.getFavoritePlaylistsFromStorage_Fallback();
+      })
+    );
+  }
+
+  addToFavoritePlaylists(playlistId: number): Observable<ApiResponse<FavoritePlaylist>> {
+    return this.http.post<ApiResponse<FavoritePlaylist>>(`${this.API_URL}/simple-favorite-playlists`, { playlistId }).pipe(
+      catchError(error => {
+        console.warn('API not available, using localStorage fallback for addToFavoritePlaylists');
+        return this.addToFavoritePlaylistsStorage_Fallback(playlistId);
+      })
+    );
+  }
+
+  removeFromFavoritePlaylists(playlistId: number): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(`${this.API_URL}/simple-favorite-playlists/${playlistId}`).pipe(
+      catchError(error => {
+        console.warn('API not available, using localStorage fallback for removeFromFavoritePlaylists');
+        return this.removeFromFavoritePlaylistsStorage_Fallback(playlistId);
+      })
+    );
+  }
+  isFavoritePlaylist(playlistId: number): Observable<boolean> {
+    return this.http.get<{ isFavorite: boolean }>(`${this.API_URL}/simple-favorite-playlists/check/${playlistId}`)
+      .pipe(
+        map((response: any) => response.isFavorite),
+        catchError(() => {
+          // Fallback to localStorage
+          const favoritePlaylistIds = this.getFavoritePlaylistsFromStorage();
+          return of(favoritePlaylistIds.includes(playlistId));
+        })
+      );
+  }
   addToFavorites(musicId: number): Observable<ApiResponse<FavoriteMusic>> {
-    return this.http.post<ApiResponse<FavoriteMusic>>(`${this.API_URL}/favorites`, { musicId }).pipe(
+    return this.http.post<ApiResponse<FavoriteMusic>>(`${this.API_URL}/simple-favorites`, { musicId }).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for addToFavorites');
         return this.addToFavoritesStorage_Fallback(musicId);
@@ -58,7 +108,7 @@ export class UserMusicService {
   }
 
   removeFromFavorites(musicId: number): Observable<ApiResponse<void>> {
-    return this.http.delete<ApiResponse<void>>(`${this.API_URL}/favorites/${musicId}`).pipe(
+    return this.http.delete<ApiResponse<void>>(`${this.API_URL}/simple-favorites/${musicId}`).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for removeFromFavorites');
         return this.removeFromFavoritesStorage_Fallback(musicId);
@@ -67,7 +117,7 @@ export class UserMusicService {
   }
 
   isFavorite(musicId: number): Observable<boolean> {
-    return this.http.get<{ isFavorite: boolean }>(`${this.API_URL}/favorites/check/${musicId}`)
+    return this.http.get<{ isFavorite: boolean }>(`${this.API_URL}/simple-favorites/check/${musicId}`)
       .pipe(
         map((response: any) => response.isFavorite),
         catchError(() => {
@@ -76,8 +126,7 @@ export class UserMusicService {
           return of(favorites.includes(musicId));
         })
       );
-  }
-  // ===== RECENTLY PLAYED =====
+  }// ===== RECENTLY PLAYED =====
   getRecentlyPlayed(params?: PaginationParams): Observable<ApiResponse<PageResponse<RecentlyPlayed>>> {
     const page = params?.page || 0;
     const size = params?.size || 20;
@@ -85,6 +134,7 @@ export class UserMusicService {
       `${this.API_URL}/recently-played?page=${page}&size=${size}`
     );
   }
+
   addToRecentlyPlayed(music: Music): void {
     // Call API to add to recently played
     this.http.post(`${this.API_URL}/recently-played`, { musicId: music.id }).subscribe({
@@ -105,15 +155,24 @@ export class UserMusicService {
         // Add to beginning
         recentlyPlayed.unshift(music);
 
-        // Keep only last 50 items
-        if (recentlyPlayed.length > 50) {
-          recentlyPlayed.pop();
+        // Keep only last 10 items (as per requirements)
+        if (recentlyPlayed.length > 10) {
+          recentlyPlayed.splice(10);
         }
 
         this.saveRecentlyPlayedToStorage(recentlyPlayed);
         this.recentlyPlayedSubject.next(recentlyPlayed);
       }
     });
+  }
+
+  // ===== PLAY MUSIC =====
+  playMusic(musicId: number): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(`${this.API_URL}/play`, { musicId });
+  }
+
+  playMultiple(musicIds: number[]): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(`${this.API_URL}/play/batch`, { musicIds });
   }
 
   clearRecentlyPlayed(): Observable<ApiResponse<void>> {
@@ -146,12 +205,28 @@ export class UserMusicService {
       return [];
     }
   }
-
   private saveRecentlyPlayedToStorage(recentlyPlayed: Music[]): void {
     try {
       localStorage.setItem('coconut_recently_played', JSON.stringify(recentlyPlayed));
     } catch (error) {
       console.error('Error saving recently played to storage:', error);
+    }
+  }
+
+  private getFavoritePlaylistsFromStorage(): number[] {
+    try {
+      const stored = localStorage.getItem('coconut_favorite_playlists');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveFavoritePlaylistsToStorage(favoritePlaylistIds: number[]): void {
+    try {
+      localStorage.setItem('coconut_favorite_playlists', JSON.stringify(favoritePlaylistIds));
+    } catch (error) {
+      console.error('Error saving favorite playlists to storage:', error);
     }
   }
 
@@ -263,7 +338,6 @@ export class UserMusicService {
       observer.complete();
     });
   }
-
   private getRecentlyPlayedStorage_Fallback(): Observable<ApiResponse<PageResponse<RecentlyPlayed>>> {
     return new Observable(observer => {
       const recentlyPlayed = this.getRecentlyPlayedFromStorage();
@@ -302,6 +376,89 @@ export class UserMusicService {
     });
   }
 
+  // ===== FAVORITE PLAYLISTS FALLBACK METHODS =====
+  private getFavoritePlaylistsFromStorage_Fallback(): Observable<ApiResponse<PageResponse<FavoritePlaylist>>> {
+    return new Observable(observer => {
+      const favoritePlaylistIds = this.getFavoritePlaylistsFromStorage();
+      const mockResponse: ApiResponse<PageResponse<FavoritePlaylist>> = {
+        success: true,
+        message: 'Favorite playlists loaded from localStorage',
+        timestamp: new Date().toISOString(),
+        data: {
+          content: favoritePlaylistIds.map((playlistId, index) => ({
+            id: index + 1,
+            playlist: this.getMockPlaylistById(playlistId),
+            addedAt: new Date(Date.now() - index * 60000).toISOString(),
+            userId: 1
+          })),
+          totalElements: favoritePlaylistIds.length,
+          totalPages: 1,
+          number: 0,
+          size: 20,
+          first: true,
+          last: true,
+          numberOfElements: favoritePlaylistIds.length,
+          empty: favoritePlaylistIds.length === 0,
+          pageable: {
+            sort: { empty: true, sorted: false, unsorted: true },
+            offset: 0,
+            pageSize: 20,
+            pageNumber: 0,
+            paged: true,
+            unpaged: false
+          },
+          sort: { empty: true, sorted: false, unsorted: true }
+        }
+      };
+      observer.next(mockResponse);
+      observer.complete();
+    });
+  }
+
+  private addToFavoritePlaylistsStorage_Fallback(playlistId: number): Observable<ApiResponse<FavoritePlaylist>> {
+    return new Observable(observer => {
+      // Add to localStorage
+      const favoritePlaylistIds = this.getFavoritePlaylistsFromStorage();
+      if (!favoritePlaylistIds.includes(playlistId)) {
+        favoritePlaylistIds.push(playlistId);
+        this.saveFavoritePlaylistsToStorage(favoritePlaylistIds);
+      }
+
+      const mockResponse: ApiResponse<FavoritePlaylist> = {
+        success: true,
+        message: 'Added to favorite playlists (localStorage)',
+        timestamp: new Date().toISOString(),
+        data: {
+          id: Date.now(),
+          playlist: this.getMockPlaylistById(playlistId),
+          addedAt: new Date().toISOString(),
+          userId: 1
+        }
+      };
+      observer.next(mockResponse);
+      observer.complete();
+    });
+  }
+
+  private removeFromFavoritePlaylistsStorage_Fallback(playlistId: number): Observable<ApiResponse<void>> {
+    return new Observable(observer => {
+      // Remove from localStorage
+      const favoritePlaylistIds = this.getFavoritePlaylistsFromStorage();
+      const index = favoritePlaylistIds.indexOf(playlistId);
+      if (index > -1) {
+        favoritePlaylistIds.splice(index, 1);
+        this.saveFavoritePlaylistsToStorage(favoritePlaylistIds);
+      }
+
+      const mockResponse: ApiResponse<void> = {
+        success: true,
+        message: 'Removed from favorite playlists (localStorage)',
+        timestamp: new Date().toISOString()
+      };
+      observer.next(mockResponse);
+      observer.complete();
+    });
+  }
   private getMockMusicById(musicId: number): Music {
     // Mock music object - in real app this would come from cache or another API call
     return {
@@ -318,6 +475,24 @@ export class UserMusicService {
       updatedAt: new Date().toISOString(),
       artist: { id: 1, name: 'Mock Artist', isActive: true, createdAt: '', updatedAt: '' },
       category: { id: 1, name: 'Mock Category', isActive: true, createdAt: '', updatedAt: '' }
+    };
+  }
+
+  private getMockPlaylistById(playlistId: number): Playlist {
+    // Mock playlist object - in real app this would come from cache or another API call
+    return {
+      id: playlistId,
+      name: `Mock Playlist ${playlistId}`,
+      description: `Description for playlist ${playlistId}`,
+      userId: 1,
+      isPublic: true,
+      imageUrl: 'https://via.placeholder.com/300x300?text=Playlist',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      songCount: 5,
+      totalDurationSeconds: 900,
+      createdBy: 'Mock User',
+      isLiked: false
     };
   }
 }

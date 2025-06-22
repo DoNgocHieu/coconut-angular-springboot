@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Music } from '../models/music.model';
 import { UserMusicService } from './user-music.service';
+import { MusicService } from './music.service';
 
 @Injectable({
   providedIn: 'root'
@@ -17,13 +18,21 @@ export class MusicPlayerService {
   public playlist$ = this.playlistSubject.asObservable();
   public currentIndex$ = this.currentIndexSubject.asObservable();
 
-  constructor(private userMusicService: UserMusicService) {}
-  playTrack(track: Music, playlist: Music[] = []) {
+  constructor(
+    private userMusicService: UserMusicService,
+    private musicService: MusicService
+  ) {
+    // Listen for music play events from MusicService and update recently played
+    this.musicService.musicPlayed$.subscribe(music => {
+      this.userMusicService.addToRecentlyPlayed(music);
+    });
+  }  playTrack(track: Music, playlist: Music[] = []) {
+    // Use MusicService to play track (which will handle play count increment)
+    this.musicService.playMusic(track, playlist);
+
+    // Update local state for compatibility
     this.currentTrackSubject.next(track);
     this.isPlayingSubject.next(true);
-
-    // Add to recently played
-    this.userMusicService.addToRecentlyPlayed(track);
 
     if (playlist.length > 0) {
       this.playlistSubject.next(playlist);
@@ -31,21 +40,26 @@ export class MusicPlayerService {
       this.currentIndexSubject.next(index);
     }
   }
-
   pauseTrack() {
+    this.musicService.pauseMusic();
     this.isPlayingSubject.next(false);
   }
 
   resumeTrack() {
+    this.musicService.resumeMusic();
     this.isPlayingSubject.next(true);
   }
-
   stopTrack() {
+    this.musicService.stopMusic();
     this.currentTrackSubject.next(null);
     this.isPlayingSubject.next(false);
   }
 
   nextTrack() {
+    // Use MusicService to handle next track (includes play count increment)
+    this.musicService.nextTrack();
+
+    // Update local state for compatibility
     const playlist = this.playlistSubject.value;
     const currentIndex = this.currentIndexSubject.value;
 
@@ -59,6 +73,10 @@ export class MusicPlayerService {
   }
 
   previousTrack() {
+    // Use MusicService to handle previous track (includes play count increment)
+    this.musicService.previousTrack();
+
+    // Update local state for compatibility
     const playlist = this.playlistSubject.value;
     const currentIndex = this.currentIndexSubject.value;
 
@@ -81,5 +99,46 @@ export class MusicPlayerService {
 
   getIsPlaying(): boolean {
     return this.isPlayingSubject.value;
+  }
+
+  // Method to call when a track ends (for auto-play next)
+  onTrackEnded() {
+    this.musicService.onTrackEnded();
+
+    // Update local state
+    const currentTrack = this.musicService.getCurrentTrack();
+    if (currentTrack) {
+      this.currentTrackSubject.next(currentTrack);
+      this.isPlayingSubject.next(true);
+
+      // Update current index if needed
+      const playlist = this.playlistSubject.value;
+      const index = playlist.findIndex(track => track.id === currentTrack.id);
+      if (index !== -1) {
+        this.currentIndexSubject.next(index);
+      }
+    }
+  }
+
+  // Delegate to MusicService for other controls
+  setVolume(volume: number) {
+    this.musicService.setVolume(volume);
+  }
+
+  setCurrentTime(time: number) {
+    this.musicService.setCurrentTime(time);
+  }
+
+  toggleShuffle() {
+    this.musicService.toggleShuffle();
+  }
+
+  setRepeatMode(mode: 'off' | 'one' | 'all') {
+    this.musicService.setRepeatMode(mode);
+  }
+
+  // Pass through utility methods
+  formatDuration(seconds: number): string {
+    return this.musicService.formatDuration(seconds);
   }
 }

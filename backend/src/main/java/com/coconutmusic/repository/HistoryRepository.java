@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface HistoryRepository extends JpaRepository<History, Long> {
@@ -31,9 +32,11 @@ public interface HistoryRepository extends JpaRepository<History, Long> {
 
     @Query("SELECT h.music, COUNT(h) as playCount FROM History h " +
            "WHERE h.playedAt >= :since GROUP BY h.music ORDER BY playCount DESC")
-    List<Object[]> findMostPlayedMusicSince(@Param("since") LocalDateTime since, Pageable pageable);
-
-    @Query("SELECT h FROM History h WHERE h.user.id = :userId " +
+    List<Object[]> findMostPlayedMusicSince(@Param("since") LocalDateTime since, Pageable pageable);    @Query("SELECT h FROM History h WHERE h.user.id = :userId " +
            "GROUP BY h.music ORDER BY MAX(h.playedAt) DESC")
-    List<History> findDistinctByUserIdOrderByPlayedAtDesc(@Param("userId") Long userId, Pageable pageable);
+    List<History> findDistinctByUserIdOrderByPlayedAtDesc(@Param("userId") Long userId, Pageable pageable);    // Find history records for a user ordered by played date
+    List<History> findByUserIdOrderByPlayedAtAsc(Long userId);
+
+    // Find existing history for same user and music
+    List<History> findByUserIdAndMusicId(Long userId, Long musicId);
 }

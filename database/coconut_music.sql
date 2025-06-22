@@ -168,6 +168,31 @@ INSERT INTO `favorites` (`created_at`, `id`, `music_id`, `user_id`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Cấu trúc bảng cho bảng `favorite_playlists`
+--
+
+DROP TABLE IF EXISTS `favorite_playlists`;
+CREATE TABLE IF NOT EXISTS `favorite_playlists` (
+  `created_at` datetime(6) DEFAULT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `playlist_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKfavorite_playlist_user` (`user_id`,`playlist_id`),
+  KEY `FKfavorite_playlist_playlist` (`playlist_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `favorite_playlists`
+--
+
+INSERT INTO `favorite_playlists` (`created_at`, `id`, `playlist_id`, `user_id`) VALUES
+('2025-06-22 15:30:00.000000', 1, 1, 1),
+('2025-06-22 15:30:00.000000', 2, 3, 1);
+
+-- --------------------------------------------------------
+
+--
 -- Cấu trúc bảng cho bảng `history`
 --
 
@@ -458,6 +483,13 @@ INSERT INTO `users` (`is_admin`, `is_verified`, `created_at`, `forgot_password_t
 ALTER TABLE `favorites`
   ADD CONSTRAINT `FKit9o546ff6pl3rxq5namd64q3` FOREIGN KEY (`music_id`) REFERENCES `music` (`id`),
   ADD CONSTRAINT `FKk7du8b8ewipawnnpg76d55fus` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+
+--
+-- Các ràng buộc cho bảng `favorite_playlists`
+--
+ALTER TABLE `favorite_playlists`
+  ADD CONSTRAINT `FKfavorite_playlist_playlist_ref` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`),
+  ADD CONSTRAINT `FKfavorite_playlist_user_ref` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
 --
 -- Các ràng buộc cho bảng `history`

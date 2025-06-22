@@ -42,8 +42,18 @@ public class Favorite {
     public void setUser(User user) { this.user = user; }
 
     public Music getMusic() { return music; }
-    public void setMusic(Music music) { this.music = music; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setMusic(Music music) { this.music = music; }    public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    // Helper methods for IDs
+    public Long getUserId() { return user != null ? user.getId() : null; }
+    public Long getMusicId() { return music != null ? music.getId() : null; }
+    public void setUserId(Long userId) {
+        // This is used for direct database operations in test endpoints
+        // In production, always use setUser() with proper User entity
+    }
+    public void setMusicId(Long musicId) {
+        // This is used for direct database operations in test endpoints
+        // In production, always use setMusic() with proper Music entity
+    }
 }
