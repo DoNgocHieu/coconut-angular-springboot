@@ -75,10 +75,11 @@ public class SecurityConfig {
                 // Admin endpoints
                 .requestMatchers("/api/admin/**").permitAll() // Temporarily allow for testing
                 // .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
+                
                 // User endpoints (commented out for testing)
                 // .requestMatchers("/api/user/**").hasRole("USER")
                 .requestMatchers("/api/playlists/**").hasRole("USER")
+                // recently added endpoints
 
                 // All other requests need authentication
                 .anyRequest().authenticated()

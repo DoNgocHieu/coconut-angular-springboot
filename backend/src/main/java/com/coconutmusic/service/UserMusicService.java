@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -194,5 +195,10 @@ public class UserMusicService {
 
     public Long getUserRecentlyPlayedCount(Long userId) {
         return historyRepository.countByUserId(userId);
+    }
+
+    @Transactional
+    public void clearRecentlyPlayed(Long userId) {
+        historyRepository.deleteByUserId(userId);
     }
 }

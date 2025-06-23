@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { UserMusicService, RecentlyPlayed } from '../../../core/services/user-music.service';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
 import { Music, MusicType } from '../../../core/models/music.model';
+import { RecentlyPlayed, UserMusicService } from '../../../core/services/user-music.service';
 
 @Component({
   selector: 'app-recently-played',
@@ -115,7 +115,8 @@ import { Music, MusicType } from '../../../core/models/music.model';
 export class RecentlyPlayedComponent implements OnInit {
   recentlyPlayed: RecentlyPlayed[] = [];
   isLoading = false;
-  favoriteStates: { [key: number]: boolean } = {}; // Track favorite states
+  favoriteStates: { [key: number]: boolean } = {};
+  userId?: number; // Thêm biến userId
 
   constructor(
     private userMusicService: UserMusicService,
@@ -123,15 +124,25 @@ export class RecentlyPlayedComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // Lấy userId từ localStorage khi khởi tạo component
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (currentUserStr) {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        this.userId = currentUser.id;
+      } catch {
+        this.userId = undefined;
+      }
+    }
     this.loadRecentlyPlayed();
-  }  loadRecentlyPlayed() {
-    this.isLoading = true;
+  }
 
-    this.userMusicService.getRecentlyPlayed().subscribe({
+  loadRecentlyPlayed() {
+    this.isLoading = true;
+    this.userMusicService.getRecentlyPlayed({ userId: this.userId }).subscribe({
       next: (response) => {
         if (response.success && response.data) {
           this.recentlyPlayed = response.data.content;
-          // Load favorite states for each music
           this.recentlyPlayed.forEach(item => {
             this.userMusicService.isFavorite(item.music.id).subscribe(isFav => {
               this.favoriteStates[item.music.id] = isFav;
@@ -140,11 +151,19 @@ export class RecentlyPlayedComponent implements OnInit {
         }
         this.isLoading = false;
       },
-      error: (error) => {
-        console.error('Error loading recently played:', error);
+      error: () => {
+        // Nếu lỗi API thì lấy từ localStorage
+        const local = localStorage.getItem('coconut_recently_played');
+        if (local) {
+          try {
+            this.recentlyPlayed = JSON.parse(local);
+          } catch {
+            this.recentlyPlayed = [];
+          }
+        } else {
+          this.recentlyPlayed = [];
+        }
         this.isLoading = false;
-        // Fallback to empty list or show error message
-        this.recentlyPlayed = [];
       }
     });
   }
@@ -218,8 +237,6 @@ export class RecentlyPlayedComponent implements OnInit {
   playMusic(music: Music) {
     this.musicPlayerService.playTrack(music, this.recentlyPlayed.map(item => item.music));
 
-    // Add to recently played (in real app, this would be handled by the music player service)
-    this.userMusicService.addToRecentlyPlayed(music);
   }
 
   isCurrentTrack(music: Music): boolean {
@@ -242,8 +259,8 @@ export class RecentlyPlayedComponent implements OnInit {
   }
 
   clearHistory() {
-    if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử nghe nhạc?')) {
-      this.userMusicService.clearRecentlyPlayed().subscribe({
+    if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử nghe nhạc?') && this.userId) {
+      this.userMusicService.clearRecentlyPlayed(this.userId).subscribe({
         next: () => {
           this.recentlyPlayed = [];
         },

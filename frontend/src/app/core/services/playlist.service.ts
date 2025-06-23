@@ -58,9 +58,19 @@ export class PlaylistService {
     return this.http.post<ApiResponse<Playlist>>(this.apiUrl, playlist);
   }
 
+  // Create new playlist with image
+  createPlaylistWithImage(formData: FormData): Observable<ApiResponse<Playlist>> {
+    return this.http.post<ApiResponse<Playlist>>(this.apiUrl, formData);
+  }
+
   // Update playlist
   updatePlaylist(id: number, playlist: Partial<Playlist>): Observable<ApiResponse<Playlist>> {
     return this.http.put<ApiResponse<Playlist>>(`${this.apiUrl}/${id}`, playlist);
+  }
+
+  // Update playlist with image
+  updatePlaylistWithImage(id: number, formData: FormData): Observable<ApiResponse<Playlist>> {
+    return this.http.put<ApiResponse<Playlist>>(`${this.apiUrl}/${id}`, formData);
   }
 
   // Delete playlist
@@ -75,7 +85,15 @@ export class PlaylistService {
 
   // Remove music from playlist
   removeMusicFromPlaylist(playlistId: number, musicId: number): Observable<ApiResponse<void>> {
-    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${playlistId}/music/${musicId}`);
+    const token = localStorage.getItem('accessToken');
+    return this.http.delete<ApiResponse<void>>(
+      `${this.apiUrl}/${playlistId}/music/${musicId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
   }
 
   // Get music for a specific playlist
@@ -91,4 +109,6 @@ export class PlaylistService {
 
     return this.http.get<ApiResponse<PageableResponse<Playlist>>>(this.apiUrl, { params });
   }
+
+
 }

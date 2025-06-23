@@ -333,24 +333,32 @@ export class MusicListComponent implements OnInit {
 
     let observable;
     if (this.selectedCategoryId) {
-      // Load music by category
       observable = this.musicService.getMusicByCategory(
         this.selectedCategoryId,
         params
       );
     } else if (this.selectedType) {
-      // Load music by type
       observable = this.musicService.getMusicByType(
         this.selectedType as MusicType,
         params
       );
     } else {
-      // Load all music
       observable = this.musicService.getAllMusic(params);
     }
     observable.subscribe({
-      next: (response) => {        if (response.success && response.data) {
-          this.musicList = response.data.content;
+      next: (response) => {
+        if (response.success && response.data) {
+          let list = response.data.content;
+          // Lọc FE nếu searchQuery có giá trị
+          if (this.searchQuery) {
+            const q = this.searchQuery.toLowerCase();
+            list = list.filter(
+              (m: Music) =>
+                m.title.toLowerCase().includes(q) ||
+                m.artist?.name?.toLowerCase().includes(q)
+            );
+          }
+          this.musicList = list;
           this.totalPages = response.data.totalPages;
           this.totalItems = response.data.totalElements;
           this.loadFavoriteStates();

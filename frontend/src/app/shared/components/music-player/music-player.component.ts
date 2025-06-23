@@ -4,6 +4,7 @@ import { Music } from '../../../core/models/music.model';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
 
 import { UserMusicService } from '../../../core/services/user-music.service';
+import { SidebarService } from '../../../core/services/sidebar.service';
 
 
 
@@ -66,7 +67,7 @@ import { Subscription } from 'rxjs';
         </div>
 
         <!-- Additional Controls -->
-        <div class="additional-controls">          <button class="option-btn" (click)="showQueue()" disabled>
+        <div class="additional-controls">          <button class="option-btn" (click)="showQueue()" >
             <i class="fas fa-list"></i>
           </button>
           <div class="volume-control">
@@ -119,7 +120,8 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   constructor(
     @Inject(PLATFORM_ID) private platformId: any,
     private musicPlayerService: MusicPlayerService,
-    private userMusicService: UserMusicService
+    private userMusicService: UserMusicService,
+    private sidebarService: SidebarService // Thêm dòng này
   ) {}
   ngOnInit() {
     console.log('🎵 MusicPlayerComponent ngOnInit, platform browser:', isPlatformBrowser(this.platformId));
@@ -362,8 +364,7 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     this.musicPlayerService.nextTrack();
   }
   showQueue() {
-    // Queue functionality removed - this button is now disabled
-    console.log('Queue functionality has been removed');
+    this.sidebarService.open(); // Mở sidebar (nav bar)
   }
   toggleFullscreen() {
     console.log('Toggle fullscreen');

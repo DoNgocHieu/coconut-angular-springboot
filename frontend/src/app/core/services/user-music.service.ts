@@ -127,17 +127,19 @@ export class UserMusicService {
         })
       );
   }// ===== RECENTLY PLAYED =====
-  getRecentlyPlayed(params?: PaginationParams): Observable<ApiResponse<PageResponse<RecentlyPlayed>>> {
-    const page = params?.page || 0;
-    const size = params?.size || 20;
-    return this.http.get<ApiResponse<PageResponse<RecentlyPlayed>>>(
-      `${this.API_URL}/recently-played?page=${page}&size=${size}`
-    );
+ getRecentlyPlayed(params?: PaginationParams & { userId?: number }): Observable<ApiResponse<PageResponse<RecentlyPlayed>>> {
+  const page = params?.page || 0;
+  const size = params?.size || 20;
+  let url = `${environment.apiUrl}/user/recently-played?page=${page}&size=${size}`;
+  if (params?.userId) {
+    url += `&userId=${params.userId}`;
   }
+  return this.http.get<ApiResponse<PageResponse<RecentlyPlayed>>>(url);
+}
 
-  addToRecentlyPlayed(music: Music): void {
-    // Call API to add to recently played
-    this.http.post(`${this.API_URL}/recently-played`, { musicId: music.id }).subscribe({
+  addToRecentlyPlayed(music: Music, userId: number): void {
+    // Call API to add to recently played, truyền cả userId
+    this.http.post(`${environment.apiUrl}/user/recently-played`, { musicId: music.id, userId }).subscribe({
       next: () => {
         console.log('✅ Added to recently played via API:', music.title);
       },
@@ -174,8 +176,10 @@ export class UserMusicService {
   playMultiple(musicIds: number[]): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(`${this.API_URL}/play/batch`, { musicIds });
   }
-  clearRecentlyPlayed(): Observable<ApiResponse<void>> {
-    return this.http.delete<ApiResponse<void>>(`${this.API_URL}/recently-played`);
+  clearRecentlyPlayed(userId: number): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(
+      `${environment.apiUrl}/user/recently-played?userId=${userId}`
+    );
   }
 
   // ===== STORAGE HELPERS =====
