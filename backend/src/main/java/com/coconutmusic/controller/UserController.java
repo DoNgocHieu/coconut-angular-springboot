@@ -40,17 +40,13 @@ public class UserController {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Music ID is required"));
             }
-
-            // For now, use a default user ID (1) until proper authentication is implemented
             Long userId = 1L;
 
-            // Check if already exists
             var existingFavorite = favoriteRepository.findByUserIdAndMusicId(userId, musicId);
             if (existingFavorite.isPresent()) {
                 return ResponseEntity.ok(ApiResponse.success("Music already in favorites", false));
             }
 
-            // Get user and music entities
             var user = userRepository.findById(userId);
             var music = musicRepository.findById(musicId);
 
@@ -66,7 +62,10 @@ public class UserController {
 
             favoriteRepository.save(favorite);
 
-            // Create response data
+            // Tăng like count
+            music.get().setLikeCount(music.get().getLikeCount() + 1);
+            musicRepository.save(music.get());
+
             var responseData = java.util.Map.of(
                 "id", favorite.getId(),
                 "music", music.get(),
@@ -82,12 +81,18 @@ public class UserController {
     }    @DeleteMapping("/simple-favorites/{musicId}")
     public ResponseEntity<ApiResponse> removeFromFavoritesSimple(@PathVariable Long musicId) {
         try {
-            // For now, use a default user ID (1) until proper authentication is implemented
             Long userId = 1L;
-
             var favorite = favoriteRepository.findByUserIdAndMusicId(userId, musicId);
             if (favorite.isPresent()) {
                 favoriteRepository.delete(favorite.get());
+
+                // Giảm like count
+                var music = musicRepository.findById(musicId);
+                if (music.isPresent() && music.get().getLikeCount() > 0) {
+                    music.get().setLikeCount(music.get().getLikeCount() - 1);
+                    musicRepository.save(music.get());
+                }
+
                 return ResponseEntity.ok(ApiResponse.success("Music removed from favorites", true));
             } else {
                 return ResponseEntity.ok(ApiResponse.success("Music was not in favorites", false));

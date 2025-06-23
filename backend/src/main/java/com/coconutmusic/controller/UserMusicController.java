@@ -1,5 +1,7 @@
 package com.coconutmusic.controller;
 
+import com.coconutmusic.dto.RecentlyPlayedDTO;
+import com.coconutmusic.dto.RecentlyPlayedRequest;
 import com.coconutmusic.dto.response.ApiResponse;
 import com.coconutmusic.entity.Favorite;
 import com.coconutmusic.entity.FavoritePlaylist;
@@ -8,6 +10,7 @@ import com.coconutmusic.security.UserPrincipal;
 import com.coconutmusic.service.UserMusicService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -189,22 +192,39 @@ public class UserMusicController {
         }
     }
 
+    @PostMapping("/recently-played")
+    public ResponseEntity<ApiResponse> addRecentlyPlayed(@RequestBody RecentlyPlayedRequest request) {
+        userMusicService.addToRecentlyPlayed(request.getUserId(), request.getMusicId());
+        return ResponseEntity.ok(ApiResponse.success("Added to recently played"));
+    }
+
     @GetMapping("/recently-played")
     public ResponseEntity<ApiResponse> getRecentlyPlayed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-
+            @RequestParam(required = true) Long userId
+    ) {
         try {
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                    .body(ApiResponse.error("Bạn cần truyền userId để xem lịch sử nghe nhạc."));
+            }
             Pageable pageable = PageRequest.of(page, size);
-            Page<History> recentlyPlayed = userMusicService.getUserRecentlyPlayed(currentUser.getId(), pageable);
-            return ResponseEntity.ok(ApiResponse.success("Recently played music retrieved", recentlyPlayed));
+            Page<History> recentlyPlayed = userMusicService.getUserRecentlyPlayed(userId, pageable);
+
+            // Map sang DTO
+            List<RecentlyPlayedDTO> dtoList = History.toDtoList(recentlyPlayed);
+
+            // Nếu FE cần phân trang, trả về PageImpl
+            Page<RecentlyPlayedDTO> dtoPage = new PageImpl<>(dtoList, pageable, recentlyPlayed.getTotalElements());
+
+            return ResponseEntity.ok(ApiResponse.success("Recently played music retrieved", dtoPage));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error("Error getting recently played music: " + e.getMessage()));
         }
     }
-
     // ==================== PLAY MUSIC (Combined Action) ====================
 
     @PostMapping("/play/{musicId}")
@@ -262,6 +282,16 @@ public class UserMusicController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error("Error getting user stats: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/recently-played")
+    public ResponseEntity<ApiResponse> clearRecentlyPlayed(@RequestParam Long userId) {
+        try {
+            userMusicService.clearRecentlyPlayed(userId);
+            return ResponseEntity.ok(ApiResponse.success("Đã xóa lịch sử nghe nhạc"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Xóa lịch sử thất bại: " + e.getMessage()));
         }
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -49,6 +50,10 @@ public class UserMusicService {
 
         Favorite favorite = new Favorite(user, music);
         favoriteRepository.save(favorite);
+
+        // Tăng like count khi thêm vào favorite
+        incrementLikeCount(musicId);
+
         return true;
     }
 
@@ -58,6 +63,10 @@ public class UserMusicService {
         }
 
         favoriteRepository.deleteByUserIdAndMusicId(userId, musicId);
+
+        // Giảm like count khi bỏ favorite
+        decrementLikeCount(musicId);
+
         return true;
     }
 
@@ -111,13 +120,9 @@ public class UserMusicService {
 
         // Check if this music is already in user's recent history
         List<History> existingHistory = historyRepository.findByUserIdAndMusicId(userId, musicId);
-
-        // Remove existing entries for this music (to avoid duplicates)
         if (!existingHistory.isEmpty()) {
             historyRepository.deleteAll(existingHistory);
         }
-
-        // Add new history entry
         History history = new History(user, music);
         historyRepository.save(history);
 
@@ -163,6 +168,24 @@ public class UserMusicService {
         }
     }
 
+    // ==================== LIKE COUNT ====================
+
+    public void incrementLikeCount(Long musicId) {
+        Music music = musicRepository.findById(musicId)
+            .orElseThrow(() -> new RuntimeException("Music not found"));
+        music.setLikeCount(music.getLikeCount() + 1);
+        musicRepository.save(music);
+    }
+
+    public void decrementLikeCount(Long musicId) {
+        Music music = musicRepository.findById(musicId)
+            .orElseThrow(() -> new RuntimeException("Music not found"));
+        if (music.getLikeCount() > 0) {
+            music.setLikeCount(music.getLikeCount() - 1);
+            musicRepository.save(music);
+        }
+    }
+
     // ==================== COMBINED ACTIONS ====================
 
     /**
@@ -194,5 +217,10 @@ public class UserMusicService {
 
     public Long getUserRecentlyPlayedCount(Long userId) {
         return historyRepository.countByUserId(userId);
+    }
+
+    @Transactional
+    public void clearRecentlyPlayed(Long userId) {
+        historyRepository.deleteByUserId(userId);
     }
 }

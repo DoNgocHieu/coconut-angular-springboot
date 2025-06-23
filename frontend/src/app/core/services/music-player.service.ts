@@ -24,8 +24,15 @@ export class MusicPlayerService {
   ) {
     // Listen for music play events from MusicService and update recently played
     this.musicService.musicPlayed$.subscribe(music => {
-      this.userMusicService.addToRecentlyPlayed(music);
-    });
+      const currentUserStr = localStorage.getItem('currentUser');
+      if (currentUserStr) {
+        try {
+          const currentUser = JSON.parse(currentUserStr);
+          this.userMusicService.addToRecentlyPlayed(music, currentUser.id);
+        } catch {}
+      }
+    }
+  );
   }  playTrack(track: Music, playlist: Music[] = []) {
     // Use MusicService to play track (which will handle play count increment)
     this.musicService.playMusic(track, playlist);
@@ -38,6 +45,15 @@ export class MusicPlayerService {
       this.playlistSubject.next(playlist);
       const index = playlist.findIndex(t => t.id === track.id);
       this.currentIndexSubject.next(index);
+    }
+
+    // Thêm vào history mỗi khi phát nhạc
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (currentUserStr) {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        this.userMusicService.addToRecentlyPlayed(track, currentUser.id);
+      } catch {}
     }
   }
   pauseTrack() {

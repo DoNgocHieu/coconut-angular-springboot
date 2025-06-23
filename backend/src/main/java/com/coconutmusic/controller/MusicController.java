@@ -25,8 +25,15 @@ public class MusicController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllMusicRoot(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {        try {
-            Pageable pageable = PageRequest.of(page, size);
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Pageable pageable;
+            if (size == -1) {
+                // Lấy tất cả nhạc
+                pageable = Pageable.unpaged();
+            } else {
+                pageable = PageRequest.of(page, size);
+            }
             Page<Music> musicPage = musicService.getAllMusic(pageable);
 
             // Create pagination data object that matches frontend expectations

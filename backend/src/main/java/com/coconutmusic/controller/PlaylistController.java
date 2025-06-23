@@ -4,13 +4,24 @@ import com.coconutmusic.dto.PlaylistDTO;
 import com.coconutmusic.dto.PlaylistCreateRequest;
 import com.coconutmusic.service.PlaylistService;
 import com.coconutmusic.dto.response.ApiResponse;
+import com.coconutmusic.entity.Playlist;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/playlists")
@@ -18,7 +29,9 @@ import org.springframework.web.bind.annotation.*;
 public class PlaylistController {
 
     @Autowired
-    private PlaylistService playlistService;    @GetMapping
+    private PlaylistService playlistService;
+
+    @GetMapping
     public ResponseEntity<ApiResponse> getAllPlaylists(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -108,27 +121,101 @@ public class PlaylistController {
         }
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse> createPlaylist(@RequestBody PlaylistCreateRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createPlaylist(
+            @RequestParam("name") String name,
+            @RequestParam("description") String description,
+            @RequestParam("isPublic") boolean isPublic,
+            @RequestParam("user_id") Long userId,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile
+    ) {
         try {
+            String imageUrl = null;
+            if (imageFile != null && !imageFile.isEmpty()) {
+                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                Path uploadPath = Paths.get("uploads/playlist-images");
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Path filePath = uploadPath.resolve(fileName);
+                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+                imageUrl = "/uploads/playlist-images/" + fileName;
+            }
+
+            // Tạo request object
+            PlaylistCreateRequest request = new PlaylistCreateRequest();
+            request.setName(name);
+            request.setDescription(description);
+            request.setIsPublic(isPublic);
+            request.setUserId(userId);
+            request.setImageUrl(imageUrl);
+
             PlaylistDTO playlist = playlistService.createPlaylist(request);
-            return ResponseEntity.ok(ApiResponse.success("Playlist created successfully", playlist));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Playlist created successfully");
+            response.put("data", playlist);
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Error creating playlist: " + e.getMessage()));
+            e.printStackTrace(); // Thêm dòng này để xem lỗi chi tiết trong console
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to create playlist: " + e.getMessage());
+            errorResponse.put("data", null);
+            errorResponse.put("timestamp", java.time.LocalDateTime.now().toString());
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse> updatePlaylist(
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updatePlaylistWithImage(
             @PathVariable Long id,
-            @RequestBody PlaylistCreateRequest request) {
+            @RequestParam("name") String name,
+            @RequestParam("description") String description,
+            @RequestParam("isPublic") boolean isPublic,
+            @RequestParam("user_id") Long userId,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile
+    ) {
         try {
+            String imageUrl = null;
+            if (imageFile != null && !imageFile.isEmpty()) {
+                String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                Path uploadPath = Paths.get("uploads/playlist-images");
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                Path filePath = uploadPath.resolve(fileName);
+                Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+                imageUrl = "/uploads/playlist-images/" + fileName;
+            }
+
+            PlaylistCreateRequest request = new PlaylistCreateRequest();
+            request.setName(name);
+            request.setDescription(description);
+            request.setIsPublic(isPublic);
+            request.setUserId(userId);
+            if (imageUrl != null) {
+                request.setImageUrl(imageUrl);
+            }
+
             PlaylistDTO playlist = playlistService.updatePlaylist(id, request);
-            return ResponseEntity.ok(ApiResponse.success("Playlist updated successfully", playlist));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Playlist updated successfully");
+            response.put("data", playlist);
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Error updating playlist: " + e.getMessage()));
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Failed to update playlist: " + e.getMessage());
+            errorResponse.put("data", null);
+            errorResponse.put("timestamp", java.time.LocalDateTime.now().toString());
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 
