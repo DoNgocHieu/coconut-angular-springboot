@@ -50,6 +50,10 @@ public class UserMusicService {
 
         Favorite favorite = new Favorite(user, music);
         favoriteRepository.save(favorite);
+
+        // Tăng like count khi thêm vào favorite
+        incrementLikeCount(musicId);
+
         return true;
     }
 
@@ -59,6 +63,10 @@ public class UserMusicService {
         }
 
         favoriteRepository.deleteByUserIdAndMusicId(userId, musicId);
+
+        // Giảm like count khi bỏ favorite
+        decrementLikeCount(musicId);
+
         return true;
     }
 
@@ -112,13 +120,9 @@ public class UserMusicService {
 
         // Check if this music is already in user's recent history
         List<History> existingHistory = historyRepository.findByUserIdAndMusicId(userId, musicId);
-
-        // Remove existing entries for this music (to avoid duplicates)
         if (!existingHistory.isEmpty()) {
             historyRepository.deleteAll(existingHistory);
         }
-
-        // Add new history entry
         History history = new History(user, music);
         historyRepository.save(history);
 
@@ -161,6 +165,24 @@ public class UserMusicService {
     public void incrementPlayCountBatch(List<Long> musicIds) {
         for (Long musicId : musicIds) {
             incrementPlayCount(musicId);
+        }
+    }
+
+    // ==================== LIKE COUNT ====================
+
+    public void incrementLikeCount(Long musicId) {
+        Music music = musicRepository.findById(musicId)
+            .orElseThrow(() -> new RuntimeException("Music not found"));
+        music.setLikeCount(music.getLikeCount() + 1);
+        musicRepository.save(music);
+    }
+
+    public void decrementLikeCount(Long musicId) {
+        Music music = musicRepository.findById(musicId)
+            .orElseThrow(() -> new RuntimeException("Music not found"));
+        if (music.getLikeCount() > 0) {
+            music.setLikeCount(music.getLikeCount() - 1);
+            musicRepository.save(music);
         }
     }
 
