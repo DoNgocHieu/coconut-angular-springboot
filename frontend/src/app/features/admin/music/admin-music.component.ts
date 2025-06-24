@@ -2,11 +2,13 @@ import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AdminMusicService, MusicCreateRequest, MusicUpdateRequest, MusicFilters } from '../../../core/services/admin-music.service';
+import { AdminArtistService } from '../../../core/services/admin-artist.service';
 import { MusicService } from '../../../core/services/music.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { FirebaseStorageService } from '../../../core/services/firebase-storage.service';
 import { Music, MusicType, Category } from '../../../core/models/music.model';
+import { Artist } from '../../../core/models/music.model';
 import { PageResponse, PaginationParams } from '../../../core/models/api.model';
 import { User } from '../../../core/models/auth.model';
 
@@ -119,10 +121,14 @@ import { User } from '../../../core/models/auth.model';
       transition: all 0.2s ease !important;
       cursor: pointer !important;
       background: rgba(40, 40, 40, 0.5) !important;
-    }
-    .modal-overlay .modal .modal-body .form-group .file-upload-area:hover {
+    }    .modal-overlay .modal .modal-body .form-group .file-upload-area:hover {
       border-color: #1db954 !important;
       background: rgba(29, 185, 84, 0.05) !important;
+    }
+    .modal-overlay .modal .modal-body .form-group .file-upload-area.dragover {
+      border-color: #1db954 !important;
+      background: rgba(29, 185, 84, 0.1) !important;
+      transform: scale(1.02) !important;
     }
     .modal-overlay .modal .modal-body .form-group .file-upload-area .file-input {
       display: none !important;
@@ -350,13 +356,20 @@ import { User } from '../../../core/models/auth.model';
             </div>            <!-- Music File Upload -->
             <div class="form-group">
               <label>Music File (MP3) *</label>
-              <div class="file-upload-area" [class.dragover]="false">
+              <div
+                class="file-upload-area"
+                [class.dragover]="isDragOver"
+                (click)="triggerMusicFileInput()"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave($event)"
+                (drop)="onMusicFileDrop($event)">
                 <input
                   type="file"
                   accept="audio/mp3,audio/mpeg"
                   (change)="onMusicFileSelected($event)"
                   class="file-input"
-                  id="musicFile">
+                  id="musicFile"
+                  #musicFileInput>
                 <div class="upload-icon">
                   <i class="fas fa-cloud-upload-alt"></i>
                 </div>
@@ -396,13 +409,20 @@ import { User } from '../../../core/models/auth.model';
             </div>            <!-- Image File Upload -->
             <div class="form-group">
               <label>Cover Image</label>
-              <div class="file-upload-area image-upload" [class.dragover]="false">
+              <div
+                class="file-upload-area image-upload"
+                [class.dragover]="isImageDragOver"
+                (click)="triggerImageFileInput()"
+                (dragover)="onImageDragOver($event)"
+                (dragleave)="onImageDragLeave($event)"
+                (drop)="onImageFileDrop($event)">
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   (change)="onImageFileSelected($event)"
                   class="file-input"
-                  id="imageFile">
+                  id="imageFile"
+                  #imageFileInput>
                 <div class="upload-icon">
                   <i class="fas fa-image"></i>
                 </div>
@@ -450,13 +470,19 @@ import { User } from '../../../core/models/auth.model';
                 <div class="error" *ngIf="musicForm.get('durationSeconds')?.touched && musicForm.get('durationSeconds')?.errors?.['required']">
                   Duration is required
                 </div>
-              </div>
-
-              <div class="form-group">
+              </div>              <div class="form-group">
                 <label for="categoryId">Category</label>
                 <select id="categoryId" formControlName="categoryId">
                   <option value="">Select Category</option>
                   <option *ngFor="let category of categories" [value]="category.id">{{category.name}}</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="artistId">Artist</label>
+                <select id="artistId" formControlName="artistId">
+                  <option value="">Select Artist</option>
+                  <option *ngFor="let artist of artists" [value]="artist.id">{{artist.name}}</option>
                 </select>
               </div>
             </div>
@@ -525,6 +551,7 @@ import { User } from '../../../core/models/auth.model';
 export class AdminMusicComponent implements OnInit {
   musicList: Music[] = [];
   categories: Category[] = [];
+  artists: Artist[] = [];
   selectedMusic: number[] = [];
   musicForm!: FormGroup;
   showModal = false;
@@ -532,7 +559,6 @@ export class AdminMusicComponent implements OnInit {
   isEditMode = false;  selectedMusicItem: Music | null = null;
   loading = false;
   submitting = false;
-
   // File upload properties
   selectedMusicFile: File | null = null;
   selectedImageFile: File | null = null;
@@ -540,6 +566,10 @@ export class AdminMusicComponent implements OnInit {
   imageFileProgress = 0;
   uploadingMusic = false;
   uploadingImage = false;
+
+  // Drag & Drop properties
+  isDragOver = false;
+  isImageDragOver = false;
   // Pagination
   pageInfo: PageResponse<Music> = {
     content: [],
@@ -581,6 +611,7 @@ export class AdminMusicComponent implements OnInit {
 
   Math = Math;  constructor(
     private adminMusicService: AdminMusicService,
+    private adminArtistService: AdminArtistService,
     private musicService: MusicService,
     private categoryService: CategoryService,
     public authService: AuthService,
@@ -596,11 +627,10 @@ export class AdminMusicComponent implements OnInit {
       console.log('Current user:', user);
       console.log('Is admin:', user?.isAdmin);
       console.log('Auth token:', this.authService.getToken());
-    });
-
-    this.testRegularMusicService();
+    });    this.testRegularMusicService();
     this.loadMusic();
     this.loadCategories();
+    this.loadArtists();
   }
 
   testRegularMusicService() {
@@ -613,14 +643,14 @@ export class AdminMusicComponent implements OnInit {
         console.error('Regular music service error:', error);
       }
     });
-  }
-  initForm() {
+  }  initForm() {
     this.musicForm = this.fb.group({
       title: ['', Validators.required],
       fileUrl: [''], // Will be populated after upload
       imageUrl: [''], // Will be populated after upload
       durationSeconds: ['', [Validators.required, Validators.min(1)]],
       categoryId: [''],
+      artistId: [''],
       typeMusic: [MusicType.NEW_MUSIC],
       isActive: [true]
     });
@@ -649,7 +679,6 @@ export class AdminMusicComponent implements OnInit {
       }
     });
   }
-
   loadCategories() {
     this.categoryService.getAllCategories().subscribe({
       next: (response) => {
@@ -659,6 +688,18 @@ export class AdminMusicComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading categories:', error);
+      }
+    });
+  }
+  loadArtists() {
+    this.adminArtistService.getAllArtists({ page: 0, size: 1000 }, { isActive: true }).subscribe({
+      next: (response: any) => {
+        if (response.success) {
+          this.artists = response.data.content;
+        }
+      },
+      error: (error: any) => {
+        console.error('Error loading artists:', error);
       }
     });
   }
@@ -680,13 +721,13 @@ export class AdminMusicComponent implements OnInit {
 
   editMusic(music: Music) {
     this.isEditMode = true;
-    this.selectedMusicItem = music;
-    this.musicForm.patchValue({
+    this.selectedMusicItem = music;    this.musicForm.patchValue({
       title: music.title,
       fileUrl: music.fileUrl,
       imageUrl: music.imageUrl,
       durationSeconds: music.durationSeconds,
       categoryId: music.category?.id || '',
+      artistId: music.artist?.id || '',
       typeMusic: music.typeMusic,
       isActive: music.isActive
     });
@@ -709,12 +750,11 @@ export class AdminMusicComponent implements OnInit {
 
       try {
         // Upload files if any are selected
-        await this.uploadFiles();
-
-        const formValue = this.musicForm.value;
+        await this.uploadFiles();        const formValue = this.musicForm.value;
         const request = {
           ...formValue,
-          categoryId: formValue.categoryId || null
+          categoryId: formValue.categoryId || null,
+          artistId: formValue.artistId || null
         };
 
         const operation = this.isEditMode
@@ -904,12 +944,82 @@ export class AdminMusicComponent implements OnInit {
     const fileInput = document.getElementById('musicFile') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   }
-
   removeImageFile() {
     this.selectedImageFile = null;
     this.imageFileProgress = 0;
     const fileInput = document.getElementById('imageFile') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  }
+
+  triggerMusicFileInput() {
+    const fileInput = document.getElementById('musicFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+  triggerImageFileInput() {
+    const fileInput = document.getElementById('imageFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  // Drag & Drop methods for music files
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onMusicFileDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (this.firebaseStorage.validateMusicFile(file)) {
+        this.selectedMusicFile = file;
+      } else {
+        alert('Please select a valid MP3 file (max 50MB)');
+      }
+    }
+  }
+
+  // Drag & Drop methods for image files
+  onImageDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImageDragOver = true;
+  }
+
+  onImageDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImageDragOver = false;
+  }
+
+  onImageFileDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isImageDragOver = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (this.firebaseStorage.validateImageFile(file)) {
+        this.selectedImageFile = file;
+      } else {
+        alert('Please select a valid image file (JPEG, PNG, WebP, GIF, max 5MB)');
+      }
+    }
   }
 
   getImagePreview(): string {

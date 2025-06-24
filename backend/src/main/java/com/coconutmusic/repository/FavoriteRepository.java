@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 
     @Query("SELECT f FROM Favorite f WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
-    Page<Favorite> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);    @Query("SELECT f FROM Favorite f JOIN FETCH f.music m JOIN FETCH m.artist JOIN FETCH m.category WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
+    Page<Favorite> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);    @Query("SELECT f FROM Favorite f JOIN FETCH f.music m LEFT JOIN FETCH m.artist LEFT JOIN FETCH m.category WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
     Page<Favorite> findByUserIdWithMusicOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT f FROM Favorite f WHERE f.user.id = :userId ORDER BY f.createdAt DESC")

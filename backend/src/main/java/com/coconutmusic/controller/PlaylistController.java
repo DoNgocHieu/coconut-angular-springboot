@@ -4,7 +4,6 @@ import com.coconutmusic.dto.PlaylistDTO;
 import com.coconutmusic.dto.PlaylistCreateRequest;
 import com.coconutmusic.service.PlaylistService;
 import com.coconutmusic.dto.response.ApiResponse;
-import com.coconutmusic.entity.Playlist;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -119,18 +118,19 @@ public class PlaylistController {
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error loading playlist music: " + e.getMessage()));
         }
-    }
-
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    }    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createPlaylist(
             @RequestParam("name") String name,
             @RequestParam("description") String description,
             @RequestParam("isPublic") boolean isPublic,
             @RequestParam("user_id") Long userId,
-            @RequestParam(value = "image", required = false) MultipartFile imageFile
+            @RequestParam(value = "image", required = false) MultipartFile imageFile,
+            @RequestParam(value = "imageUrl", required = false) String imageUrl
     ) {
         try {
-            String imageUrl = null;
+            String finalImageUrl = null;
+
+            // Priority: uploaded file first, then URL
             if (imageFile != null && !imageFile.isEmpty()) {
                 String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
                 Path uploadPath = Paths.get("uploads/playlist-images");
@@ -139,7 +139,9 @@ public class PlaylistController {
                 }
                 Path filePath = uploadPath.resolve(fileName);
                 Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-                imageUrl = "/uploads/playlist-images/" + fileName;
+                finalImageUrl = "/uploads/playlist-images/" + fileName;
+            } else if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                finalImageUrl = imageUrl.trim();
             }
 
             // Tạo request object
@@ -148,7 +150,7 @@ public class PlaylistController {
             request.setDescription(description);
             request.setIsPublic(isPublic);
             request.setUserId(userId);
-            request.setImageUrl(imageUrl);
+            request.setImageUrl(finalImageUrl);
 
             PlaylistDTO playlist = playlistService.createPlaylist(request);
 
@@ -167,19 +169,20 @@ public class PlaylistController {
             errorResponse.put("timestamp", java.time.LocalDateTime.now().toString());
             return ResponseEntity.status(500).body(errorResponse);
         }
-    }
-
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    }    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updatePlaylistWithImage(
             @PathVariable Long id,
             @RequestParam("name") String name,
             @RequestParam("description") String description,
             @RequestParam("isPublic") boolean isPublic,
             @RequestParam("user_id") Long userId,
-            @RequestParam(value = "image", required = false) MultipartFile imageFile
+            @RequestParam(value = "image", required = false) MultipartFile imageFile,
+            @RequestParam(value = "imageUrl", required = false) String imageUrl
     ) {
         try {
-            String imageUrl = null;
+            String finalImageUrl = null;
+
+            // Priority: uploaded file first, then URL
             if (imageFile != null && !imageFile.isEmpty()) {
                 String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
                 Path uploadPath = Paths.get("uploads/playlist-images");
@@ -188,7 +191,9 @@ public class PlaylistController {
                 }
                 Path filePath = uploadPath.resolve(fileName);
                 Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-                imageUrl = "/uploads/playlist-images/" + fileName;
+                finalImageUrl = "/uploads/playlist-images/" + fileName;
+            } else if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                finalImageUrl = imageUrl.trim();
             }
 
             PlaylistCreateRequest request = new PlaylistCreateRequest();
@@ -196,8 +201,8 @@ public class PlaylistController {
             request.setDescription(description);
             request.setIsPublic(isPublic);
             request.setUserId(userId);
-            if (imageUrl != null) {
-                request.setImageUrl(imageUrl);
+            if (finalImageUrl != null) {
+                request.setImageUrl(finalImageUrl);
             }
 
             PlaylistDTO playlist = playlistService.updatePlaylist(id, request);

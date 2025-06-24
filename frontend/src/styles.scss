@@ -13,27 +13,151 @@
 
 html, body {
   height: 100%;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   overflow-x: hidden;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 // Typography
 h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   line-height: 1.3;
+  letter-spacing: -0.025em;
 }
 
 p {
+  font-family: 'Inter', sans-serif;
   line-height: 1.6;
   margin-bottom: 1rem;
+  font-weight: 400;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+  font-family: 'Inter', sans-serif;
 }
+
+// Form Elements
+input, textarea, select, button {
+  font-family: 'Inter', sans-serif !important;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Inter font for Font Awesome icons in buttons */
+button i[class*="fa"],
+button .fas,
+button .far,
+button .fab,
+button .fal,
+button .fad {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+}
+
+button .far {
+  font-weight: 400 !important;
+}
+
+button .fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+button {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+// Font weights for Inter
+.font-light { font-weight: 300; }
+.font-regular { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+/* ===== GLOBAL ICON FIXES ===== */
+/* Ensure Font Awesome icons display correctly globally */
+i[class*="fa"],
+i.fas,
+i.far,
+i.fab,
+i.fal,
+i.fad,
+.fas,
+.far,
+.fab,
+.fal,
+.fad {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Specific font weights for different Font Awesome styles */
+i.far,
+.far {
+  font-weight: 400 !important;
+}
+
+i.fab,
+.fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
+}
+
+i.fal,
+.fal {
+  font-weight: 300 !important;
+}
+
+/* Material Icons support */
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  word-wrap: normal !important;
+  white-space: nowrap !important;
+  direction: ltr !important;
+}
+
+/* Override any global font settings that might affect icons */
+[class*="fa-"]::before,
+.fas::before,
+.far::before,
+.fab::before,
+.fal::before,
+.fad::before {
+  font-family: inherit !important;
+}
+/* ===== END GLOBAL ICON FIXES ===== */
 
 // Scrollbar Styles
 ::-webkit-scrollbar {
@@ -492,4 +616,107 @@ app-admin-dashboard .modal {
   min-width: 500px !important;
   max-height: 90vh !important;
   overflow-y: auto !important;
+}
+
+/* ===== ULTIMATE FONT AWESOME OVERRIDE ===== */
+/* This should override any and all font-family settings for Font Awesome icons */
+* i[class*="fa"],
+* .fas,
+* .far,
+* .fab,
+* .fal,
+* .fad,
+button i[class*="fa"],
+button .fas,
+button .far,
+button .fab,
+a i[class*="fa"],
+a .fas,
+a .far,
+a .fab,
+.admin-btn i,
+.submit-btn i,
+.close-btn i,
+.cancel-btn i,
+.modal-header i,
+.modal-footer i,
+.action-btn i,
+.bulk-btn i,
+.filter-btn i {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+* .far,
+button .far,
+a .far {
+  font-weight: 400 !important;
+}
+
+* .fab,
+button .fab,
+a .fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
+}
+
+/* Make sure this applies even with ViewEncapsulation.None */
+:host * i[class*="fa"],
+:host * .fas,
+:host * .far,
+:host * .fab {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+}
+
+:host * .far {
+  font-weight: 400 !important;
+}
+
+:host * .fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
+}
+
+/* ===== ADMIN ARTISTS SPECIFIC FONT AWESOME OVERRIDE ===== */
+/* Force Font Awesome for admin artists component specifically */
+app-admin-artists * i[class*="fa"],
+app-admin-artists * .fas,
+app-admin-artists * .far,
+app-admin-artists * .fab,
+app-admin-artists .modal-overlay * i[class*="fa"],
+app-admin-artists .modal-overlay * .fas,
+app-admin-artists .modal-overlay * .far,
+app-admin-artists .modal-overlay * .fab,
+app-admin-artists button i,
+app-admin-artists .modal button i,
+app-admin-artists .close-btn i,
+app-admin-artists .submit-btn i,
+app-admin-artists .modal-header i,
+app-admin-artists .modal-footer i {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+app-admin-artists * .far,
+app-admin-artists .modal-overlay * .far {
+  font-weight: 400 !important;
+}
+
+app-admin-artists * .fab,
+app-admin-artists .modal-overlay * .fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
 }

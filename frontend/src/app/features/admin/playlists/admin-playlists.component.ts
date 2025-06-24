@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { AdminPlaylistService, PlaylistFilters } from '../../../core/services/admin-playlist.service';
 import { Playlist } from '../../../core/models/playlist.model';
 import { PageResponse, PaginationParams } from '../../../core/models/api.model';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-admin-playlists',
@@ -226,7 +227,7 @@ import { PageResponse, PaginationParams } from '../../../core/models/api.model';
                 <input type="checkbox" [checked]="isSelected(playlist.id)" (change)="toggleSelection(playlist.id, $event)">
               </td>
               <td>
-                <img [src]="playlist.imageUrl || 'https://via.placeholder.com/50x50/e0e0e0/666666?text=🎵'" [alt]="playlist.name" class="playlist-thumb">
+                <img [src]="getPlaylistImageUrl(playlist)" [alt]="playlist.name" class="playlist-thumb">
               </td>
               <td>
                 <div class="playlist-name">
@@ -362,7 +363,7 @@ import { PageResponse, PaginationParams } from '../../../core/models/api.model';
         <div class="modal-body" *ngIf="selectedPlaylistItem">
           <div class="playlist-details">
             <div class="playlist-image">
-              <img [src]="selectedPlaylistItem.imageUrl || 'https://via.placeholder.com/200x200/e0e0e0/666666?text=🎵'" [alt]="selectedPlaylistItem.name">
+              <img [src]="getPlaylistImageUrl(selectedPlaylistItem)" [alt]="selectedPlaylistItem.name">
             </div>
             <div class="playlist-info">
               <h2>{{selectedPlaylistItem.name}}</h2>
@@ -608,8 +609,14 @@ export class AdminPlaylistsComponent implements OnInit {
 
     for (let i = start; i <= end; i++) {
       pages.push(i);
-    }
-    return pages;
+    }    return pages;
+  }
+
+  getPlaylistImageUrl(playlist: Playlist): string {
+    if (!playlist.imageUrl) return 'https://via.placeholder.com/50x50/e0e0e0/666666?text=🎵';
+    if (playlist.imageUrl.startsWith('http')) return playlist.imageUrl;
+    if (playlist.imageUrl.startsWith('/uploads')) return environment.backendUrl + playlist.imageUrl;
+    return playlist.imageUrl;
   }
 
   closeModal() {

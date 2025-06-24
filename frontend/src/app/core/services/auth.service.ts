@@ -72,7 +72,7 @@ export class AuthService {
       username: authResponse.username,
       email: authResponse.email,
       isVerified: true,
-      isAdmin: authResponse.admin, // Changed from authResponse.isAdmin to authResponse.admin
+      isAdmin: authResponse.isAdmin, // Now matches the backend JsonProperty
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

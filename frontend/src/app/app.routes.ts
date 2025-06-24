@@ -69,10 +69,12 @@ export const routes: Routes = [
       {
         path: 'music',
         loadComponent: () => import('./features/admin/music/admin-music.component').then(m => m.AdminMusicComponent)
-      },
-      {
+      },      {
         path: 'categories',
-        loadComponent: () => import('./features/admin/categories/admin-categories.component').then(m => m.AdminCategoriesComponent)
+        loadComponent: () => import('./features/admin/categories/admin-categories.component').then(m => m.AdminCategoriesComponent)      },
+      {
+        path: 'artists',
+        loadComponent: () => import('./features/admin/artists/admin-artists.component').then(m => m.AdminArtistsComponent)
       },
       {
         path: 'users',

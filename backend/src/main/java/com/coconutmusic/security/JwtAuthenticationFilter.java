@@ -26,23 +26,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private JwtTokenProvider tokenProvider;
 
     @Autowired
-    private CustomUserDetailsService customUserDetailsService;
-
-    @Override
+    private CustomUserDetailsService customUserDetailsService;    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                   FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
+            logger.info("JWT Authentication Filter - Request: {} {}", request.getMethod(), request.getRequestURI());
+            logger.info("JWT Authentication Filter - Token present: {}", jwt != null && !jwt.isEmpty());
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 Long userId = tokenProvider.getUserIdFromJWT(jwt);
+                logger.info("JWT Authentication Filter - User ID from token: {}", userId);
 
                 UserDetails userDetails = customUserDetailsService.loadUserById(userId);
+                logger.info("JWT Authentication Filter - User authorities: {}", userDetails.getAuthorities());
+
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                logger.info("JWT Authentication Filter - Authentication set successfully");
+            } else {
+                logger.info("JWT Authentication Filter - No valid token found");
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

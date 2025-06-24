@@ -82,11 +82,10 @@ export class LoginComponent implements OnInit {
                      this.loginData.usernameOrEmail.split('@')[0] :
                      this.loginData.usernameOrEmail,
             email: this.loginData.usernameOrEmail.includes('@') ?                  this.loginData.usernameOrEmail :
-                  `${this.loginData.usernameOrEmail}@coconutmusic.com`,
-            accessToken: 'mock-access-token-' + Date.now(),
+                  `${this.loginData.usernameOrEmail}@coconutmusic.com`,            accessToken: 'mock-access-token-' + Date.now(),
             refreshToken: 'mock-refresh-token-' + Date.now(),
             tokenType: 'Bearer',
-            admin: this.loginData.usernameOrEmail === 'admin'
+            isAdmin: this.loginData.usernameOrEmail === 'admin' // Changed from admin to isAdmin
           };
 
           this.authService.setAuthDataPublic(mockAuthResponse);

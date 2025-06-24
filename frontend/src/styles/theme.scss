@@ -41,10 +41,9 @@
   --shadow-small: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-large: 0 16px 40px rgba(0, 0, 0, 0.5);
-
   /* Typography */
-  --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-secondary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-secondary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Sizes */
   --header-height: 64px;
@@ -58,6 +57,86 @@
   --transition-medium: 0.25s ease;
   --transition-slow: 0.35s ease;
 }
+
+/* ===== GLOBAL INTER FONT APPLICATION ===== */
+// Apply Inter font to entire user interface BUT EXCLUDE ICONS
+body, html {
+  font-family: var(--font-primary) !important;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Apply to all common elements
+* {
+  font-family: inherit;
+}
+
+// EXCLUDE ICON FONTS - Let them use their original fonts
+i, .fas, .far, .fal, .fab, .fad, .material-icons, [class*="fa-"], [class^="fa-"] {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-rendering: auto !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-primary) !important;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+p, span, div, label, a {
+  font-family: var(--font-primary) !important;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+input, textarea, select, button {
+  font-family: var(--font-primary) !important;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+button {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+
+  // Icons inside buttons should use icon fonts
+  i, .fas, .far, .fal, .fab, .fad, .material-icons, [class*="fa-"], [class^="fa-"] {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  }
+}
+
+// Font weight utilities
+.font-light { font-weight: 300 !important; }
+.font-regular { font-weight: 400 !important; }
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+
+// Letter spacing utilities
+.tracking-tighter { letter-spacing: -0.05em !important; }
+.tracking-tight { letter-spacing: -0.025em !important; }
+.tracking-normal { letter-spacing: 0em !important; }
+.tracking-wide { letter-spacing: 0.025em !important; }
+.tracking-wider { letter-spacing: 0.05em !important; }
 
 /* Global Reset & Base Styles */
 * {

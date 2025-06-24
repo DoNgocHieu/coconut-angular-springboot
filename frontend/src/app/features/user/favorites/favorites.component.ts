@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { UserMusicService, FavoriteMusic, FavoritePlaylist } from '../../../core/services/user-music.service';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
 import { Music, MusicType } from '../../../core/models/music.model';
@@ -211,32 +212,49 @@ import { Playlist } from '../../../core/models/playlist.model';
   `,
   styleUrls: ['./favorites.component.scss']
 })
-export class FavoritesComponent implements OnInit {
+export class FavoritesComponent implements OnInit, OnDestroy {
   favorites: FavoriteMusic[] = [];
   favoritePlaylists: FavoritePlaylist[] = [];
   isLoading = false;
   activeTab: 'music' | 'playlists' = 'music';
 
+  private subscriptions = new Subscription();
+
   constructor(
     private userMusicService: UserMusicService,
     private musicPlayerService: MusicPlayerService
-  ) {}
-
-  ngOnInit() {
+  ) {}  ngOnInit() {
+    console.log('🎵 Favorites component initialized');
     this.loadFavorites();
     this.loadFavoritePlaylists();
+
+    // Subscribe to favorites refresh events
+    const refreshSub = this.userMusicService.favoritesRefresh$.subscribe((shouldRefresh) => {
+      if (shouldRefresh) {
+        console.log('🔄 Refreshing favorites list due to external change');
+        this.loadFavorites();
+      }
+    });
+    this.subscriptions.add(refreshSub);
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.unsubscribe();
   }  loadFavorites() {
+    console.log('📋 Loading favorites...');
     this.isLoading = true;
 
     this.userMusicService.getFavorites().subscribe({
       next: (response) => {
+        console.log('✅ Favorites loaded:', response);
         if (response.success && response.data) {
           this.favorites = response.data.content;
+          console.log(`📊 Loaded ${this.favorites.length} favorite songs`);
         }
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Error loading favorites:', error);
+        console.error('❌ Error loading favorites:', error);
         this.isLoading = false;
         // Fallback to empty list or show error message
         this.favorites = [];
@@ -312,11 +330,11 @@ export class FavoritesComponent implements OnInit {
     const currentTrack = this.musicPlayerService.getCurrentTrack();
     return currentTrack?.id === music.id;
   }
-
   removeFromFavorites(musicId: number) {
     this.userMusicService.removeFromFavorites(musicId).subscribe({
       next: () => {
-        this.favorites = this.favorites.filter(f => f.music.id !== musicId);
+        console.log('✅ Removed from favorites:', musicId);
+        // Don't need to manually filter here - the service will trigger refresh
       },
       error: (error) => {
         console.error('Error removing from favorites:', error);

@@ -136,22 +136,30 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
         muted: this.audio.muted,
         paused: this.audio.paused,
         src: this.audio.src
-      });
-
-      // Subscribe to music player service
+      });      // Subscribe to music player service
       this.subscriptions.push(
         this.musicPlayerService.currentTrack$.subscribe(track => {
           console.log('🎵 MusicPlayerComponent received track:', track);
           if (track && track !== this.currentTrack) {
             this.loadTrack(track);
           }
-        }),        this.musicPlayerService.isPlaying$.subscribe(playing => {
+        }),
+
+        this.musicPlayerService.isPlaying$.subscribe(playing => {
           console.log('🎵 MusicPlayerComponent received playing state:', playing);
+          const wasPlaying = this.isPlaying;
           this.isPlaying = playing;
-          if (this.audio && this.currentTrack) {
+            if (this.audio && this.currentTrack) {
             if (playing && this.audio.paused) {
-              console.log('🎵 Starting playback...');
-              this.safePlay();
+              console.log('🎵 Starting playback from state change...');
+              // Add a small delay to ensure audio is ready
+              setTimeout(() => {
+                if (this.audio && this.audio.readyState >= 3) {
+                  this.safePlay();
+                } else {
+                  console.log('🎵 Audio not ready yet, waiting for canplay...');
+                }
+              }, 50);
             } else if (!playing && !this.audio.paused) {
               console.log('🎵 Pausing playback...');
               this.safePause();
@@ -170,8 +178,7 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
     }
-  }
-  private setupAudioListeners() {
+  }  private setupAudioListeners() {
     if (!this.audio) return;
 
     this.audio.addEventListener('loadedmetadata', () => {
@@ -181,7 +188,9 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
 
     this.audio.addEventListener('timeupdate', () => {
       this.currentTime = this.audio!.currentTime;
-    });    this.audio.addEventListener('ended', () => {
+    });
+
+    this.audio.addEventListener('ended', () => {
       console.log('🎵 Track ended, auto-playing next track');
       this.isPlaying = false;
       // Use onTrackEnded to handle auto-play with proper play count increment
@@ -198,21 +207,47 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
       this.isPlaying = false;
     });
 
+    // Add better error handling
     this.audio.addEventListener('error', (e) => {
       console.error('🎵 Audio error:', e);
+      const error = this.audio!.error;
+      if (error) {
+        console.error('🎵 Audio error details:', {
+          code: error.code,
+          message: error.message
+        });
+        this.showMessage('error', 'Audio playback error. Please try again.');
+      }
     });
-  }  loadTrack(track: Music) {
+
+    // Add stalled/waiting event handlers
+    this.audio.addEventListener('waiting', () => {
+      console.log('🎵 Audio is waiting for data...');
+    });
+
+    this.audio.addEventListener('canplaythrough', () => {
+      console.log('🎵 Audio can play through without interruption');
+    });
+  }loadTrack(track: Music) {
     if (!this.audio || !isPlatformBrowser(this.platformId)) return;
 
     console.log('🎵 Loading track in player:', track.title, track.fileUrl);
     console.log('🎵 Audio element before load:', this.audio);
 
     this.currentTrack = track;
+
+    // Reset audio state first
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this.currentTime = 0;
+
+    // Set new source
     this.audio.src = track.fileUrl;
 
     console.log('🎵 Audio src set to:', this.audio.src);
-    console.log('🎵 Calling audio.load()...');    this.audio.load();
-    this.currentTime = 0;
+    console.log('🎵 Calling audio.load()...');
+
+    this.audio.load();
 
     // Check if track is favorited
     this.checkFavoriteStatus(track.id);
@@ -222,15 +257,31 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
       readyState: this.audio.readyState,
       paused: this.audio.paused,
       volume: this.audio.volume
-    });// Auto play when track is loaded
-    this.audio.addEventListener('canplay', () => {
-      console.log('🎵 Track can play, starting playback...');
+    });
+
+    // Improved auto-play handling with better timing
+    const handleCanPlay = () => {
+      console.log('🎵 Track can play, checking if should start playback...');
+      console.log('🎵 Current isPlaying state:', this.isPlaying);
+
       if (this.isPlaying) {
+        console.log('🎵 Starting immediate playback...');
         this.safePlay();
       }
-    }, { once: true });
-  }
+    };
 
+    // Remove any existing canplay listeners to avoid conflicts
+    this.audio.removeEventListener('canplay', handleCanPlay);
+
+    // Add the listener
+    this.audio.addEventListener('canplay', handleCanPlay, { once: true });
+
+    // Fallback: If audio is already ready, trigger play immediately
+    if (this.audio.readyState >= 3) { // HAVE_FUTURE_DATA or higher
+      console.log('🎵 Audio already ready, triggering canplay manually');
+      setTimeout(() => handleCanPlay(), 100);
+    }
+  }
   private async safePlay() {
     if (!this.audio) return;
 
@@ -240,14 +291,32 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
         await this.playPromise;
       }
 
+      // Ensure audio is ready before playing
+      if (this.audio.readyState < 3) {
+        console.log('🎵 Audio not ready yet, waiting...');
+        await new Promise((resolve) => {
+          const onCanPlay = () => {
+            this.audio!.removeEventListener('canplay', onCanPlay);
+            resolve(void 0);
+          };
+          this.audio!.addEventListener('canplay', onCanPlay, { once: true });
+        });
+      }
+
       // Start new play operation
       this.playPromise = this.audio.play();
       await this.playPromise;
       this.playPromise = null;
       console.log('🎵 Audio started playing successfully');
-    } catch (error) {
+    } catch (error: any) {
       this.playPromise = null;
       console.error('🎵 Error playing audio:', error);
+
+      // Handle common browser audio policy errors
+      if (error.name === 'NotAllowedError' || error.message.includes('user interaction')) {
+        console.log('🎵 Browser requires user interaction, will play on next user action');
+        this.showMessage('error', 'Click play button to start music');
+      }
     }
   }
 
@@ -267,13 +336,31 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('🎵 Error pausing audio:', error);
     }
-  }
-  togglePlayPause() {
+  }  togglePlayPause() {
     console.log('🎵 Toggle play/pause, current state:', this.isPlaying);
+    console.log('🎵 Current track:', this.currentTrack?.title);
+    console.log('🎵 Audio element state:', this.audio ? {
+      paused: this.audio.paused,
+      readyState: this.audio.readyState,
+      src: this.audio.src
+    } : 'null');
+
+    if (!this.currentTrack) {
+      console.log('🎵 No current track, cannot toggle playback');
+      return;
+    }
+
     if (this.isPlaying) {
       this.musicPlayerService.pauseTrack();
     } else {
+      // Force immediate playback on user interaction
       this.musicPlayerService.resumeTrack();
+
+      // If audio isn't playing yet, force it
+      if (this.audio && this.audio.paused) {
+        console.log('🎵 Forcing immediate playback on user click');
+        setTimeout(() => this.safePlay(), 100);
+      }
     }
   }
 

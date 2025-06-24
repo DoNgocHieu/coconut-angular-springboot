@@ -65,20 +65,20 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/music/*/play").permitAll() // Allow play count increment
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()                .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/playlists/*").permitAll() // Allow get single playlist
                 .requestMatchers(HttpMethod.GET, "/api/playlists/*/music").permitAll() // Allow get playlist music
+                .requestMatchers("/api/playlists/**").permitAll() // Temporarily allow for testing
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/user/**").permitAll() // Temporary: Allow user endpoints for testing
                 .requestMatchers("/api/user-admin/**").permitAll() // Temporary: Allow user-admin endpoints for testing
                 // Admin endpoints
                 .requestMatchers("/api/admin/**").permitAll() // Temporarily allow for testing
                 // .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                
+
                 // User endpoints (commented out for testing)
                 // .requestMatchers("/api/user/**").hasRole("USER")
-                .requestMatchers("/api/playlists/**").hasRole("USER")
+                // .requestMatchers("/api/playlists/**").hasRole("USER")
                 // recently added endpoints
 
                 // All other requests need authentication

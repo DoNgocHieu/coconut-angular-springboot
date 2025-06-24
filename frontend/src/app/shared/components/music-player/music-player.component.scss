@@ -1,3 +1,30 @@
+/* Force Font Awesome icons to display correctly */
+.fas,
+.far,
+.fab,
+.fa {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+  font-weight: 900 !important;
+}
+
+.far {
+  font-weight: 400 !important;
+}
+
+.fab {
+  font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
+  font-weight: 400 !important;
+}
+
+/* Ensure icons are not affected by text font changes */
+.control-btn i,
+.favorite-btn i,
+.volume-btn i,
+.btn i,
+button i {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+}
+
 /* Theme variables are available globally via styles.scss */
 
 .music-player {
