@@ -33,21 +33,37 @@ export interface FavoritePlaylist {
 })
 export class UserMusicService {
   private readonly API_URL = `${environment.apiUrl}/user-admin`;
-
   // Local storage for favorites and recently played (until backend is ready)
   private favoritesSubject = new BehaviorSubject<number[]>(this.getFavoritesFromStorage());
   private recentlyPlayedSubject = new BehaviorSubject<Music[]>(this.getRecentlyPlayedFromStorage());
 
+  // Observable streams for components to subscribe to
   public favorites$ = this.favoritesSubject.asObservable();
   public recentlyPlayed$ = this.recentlyPlayedSubject.asObservable();
+    // Subject to notify when favorites list needs to be refreshed
+  private favoritesRefreshSubject = new BehaviorSubject<boolean>(false);
+  public favoritesRefresh$ = this.favoritesRefreshSubject.asObservable();
 
-  constructor(private http: HttpClient) {}  // ===== FAVORITES =====
+  // Method to manually trigger favorites refresh
+  public triggerFavoritesRefresh(): void {
+    this.favoritesRefreshSubject.next(true);
+  }
+
+  constructor(private http: HttpClient) {}
+
+  // ===== FAVORITES =====
   getFavorites(params?: PaginationParams): Observable<ApiResponse<PageResponse<FavoriteMusic>>> {
     const page = params?.page || 0;
     const size = params?.size || 20;
 
     return this.http.get<ApiResponse<PageResponse<FavoriteMusic>>>(
-      `${this.API_URL}/simple-favorites?page=${page}&size=${size}`
+      `${this.API_URL}/simple-favorites?page=${page}&size=${size}`,
+      {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      }
     ).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for getFavorites');
@@ -97,21 +113,31 @@ export class UserMusicService {
           return of(favoritePlaylistIds.includes(playlistId));
         })
       );
-  }
-  addToFavorites(musicId: number): Observable<ApiResponse<FavoriteMusic>> {
+  }  addToFavorites(musicId: number): Observable<ApiResponse<FavoriteMusic>> {
     return this.http.post<ApiResponse<FavoriteMusic>>(`${this.API_URL}/simple-favorites`, { musicId }).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for addToFavorites');
         return this.addToFavoritesStorage_Fallback(musicId);
       })
+    ).pipe(
+      map(response => {
+        // Trigger refresh of favorites list
+        this.favoritesRefreshSubject.next(true);
+        return response;
+      })
     );
   }
-
   removeFromFavorites(musicId: number): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(`${this.API_URL}/simple-favorites/${musicId}`).pipe(
       catchError(error => {
         console.warn('API not available, using localStorage fallback for removeFromFavorites');
         return this.removeFromFavoritesStorage_Fallback(musicId);
+      })
+    ).pipe(
+      map(response => {
+        // Trigger refresh of favorites list
+        this.favoritesRefreshSubject.next(true);
+        return response;
       })
     );
   }
@@ -294,7 +320,6 @@ export class UserMusicService {
       observer.complete();
     });
   }
-
   private addToFavoritesStorage_Fallback(musicId: number): Observable<ApiResponse<FavoriteMusic>> {
     return new Observable(observer => {
       // Add to localStorage
@@ -303,6 +328,8 @@ export class UserMusicService {
         favorites.push(musicId);
         this.saveFavoritesToStorage(favorites);
         this.favoritesSubject.next(favorites);
+        // Trigger refresh of favorites list
+        this.favoritesRefreshSubject.next(true);
       }
 
       const mockResponse: ApiResponse<FavoriteMusic> = {
@@ -320,7 +347,6 @@ export class UserMusicService {
       observer.complete();
     });
   }
-
   private removeFromFavoritesStorage_Fallback(musicId: number): Observable<ApiResponse<void>> {
     return new Observable(observer => {
       // Remove from localStorage
@@ -330,6 +356,8 @@ export class UserMusicService {
         favorites.splice(index, 1);
         this.saveFavoritesToStorage(favorites);
         this.favoritesSubject.next(favorites);
+        // Trigger refresh of favorites list
+        this.favoritesRefreshSubject.next(true);
       }
 
       const mockResponse: ApiResponse<void> = {

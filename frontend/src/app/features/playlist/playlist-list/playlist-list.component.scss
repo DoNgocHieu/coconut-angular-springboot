@@ -490,7 +490,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -508,6 +509,7 @@
   max-height: 90vh;
   overflow-y: auto;
   animation: slideIn 0.3s ease-out;
+  backdrop-filter: blur(10px);
 
   &.delete-modal {
     max-width: 400px;
@@ -520,6 +522,8 @@
   align-items: center;
   padding: 24px;
   border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--surface-hover) 100%);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 
   h2 {
     font-size: 1.5rem;
@@ -553,19 +557,43 @@
 }
 
 .modal-body {
-  padding: 24px;
-
+  padding: 24px 24px 16px 24px;
+  background: var(--bg-secondary);
   .form-group {
     margin-bottom: 20px;
+    animation: slideInUp 0.3s ease-out;
+    animation-fill-mode: both;
 
-    label {
+    &:nth-child(1) { animation-delay: 0.1s; }
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.3s; }
+    &:nth-child(4) { animation-delay: 0.4s; }label {
       display: block;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text-primary);
       margin-bottom: 8px;
-    }
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
 
-    .form-control {
+      &:not(.checkbox-label) {
+        position: relative;
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          left: 0;
+          width: 0;
+          height: 2px;
+          background: var(--gradient-primary);
+          transition: width var(--transition-fast);
+        }
+
+        &:focus-within::after {
+          width: 100%;
+        }
+      }
+    }.form-control {
       width: 100%;
       background: var(--bg-primary);
       border: 1px solid var(--border-subtle);
@@ -574,6 +602,7 @@
       color: var(--text-primary);
       font-size: 1rem;
       transition: all var(--transition-fast);
+      position: relative;
 
       &::placeholder {
         color: var(--text-muted);
@@ -583,29 +612,45 @@
         outline: none;
         border-color: var(--accent-primary);
         box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+        transform: translateY(-1px);
       }
-    }
 
-    textarea.form-control {
+      &:hover:not(:focus) {
+        border-color: var(--text-muted);
+      }
+    }    textarea.form-control {
       resize: vertical;
       min-height: 80px;
-    }
+      font-family: var(--font-primary);
+      line-height: 1.5;
 
-    .checkbox-label {
+      &:focus {
+        min-height: 100px;
+      }
+    }.checkbox-label {
       display: flex;
       align-items: center;
       gap: 12px;
       cursor: pointer;
       margin-bottom: 8px;
+      padding: 12px;
+      border-radius: var(--border-radius);
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: var(--surface-hover);
+      }
 
       .checkbox {
         width: 18px;
         height: 18px;
         accent-color: var(--accent-primary);
+        cursor: pointer;
       }
 
       .checkmark {
         font-weight: 500;
+        user-select: none;
       }
     }
 
@@ -630,8 +675,10 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 24px;
+  padding: 16px 24px 24px 24px;
   border-top: 1px solid var(--border-subtle);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--surface-hover) 100%);
+  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
 
   .btn {
     padding: 12px 24px;
@@ -682,6 +729,138 @@
         opacity: 0.6;
         cursor: not-allowed;
       }
+    }  }
+}
+
+/* ===== IMAGE INPUT STYLES ===== */
+.image-input-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+
+  .toggle-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: calc(var(--border-radius) - 2px);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+
+    i {
+      font-size: 0.875rem;
+    }
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--surface-hover);
+    }
+
+    &.active {
+      background: var(--gradient-primary);
+      color: white;
+      box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
+    }
+  }
+}
+
+.url-input-container,
+.file-input-container {
+  margin-top: 12px;
+
+  .form-control {
+    position: relative;
+  }
+
+  .form-hint {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+}
+
+.file-input-container {
+  .form-control[type="file"] {
+    padding: 16px;
+    border: 2px dashed var(--border-subtle);
+    background: var(--bg-primary);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+
+    &:hover {
+      border-color: var(--accent-primary);
+      background: var(--surface-hover);
+    }
+
+    &::file-selector-button {
+      background: var(--gradient-primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--border-radius);
+      margin-right: 12px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+      }
+    }
+  }
+}
+
+.image-preview {
+  margin-top: 16px;
+  position: relative;
+  display: inline-block;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  padding: 8px;
+
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: var(--border-radius);
+    object-fit: cover;
+  }
+
+  .remove-image-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.8rem;
+
+    &:hover {
+      background: var(--danger-color);
+      transform: scale(1.1);
     }
   }
 }
@@ -779,6 +958,17 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

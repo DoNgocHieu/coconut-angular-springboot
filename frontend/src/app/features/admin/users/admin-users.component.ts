@@ -9,8 +9,33 @@ import { PageResponse, PaginationParams } from '../../../core/models/api.model';
 @Component({
   selector: 'app-admin-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],  encapsulation: ViewEncapsulation.None,
-  styles: [`
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],  encapsulation: ViewEncapsulation.None,  styles: [`
+    /* Force Font Awesome icons to display correctly */
+    .fas,
+    .far,
+    .fab,
+    .fa {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+      font-weight: 900 !important;
+    }
+
+    .far {
+      font-weight: 400 !important;
+    }
+
+    .fab {
+      font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
+      font-weight: 400 !important;
+    }
+
+    /* Ensure icons are not affected by text font changes */
+    .admin-btn i,
+    .btn i,
+    button i,
+    .action-button i {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+    }
+
     .modal-overlay {
       position: fixed !important;
       top: 0 !important;

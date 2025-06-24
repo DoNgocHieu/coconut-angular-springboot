@@ -6,8 +6,33 @@ import { AdminService, DashboardStats, CategoryMusicStats, UserTrends, SystemHea
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],  encapsulation: ViewEncapsulation.None,
-  styles: [`
+  imports: [CommonModule, RouterModule],  encapsulation: ViewEncapsulation.None,  styles: [`
+    /* Force Font Awesome icons to display correctly */
+    .fas,
+    .far,
+    .fab,
+    .fa {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+      font-weight: 900 !important;
+    }
+
+    .far {
+      font-weight: 400 !important;
+    }
+
+    .fab {
+      font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
+      font-weight: 400 !important;
+    }
+
+    /* Ensure icons are not affected by text font changes */
+    .stat-card i,
+    .nav-link i,
+    .btn i,
+    button i {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+    }
+
     .modal-overlay {
       position: fixed !important;
       top: 0 !important;
@@ -306,10 +331,12 @@ import { AdminService, DashboardStats, CategoryMusicStats, UserTrends, SystemHea
           <a routerLink="/admin/music" class="action-card">
             <i class="fas fa-music"></i>
             <span>Manage Music</span>
-          </a>
-          <a routerLink="/admin/categories" class="action-card">
+          </a>          <a routerLink="/admin/categories" class="action-card">
             <i class="fas fa-tags"></i>
-            <span>Manage Categories</span>
+            <span>Manage Categories</span>          </a>
+          <a routerLink="/admin/artists" class="action-card">
+            <i class="fas fa-microphone"></i>
+            <span>Manage Artists</span>
           </a>
           <a routerLink="/admin/users" class="action-card">
             <i class="fas fa-users"></i>

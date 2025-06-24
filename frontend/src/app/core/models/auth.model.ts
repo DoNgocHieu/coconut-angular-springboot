@@ -16,7 +16,7 @@ export interface AuthResponse {
   userId: number;
   username: string;
   email: string;
-  admin: boolean; // Changed from isAdmin to admin
+  isAdmin: boolean; // Changed back to isAdmin to match backend JsonProperty
 }
 
 export interface LoginRequest {

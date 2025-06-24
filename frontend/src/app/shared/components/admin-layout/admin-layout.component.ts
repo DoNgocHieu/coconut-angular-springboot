@@ -27,11 +27,13 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/admin/music" routerLinkActive="active" class="menu-item">
             <i class="fas fa-music"></i>
             <span>Music</span>
-          </a>
-
-          <a routerLink="/admin/categories" routerLinkActive="active" class="menu-item">
+          </a>          <a routerLink="/admin/categories" routerLinkActive="active" class="menu-item">
             <i class="fas fa-tags"></i>
-            <span>Categories</span>
+            <span>Categories</span>          </a>
+
+          <a routerLink="/admin/artists" routerLinkActive="active" class="menu-item">
+            <i class="fas fa-microphone"></i>
+            <span>Artists</span>
           </a>
 
           <a routerLink="/admin/users" routerLinkActive="active" class="menu-item">

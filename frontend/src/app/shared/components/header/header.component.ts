@@ -20,7 +20,7 @@ import { Subscription } from 'rxjs';
           <a routerLink="/music" routerLinkActive="active">Nhạc</a>
           <a routerLink="/categories" routerLinkActive="active">Thể loại</a>
           <a routerLink="/playlists" routerLinkActive="active">Playlists</a>
-          <a routerLink="/admin" routerLinkActive="active" class="admin-nav-link">Admin</a>
+          <a *ngIf="currentUser?.isAdmin" routerLink="/admin" routerLinkActive="active" class="admin-nav-link">Admin</a>
         </nav>
       </div>
 

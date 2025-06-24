@@ -260,24 +260,64 @@ import { environment } from '../../../../environments/environment';
                 >Public playlists can be discovered and listened to by other
                 users</small
               >
-            </div>
+            </div>            <div class="form-group">
+              <label>Playlist Image</label>
+              <div class="image-input-toggle">
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  [class.active]="imageInputMode === 'url'"
+                  (click)="setImageInputMode('url')"
+                >
+                  <i class="fas fa-link"></i>
+                  Image URL
+                </button>
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  [class.active]="imageInputMode === 'upload'"
+                  (click)="setImageInputMode('upload')"
+                >
+                  <i class="fas fa-upload"></i>
+                  Upload Image
+                </button>
+              </div>
 
-            <div class="form-group">
-              <label for="playlistImageFile">Chọn ảnh từ máy</label>
-              <input
-                id="playlistImageFile"
-                type="file"
-                accept="image/*"
-                (change)="onImageFileSelected($event)"
-                class="form-control"
-              />
-            </div>
-            <div *ngIf="playlistFormData.imageUrl" class="image-preview">
-              <img
-                [src]="getPlaylistImageUrl(playlistFormData)"
-                alt="Playlist Image"
-                style="max-width: 100%; max-height: 200px;"
-              />
+              <div *ngIf="imageInputMode === 'url'" class="url-input-container">
+                <input
+                  type="url"
+                  [(ngModel)]="playlistFormData.imageUrl"
+                  name="imageUrl"
+                  placeholder="Enter image URL (https://...)"
+                  class="form-control"
+                />
+              </div>
+
+              <div *ngIf="imageInputMode === 'upload'" class="file-input-container">
+                <input
+                  id="playlistImageFile"
+                  type="file"
+                  accept="image/*"
+                  (change)="onImageFileSelected($event)"
+                  class="form-control"
+                />
+                <small class="form-hint">Supported formats: JPG, PNG, GIF (max 5MB)</small>
+              </div>
+
+              <div *ngIf="playlistFormData.imageUrl" class="image-preview">
+                <img
+                  [src]="getPlaylistImageUrl(playlistFormData)"
+                  alt="Playlist Image"
+                  style="max-width: 100%; max-height: 200px; border-radius: 8px;"
+                />
+                <button
+                  type="button"
+                  class="remove-image-btn"
+                  (click)="removeImage()"
+                >
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
             </div>
             <div class="modal-actions">
               <button
@@ -434,8 +474,8 @@ export class PlaylistListComponent implements OnInit {
     isPublic: false,
     imageUrl: '',
   };
-
   selectedImageFile: File | null = null;
+  imageInputMode: 'url' | 'upload' = 'upload'; // Default to upload mode
 
   // Messages
   message: { type: 'success' | 'error'; text: string } | null = null;
@@ -526,8 +566,7 @@ export class PlaylistListComponent implements OnInit {
   onSortChange() {
     this.currentPage = 0;
     this.loadPlaylists();
-  }
-  createPlaylist() {
+  }  createPlaylist() {
     this.editingPlaylist = null;
     this.playlistFormData = {
       name: '',
@@ -535,9 +574,10 @@ export class PlaylistListComponent implements OnInit {
       imageUrl: '',
       isPublic: false,
     };
+    this.selectedImageFile = null;
+    this.imageInputMode = 'upload'; // Default to upload
     this.showModal = true;
   }
-
   // Khi mở modal edit
   editPlaylist(playlist: Playlist) {
     this.editingPlaylist = playlist;
@@ -548,6 +588,18 @@ export class PlaylistListComponent implements OnInit {
       imageUrl: playlist.imageUrl?? '',
     };
     this.selectedImageFile = null; // Reset file chọn mới
+
+    // Set appropriate input mode based on existing image
+    if (playlist.imageUrl) {
+      if (playlist.imageUrl.startsWith('http')) {
+        this.imageInputMode = 'url';
+      } else {
+        this.imageInputMode = 'upload';
+      }
+    } else {
+      this.imageInputMode = 'upload';
+    }
+
     this.showModal = true;
     this.showContextMenu = false;
   }
@@ -562,7 +614,6 @@ export class PlaylistListComponent implements OnInit {
       isPublic: false,
     };
   }
-
   savePlaylist() {
     if (!this.playlistFormData.name.trim()) return;
 
@@ -575,8 +626,12 @@ export class PlaylistListComponent implements OnInit {
     formData.append('description', this.playlistFormData.description);
     formData.append('isPublic', String(this.playlistFormData.isPublic));
     formData.append('user_id', user_id);
+
+    // Handle image - either file upload or URL
     if (this.selectedImageFile) {
       formData.append('image', this.selectedImageFile);
+    } else if (this.playlistFormData.imageUrl && this.playlistFormData.imageUrl.trim()) {
+      formData.append('imageUrl', this.playlistFormData.imageUrl.trim());
     }
 
     const request = this.editingPlaylist
@@ -813,18 +868,47 @@ export class PlaylistListComponent implements OnInit {
     if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
     return `${Math.floor(days / 30)} months ago`;
   }
-
   onImageFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      this.selectedImageFile = file; // <-- Lưu file vào biến này
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        this.showMessage('error', 'Image file size must be less than 5MB');
+        return;
+      }
+
+      this.selectedImageFile = file;
 
       const reader = new FileReader();
       reader.onload = (e: any) => {
-        this.playlistFormData.imageUrl = e.target.result; // base64 preview (chỉ để preview, không gửi lên BE)
+        this.playlistFormData.imageUrl = e.target.result; // base64 preview
       };
       reader.readAsDataURL(file);
+    }
+  }
+
+  setImageInputMode(mode: 'url' | 'upload') {
+    this.imageInputMode = mode;
+
+    // Clear previous data when switching modes
+    if (mode === 'url') {
+      this.selectedImageFile = null;
+      this.playlistFormData.imageUrl = '';
+    } else {
+      this.playlistFormData.imageUrl = '';
+    }
+  }
+
+  removeImage() {
+    this.playlistFormData.imageUrl = '';
+    this.selectedImageFile = null;
+
+    // Reset file input
+    const fileInput = document.getElementById('playlistImageFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
     }
   }
 

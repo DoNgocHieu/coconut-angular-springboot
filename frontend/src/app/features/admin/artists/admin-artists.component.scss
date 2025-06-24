@@ -1,0 +1,313 @@
+// Admin Artists Component Styles - Dark Theme
+@import '../../../../styles/admin-theme.scss';
+
+.container-fluid {
+  background: var(--admin-bg-primary);
+  color: var(--admin-text-primary);
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+h2 {
+  color: var(--admin-text-primary);
+  font-weight: 600;
+}
+
+.card {
+  background: var(--admin-gradient-card);
+  border: 1px solid var(--admin-border-subtle);
+  border-radius: var(--admin-border-radius-lg);
+  box-shadow: var(--admin-shadow-medium);
+}
+
+.card-body {
+  color: var(--admin-text-primary);
+}
+
+.table {
+  color: var(--admin-text-primary);
+  background: transparent;
+}
+
+.table th {
+  background: var(--admin-bg-tertiary);
+  color: var(--admin-text-primary);
+  border-color: var(--admin-border-subtle);
+}
+
+.table td {
+  vertical-align: middle;
+  border-color: var(--admin-border-subtle);
+}
+
+.table tbody tr:hover {
+  background-color: var(--admin-surface-hover);
+}
+
+.table th button.btn-link {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--admin-text-primary);
+}
+
+.table th button.btn-link:hover {
+  color: var(--admin-accent-primary) !important;
+}
+
+.btn-primary {
+  background: var(--admin-gradient-primary);
+  border-color: var(--admin-accent-primary);
+  color: var(--admin-text-primary);
+}
+
+.btn-primary:hover {
+  background: var(--admin-accent-primary-hover);
+  border-color: var(--admin-accent-primary-hover);
+}
+
+.btn-group-sm .btn {
+  border: 1px solid var(--admin-border-subtle);
+}
+
+.form-control, .form-select {
+  background: var(--admin-bg-tertiary);
+  border-color: var(--admin-border-subtle);
+  color: var(--admin-text-primary);
+}
+
+.form-control:focus, .form-select:focus {
+  background: var(--admin-bg-tertiary);
+  border-color: var(--admin-accent-primary);
+  color: var(--admin-text-primary);
+  box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.25);
+}
+
+.form-label {
+  color: var(--admin-text-secondary);
+  font-weight: 500;
+}
+
+.form-check-input:checked {
+  background-color: var(--admin-accent-primary);
+  border-color: var(--admin-accent-primary);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--admin-gradient-card);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-border-radius-xl);
+  box-shadow: var(--admin-shadow-large);
+  width: 100%;
+  max-width: 600px;
+  min-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  background: var(--admin-bg-tertiary);
+  border-bottom: 1px solid var(--admin-border-subtle);
+  color: var(--admin-text-primary);
+  padding: 1.5rem;
+  border-radius: var(--admin-border-radius-xl) var(--admin-border-radius-xl) 0 0;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  color: var(--admin-text-primary);
+}
+
+.modal-footer {
+  background: var(--admin-bg-tertiary);
+  border-top: 1px solid var(--admin-border-subtle);
+  padding: 1.5rem;
+  border-radius: 0 0 var(--admin-border-radius-xl) var(--admin-border-radius-xl);
+}
+
+.spinner-border {
+  width: 2rem;
+  height: 2rem;
+  color: var(--admin-accent-primary);
+}
+
+.text-truncate {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Custom scrollbar for bio textarea
+textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: var(--admin-bg-secondary);
+  border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: var(--admin-bg-elevated);
+  border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--admin-text-muted);
+}
+
+// Avatar preview container
+.avatar-preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--admin-border-radius);
+}
+
+.avatar-preview img {
+  transition: transform 0.3s ease;
+}
+
+.avatar-preview:hover img {
+  transform: scale(1.05);
+}
+
+// Status badges
+.badge {
+  font-size: 0.75em;
+  padding: 0.375em 0.75em;
+}
+
+.badge.bg-success {
+  background-color: var(--admin-success) !important;
+}
+
+.badge.bg-secondary {
+  background-color: var(--admin-text-muted) !important;
+}
+
+// Loading state
+.loading-overlay {
+  position: relative;
+}
+
+.loading-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Empty state
+.empty-state {
+  padding: 3rem 1rem;
+  color: var(--admin-text-secondary);
+}
+
+.empty-state i {
+  opacity: 0.5;
+  color: var(--admin-text-muted);
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 1rem;
+  }
+
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+  }
+
+  .pagination {
+    font-size: 0.875rem;
+  }
+
+  .modal {
+    margin: 1rem;
+    min-width: auto;
+  }
+}
+
+// Hover effects
+.btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+// Pagination
+.pagination .page-item .page-link {
+  background: var(--admin-bg-tertiary);
+  border-color: var(--admin-border-subtle);
+  color: var(--admin-text-primary);
+}
+
+.pagination .page-item.active .page-link {
+  background: var(--admin-accent-primary);
+  border-color: var(--admin-accent-primary);
+}
+
+.pagination .page-item .page-link:hover {
+  background: var(--admin-surface-hover);
+  border-color: var(--admin-border-strong);
+}
+
+// Alert styles
+.alert {
+  border: 1px solid var(--admin-border-subtle);
+  border-radius: var(--admin-border-radius);
+}
+
+.alert-success {
+  background: var(--admin-success);
+  color: var(--admin-text-primary);
+}
+
+.alert-danger {
+  background: var(--admin-error);
+  color: var(--admin-text-primary);
+}
+
+// Input group
+.input-group-text {
+  background: var(--admin-bg-tertiary);
+  border-color: var(--admin-border-subtle);
+  color: var(--admin-text-secondary);
+}
+
+.btn-outline-secondary {
+  color: var(--admin-text-secondary);
+  border-color: var(--admin-border-subtle);
+}
+
+.btn-outline-secondary:hover {
+  background: var(--admin-surface-hover);
+  color: var(--admin-text-primary);
+}

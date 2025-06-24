@@ -75,8 +75,11 @@ public interface MusicRepository extends JpaRepository<Music, Long>, JpaSpecific
 
     Long countByCategoryId(Long categoryId);
 
-    Long countByCategoryIdAndIsActiveTrue(Long categoryId);
-
-    @Query("SELECT c.name, COUNT(m) FROM Music m JOIN m.category c GROUP BY c.name ORDER BY COUNT(m) DESC")
+    Long countByCategoryIdAndIsActiveTrue(Long categoryId);    @Query("SELECT c.name, COUNT(m) FROM Music m JOIN m.category c GROUP BY c.name ORDER BY COUNT(m) DESC")
     List<Object[]> findMusicCountByCategory();
+
+    // Artist-specific count methods
+    Long countByArtistId(Long artistId);
+
+    Long countByArtistIdAndIsActiveTrue(Long artistId);
 }

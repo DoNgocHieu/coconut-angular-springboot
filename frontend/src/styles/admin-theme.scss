@@ -48,9 +48,128 @@
   --admin-border-radius: 8px;
   --admin-border-radius-lg: 12px;
   --admin-border-radius-xl: 16px;
-
   /* Admin Typography */
-  --admin-font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --admin-font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* ===== ADMIN GLOBAL TYPOGRAPHY ===== */
+// Apply Inter font to all admin components BUT EXCLUDE ICONS
+[class*="admin-"], .admin-layout, app-admin-layout {
+  font-family: var(--admin-font-primary) !important;
+
+  *, *::before, *::after {
+    font-family: inherit !important;
+  }
+
+  // EXCLUDE ICON FONTS - Let them use their original fonts
+  i, .fas, .far, .fal, .fab, .fad, .material-icons,
+  [class*="fa-"], [class^="fa-"], [class$="-icon"] {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons" !important;
+    font-weight: 900 !important; // Font Awesome solid icons need font-weight 900
+  }
+
+  // Specific Font Awesome font-weight classes
+  .far { font-weight: 400 !important; } // Regular
+  .fas { font-weight: 900 !important; } // Solid
+  .fal { font-weight: 300 !important; } // Light
+  .fab { font-weight: 400 !important; } // Brands
+  .fad { font-weight: 900 !important; } // Duotone
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--admin-font-primary) !important;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+  }
+
+  p, span, div, label {
+    font-family: var(--admin-font-primary) !important;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  input, textarea, select, button {
+    font-family: var(--admin-font-primary) !important;
+    font-feature-settings: 'liga' 1, 'kern' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }  button {
+    font-weight: 500;
+    letter-spacing: 0.02em;
+
+    // Icons inside buttons should use icon fonts
+    i, .fas, .far, .fal, .fab, .fad, .material-icons,
+    [class*="fa-"], [class^="fa-"], [class$="-icon"] {
+      font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons" !important;
+      font-weight: 900 !important;
+    }
+
+    // Specific Font Awesome font-weight classes for buttons
+    .far { font-weight: 400 !important; }
+    .fas { font-weight: 900 !important; }
+    .fal { font-weight: 300 !important; }
+    .fab { font-weight: 400 !important; }
+    .fad { font-weight: 900 !important; }
+  }
+
+  .font-light { font-weight: 300; }
+  .font-regular { font-weight: 400; }
+  .font-medium { font-weight: 500; }
+  .font-semibold { font-weight: 600; }
+  .font-bold { font-weight: 700; }
+}
+
+// Admin table styles
+.admin-table {
+  font-family: var(--admin-font-primary) !important;
+
+  th, td {
+    font-family: var(--admin-font-primary) !important;
+  }
+
+  th {
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  td {
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  // Icons in table should use icon fonts
+  i, .fas, .far, .fal, .fab, .fad, .material-icons, [class*="fa-"] {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons", inherit !important;
+  }
+}
+
+// Admin modal styles
+.modal-overlay {
+  font-family: var(--admin-font-primary) !important;
+
+  .modal {
+    font-family: var(--admin-font-primary) !important;
+
+    * {
+      font-family: inherit !important;
+    }
+
+    // Icons in modal should use icon fonts
+    i, .fas, .far, .fal, .fab, .fad, .material-icons, [class*="fa-"] {
+      font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons", inherit !important;
+    }
+  }
 }
 
 /* Admin Button Styles */
@@ -488,6 +607,127 @@
   i {
     font-size: 0.875rem;
   }
+}
+
+/* ===== GLOBAL ICON FONT PRESERVATION ===== */
+// Ensure all icons use proper icon fonts regardless of context
+i, .fas, .far, .fal, .fab, .fad, .material-icons, [class*="fa-"], [class^="fa-"] {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Material Icons", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-rendering: auto !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+// Specific FontAwesome weights
+.fas { font-weight: 900 !important; }
+.far { font-weight: 400 !important; }
+.fal { font-weight: 300 !important; }
+.fab { font-weight: 400 !important; }
+.fad { font-weight: 900 !important; }
+
+// Material Icons specific styles
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  word-wrap: normal !important;
+  white-space: nowrap !important;
+  direction: ltr !important;
+}
+
+/* ===== ADMIN ICON FIXES ===== */
+/* Force Font Awesome icons to display correctly in admin interface */
+[class*="admin-"] i[class*="fa"],
+[class*="admin-"] i.fas,
+[class*="admin-"] i.far,
+[class*="admin-"] i.fab,
+[class*="admin-"] i.fal,
+[class*="admin-"] i.fad,
+.admin-layout i[class*="fa"],
+.admin-layout i.fas,
+.admin-layout i.far,
+.admin-layout i.fab,
+.admin-layout i.fal,
+.admin-layout i.fad,
+app-admin-layout i[class*="fa"],
+app-admin-layout i.fas,
+app-admin-layout i.far,
+app-admin-layout i.fab,
+app-admin-layout i.fal,
+app-admin-layout i.fad {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Specific font weights for different Font Awesome styles in admin */
+[class*="admin-"] i.far,
+.admin-layout i.far,
+app-admin-layout i.far {
+  font-weight: 400 !important;
+}
+
+[class*="admin-"] i.fab,
+.admin-layout i.fab,
+app-admin-layout i.fab {
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
+  font-weight: 400 !important;
+}
+
+[class*="admin-"] i.fal,
+.admin-layout i.fal,
+app-admin-layout i.fal {
+  font-weight: 300 !important;
+}
+
+/* Material Icons support in admin */
+[class*="admin-"] .material-icons,
+.admin-layout .material-icons,
+app-admin-layout .material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  word-wrap: normal !important;
+  white-space: nowrap !important;
+  direction: ltr !important;
+}
+
+/* Override any global font settings that might affect icons in admin */
+[class*="admin-"] [class*="fa-"]::before,
+[class*="admin-"] .fas::before,
+[class*="admin-"] .far::before,
+[class*="admin-"] .fab::before,
+[class*="admin-"] .fal::before,
+[class*="admin-"] .fad::before,
+.admin-layout [class*="fa-"]::before,
+.admin-layout .fas::before,
+.admin-layout .far::before,
+.admin-layout .fab::before,
+.admin-layout .fal::before,
+.admin-layout .fad::before,
+app-admin-layout [class*="fa-"]::before,
+app-admin-layout .fas::before,
+app-admin-layout .far::before,
+app-admin-layout .fab::before,
+app-admin-layout .fal::before,
+app-admin-layout .fad::before {
+  font-family: inherit !important;
 }
 
 /* Admin Responsive */
