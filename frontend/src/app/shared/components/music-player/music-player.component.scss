@@ -3,7 +3,8 @@
 .far,
 .fab,
 .fa {
-  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro",
+    "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
   font-weight: 900 !important;
 }
 
@@ -12,7 +13,7 @@
 }
 
 .fab {
-  font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
+  font-family: "Font Awesome 6 Brands", "Font Awesome 5 Brands" !important;
   font-weight: 400 !important;
 }
 
@@ -22,7 +23,8 @@
 .volume-btn i,
 .btn i,
 button i {
-  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro",
+    "Font Awesome 5 Free", "Font Awesome 5 Pro" !important;
 }
 
 /* Theme variables are available globally via styles.scss */
@@ -148,7 +150,8 @@ button i {
       &.active {
         color: var(--accent-primary);
       }
-    }    .play-pause {
+    }
+    .play-pause {
       width: 40px;
       height: 40px;
       background: var(--accent-primary);
@@ -199,66 +202,82 @@ button i {
       flex: 1;
       display: flex;
       align-items: center;
+      position: relative;
 
       .progress-range {
         width: 100%;
         height: 4px;
-        background: var(--bg-tertiary);
+        -webkit-appearance: none;
+        background: var(--surface-hover);
         border-radius: 2px;
         outline: none;
+        transition: height var(--transition-fast);
         cursor: pointer;
-        -webkit-appearance: none;
-        appearance: none;
 
         &::-webkit-slider-thumb {
           -webkit-appearance: none;
-          appearance: none;
           width: 12px;
           height: 12px;
-          background: var(--accent-primary);
           border-radius: 50%;
+          background: var(--accent-primary);
           cursor: pointer;
+          border: none;
+          margin-top: -4px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
           transition: all var(--transition-fast);
-
-          &:hover {
-            transform: scale(1.2);
-          }
         }
 
         &::-moz-range-thumb {
           width: 12px;
           height: 12px;
-          background: var(--accent-primary);
           border-radius: 50%;
+          background: var(--accent-primary);
           cursor: pointer;
           border: none;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
           transition: all var(--transition-fast);
-
-          &:hover {
-            transform: scale(1.2);
-          }
         }
 
-        &::-webkit-slider-track {
+        &::-webkit-slider-runnable-track {
+          width: 100%;
           height: 4px;
-          background: var(--bg-tertiary);
+          background: var(--surface-hover);
           border-radius: 2px;
+          transition: all var(--transition-fast);
         }
 
         &::-moz-range-track {
+          width: 100%;
           height: 4px;
-          background: var(--bg-tertiary);
+          background: var(--surface-hover);
           border-radius: 2px;
-          border: none;
+          transition: all var(--transition-fast);
         }
 
-        // Progress fill effect using CSS gradient
-        background: linear-gradient(
-          to right,
-          var(--accent-primary) 0%,
-          var(--accent-primary) var(--progress, 0%),
-          var(--bg-tertiary) var(--progress, 0%),
-          var(--bg-tertiary) 100%        );
+        /* Phần đã phát */
+        &::-webkit-slider-container {
+          background: linear-gradient(
+            to right,
+            var(--accent-primary) 0%,
+            var(--accent-primary) var(--progress-percent, 0%),
+            var(--surface-hover) var(--progress-percent, 0%),
+            var(--surface-hover) 100%
+          );
+          border-radius: 2px;
+        }
+
+        /* Hover effect */
+        &:hover {
+          height: 6px;
+
+          &::-webkit-slider-thumb {
+            transform: scale(1.2);
+          }
+
+          &::-moz-range-thumb {
+            transform: scale(1.2);
+          }
+        }
       }
     }
   }

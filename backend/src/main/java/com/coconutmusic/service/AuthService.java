@@ -38,7 +38,9 @@ public class AuthService {
     private JwtTokenProvider tokenProvider;
 
     @Autowired
-    private EmailService emailService;    public AuthResponse login(LoginRequest loginRequest) {
+    private EmailService emailService;
+
+    public AuthResponse login(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsernameOrEmail(),
@@ -51,17 +53,14 @@ public class AuthService {
                 loginRequest.getUsernameOrEmail()
         ).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Check if user email is verified
-        if (!user.getIsVerified()) {
-            throw new BadRequestException("Please verify your email before logging in. Check your inbox for the verification link.");
-        }
-
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
         return new AuthResponse(accessToken, refreshToken, user.getId(),
                                user.getUsername(), user.getEmail(), user.getIsAdmin());
-    }    public ApiResponse register(RegisterRequest registerRequest) {
+    }
+
+    public ApiResponse register(RegisterRequest registerRequest) {
         // Check if username exists
         if (userRepository.existsByUsername(registerRequest.getUsername())) {
             throw new BadRequestException("Username is already taken!");
@@ -77,27 +76,16 @@ public class AuthService {
         user.setUsername(registerRequest.getUsername());
         user.setEmail(registerRequest.getEmail());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        user.setIsVerified(false);
+        user.setIsVerified(true);
         user.setIsAdmin(false);
-
-        // Generate verification token
-        String verifyToken = UUID.randomUUID().toString();
-        user.setVerifyToken(verifyToken);
-        user.setVerifyTokenExpiry(LocalDateTime.now().plusHours(24));
 
         User savedUser = userRepository.save(user);
 
-        // Send verification email
-        try {
-            emailService.sendVerificationEmail(savedUser.getEmail(), verifyToken);
-        } catch (Exception e) {
-            // Log error but don't fail registration
-            e.printStackTrace();
-        }
-
-        return new ApiResponse(true, "Registration successful. Please check your email to verify your account before logging in.",
+        return new ApiResponse(true, "Registration successful. You can now login with your account.",
                               Map.of("username", savedUser.getUsername(), "email", savedUser.getEmail()));
-    }    public void verifyEmail(String token) {
+    }
+
+    public void verifyEmail(String token) {
         // First try to find user by the valid token
         User user = userRepository.findByValidVerifyToken(token, LocalDateTime.now())
                 .orElse(null);
@@ -141,7 +129,9 @@ public class AuthService {
         } catch (Exception e) {
             throw new BadRequestException("Failed to send reset password email");
         }
-    }    public void resetPassword(String token, String newPassword) {
+    }
+
+    public void resetPassword(String token, String newPassword) {
         User user = userRepository.findByValidForgotPasswordToken(token, LocalDateTime.now())
                 .orElseThrow(() -> new BadRequestException("Invalid or expired reset token"));
 

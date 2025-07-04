@@ -11,6 +11,7 @@ export interface Category {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  musicCount?: number;
 }
 
 export interface CategoryResponse {
@@ -20,12 +21,12 @@ export interface CategoryResponse {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class CategoryService {
   private apiUrl = `${environment.apiUrl}/categories`;
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
   getAllCategories(): Observable<CategoryResponse> {
     return this.http.get<CategoryResponse>(this.apiUrl);

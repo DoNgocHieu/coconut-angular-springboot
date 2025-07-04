@@ -27,7 +27,7 @@ SET time_zone = "+00:00";
 -- Cấu trúc bảng cho bảng `artists`
 --
 
-DROP TABLE IF EXISTS `artists`;
+-- DROP TABLE IF EXISTS `artists`;
 CREATE TABLE IF NOT EXISTS `artists` (
   `is_active` bit(1) DEFAULT NULL,
   `created_at` datetime(6) DEFAULT NULL,
@@ -42,6 +42,12 @@ CREATE TABLE IF NOT EXISTS `artists` (
 --
 -- Đang đổ dữ liệu cho bảng `artists`
 --
+
+-- Xóa dữ liệu cũ trước khi insert
+DELETE FROM `artists`;
+
+-- Reset AUTO_INCREMENT về 1
+ALTER TABLE `artists` AUTO_INCREMENT = 1;
 
 INSERT INTO `artists` (`is_active`, `created_at`, `id`, `updated_at`, `avatar_url`, `bio`, `name`) VALUES
 (b'1', '2025-06-20 13:01:10.284704', 1, '2025-06-20 13:01:10.284704', 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop', 'Talented artist in the music industry', 'Unknown Artist'),
@@ -84,7 +90,7 @@ INSERT INTO `artists` (`is_active`, `created_at`, `id`, `updated_at`, `avatar_ur
 -- Cấu trúc bảng cho bảng `banners`
 --
 
-DROP TABLE IF EXISTS `banners`;
+-- DROP TABLE IF EXISTS `banners`;
 CREATE TABLE IF NOT EXISTS `banners` (
   `is_active` bit(1) DEFAULT NULL,
   `sort_order` int DEFAULT NULL,
@@ -101,6 +107,12 @@ CREATE TABLE IF NOT EXISTS `banners` (
 -- Đang đổ dữ liệu cho bảng `banners`
 --
 
+-- Xóa dữ liệu cũ trước khi insert
+DELETE FROM `banners`;
+
+-- Reset AUTO_INCREMENT về 1
+ALTER TABLE `banners` AUTO_INCREMENT = 1;
+
 INSERT INTO `banners` (`is_active`, `sort_order`, `created_at`, `id`, `updated_at`, `image_url`, `link_url`, `title`) VALUES
 (b'1', 1, '2025-06-20 13:01:11.297793', 1, '2025-06-20 13:01:11.297793', 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800', '/music', '🎵 Discover New Music'),
 (b'1', 2, '2025-06-20 13:01:11.302867', 2, '2025-06-20 13:01:11.302867', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800', '/premium', '🎧 Premium Features'),
@@ -112,7 +124,7 @@ INSERT INTO `banners` (`is_active`, `sort_order`, `created_at`, `id`, `updated_a
 -- Cấu trúc bảng cho bảng `categories`
 --
 
-DROP TABLE IF EXISTS `categories`;
+-- DROP TABLE IF EXISTS `categories`;
 CREATE TABLE IF NOT EXISTS `categories` (
   `is_active` bit(1) DEFAULT NULL,
   `created_at` datetime(6) DEFAULT NULL,
@@ -128,6 +140,12 @@ CREATE TABLE IF NOT EXISTS `categories` (
 --
 -- Đang đổ dữ liệu cho bảng `categories`
 --
+
+-- Xóa dữ liệu cũ trước khi insert
+DELETE FROM `categories`;
+
+-- Reset AUTO_INCREMENT về 1
+ALTER TABLE `categories` AUTO_INCREMENT = 1;
 
 INSERT INTO `categories` (`is_active`, `created_at`, `id`, `updated_at`, `description`, `image_url`, `name`) VALUES
 (b'1', '2025-06-20 13:01:10.236075', 1, '2025-06-20 13:01:10.236075', 'Những bản nhạc lofi Việt Nam thư giãn', 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400', 'VN Lofi'),
@@ -145,7 +163,7 @@ INSERT INTO `categories` (`is_active`, `created_at`, `id`, `updated_at`, `descri
 -- Cấu trúc bảng cho bảng `favorites`
 --
 
-DROP TABLE IF EXISTS `favorites`;
+-- DROP TABLE IF EXISTS `favorites`;
 CREATE TABLE IF NOT EXISTS `favorites` (
   `created_at` datetime(6) DEFAULT NULL,
   `id` bigint NOT NULL AUTO_INCREMENT,
@@ -171,7 +189,7 @@ INSERT INTO `favorites` (`created_at`, `id`, `music_id`, `user_id`) VALUES
 -- Cấu trúc bảng cho bảng `favorite_playlists`
 --
 
-DROP TABLE IF EXISTS `favorite_playlists`;
+-- DROP TABLE IF EXISTS `favorite_playlists`;
 CREATE TABLE IF NOT EXISTS `favorite_playlists` (
   `created_at` datetime(6) DEFAULT NULL,
   `id` bigint NOT NULL AUTO_INCREMENT,
@@ -196,7 +214,7 @@ INSERT INTO `favorite_playlists` (`created_at`, `id`, `playlist_id`, `user_id`) 
 -- Cấu trúc bảng cho bảng `history`
 --
 
-DROP TABLE IF EXISTS `history`;
+-- DROP TABLE IF EXISTS `history`;
 CREATE TABLE IF NOT EXISTS `history` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `music_id` bigint NOT NULL,
@@ -226,7 +244,7 @@ INSERT INTO `history` (`id`, `music_id`, `played_at`, `user_id`) VALUES
 -- Cấu trúc bảng cho bảng `music`
 --
 
-DROP TABLE IF EXISTS `music`;
+-- DROP TABLE IF EXISTS `music`;
 CREATE TABLE IF NOT EXISTS `music` (
   `duration_seconds` int NOT NULL,
   `is_active` bit(1) DEFAULT NULL,
@@ -299,7 +317,7 @@ INSERT INTO `music` (`duration_seconds`, `is_active`, `artist_id`, `category_id`
 -- Cấu trúc bảng cho bảng `playlists`
 --
 
-DROP TABLE IF EXISTS `playlists`;
+-- DROP TABLE IF EXISTS `playlists`;
 CREATE TABLE IF NOT EXISTS `playlists` (
   `is_public` bit(1) DEFAULT NULL,
   `created_at` datetime(6) DEFAULT NULL,
@@ -335,7 +353,7 @@ INSERT INTO `playlists` (`is_public`, `created_at`, `id`, `updated_at`, `user_id
 -- Cấu trúc bảng cho bảng `playlist_music`
 --
 
-DROP TABLE IF EXISTS `playlist_music`;
+-- DROP TABLE IF EXISTS `playlist_music`;
 CREATE TABLE IF NOT EXISTS `playlist_music` (
   `position` int DEFAULT NULL,
   `added_at` datetime(6) DEFAULT NULL,
@@ -441,7 +459,7 @@ INSERT INTO `playlist_music` (`position`, `added_at`, `id`, `music_id`, `playlis
 -- Cấu trúc bảng cho bảng `users`
 --
 
-DROP TABLE IF EXISTS `users`;
+-- DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `is_admin` bit(1) DEFAULT NULL,
   `is_verified` bit(1) DEFAULT NULL,

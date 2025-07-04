@@ -15,14 +15,30 @@ import java.util.Optional;
 public class CategoryService {
 
     @Autowired
-    private CategoryRepository categoryRepository;    public ResponseEntity<Map<String, Object>> getAllCategories() {
+    private CategoryRepository categoryRepository;
+
+    public ResponseEntity<Map<String, Object>> getAllCategories() {
         try {
-            List<Category> categories = categoryRepository.findByIsActiveTrueOrderByName();
+            List<Category> categories = categoryRepository.findByIsActiveTrueWithMusicOrderByName();
+
+            // Transform categories to include music count
+            List<Map<String, Object>> categoryDTOs = categories.stream().map(category -> {
+                Map<String, Object> categoryDTO = new HashMap<>();
+                categoryDTO.put("id", category.getId());
+                categoryDTO.put("name", category.getName());
+                categoryDTO.put("description", category.getDescription());
+                categoryDTO.put("imageUrl", category.getImageUrl());
+                categoryDTO.put("isActive", category.getIsActive());
+                categoryDTO.put("createdAt", category.getCreatedAt());
+                categoryDTO.put("updatedAt", category.getUpdatedAt());
+                categoryDTO.put("musicCount", category.getMusicList() != null ? category.getMusicList().size() : 0);
+                return categoryDTO;
+            }).toList();
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Categories loaded successfully");
-            response.put("data", categories);
+            response.put("data", categoryDTOs);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

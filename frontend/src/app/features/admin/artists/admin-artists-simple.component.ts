@@ -1,6 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { AdminArtistService } from '../../../core/services/admin-artist.service';
 import { Artist } from '../../../core/models/music.model';
 
@@ -42,20 +48,37 @@ import { Artist } from '../../../core/models/music.model';
                 />
                 <div class="flex-grow-1">
                   <h5 class="card-title mb-1">{{ artist.name }}</h5>
-                  <p class="card-text text-muted small mb-1" *ngIf="artist.bio">{{ artist.bio }}</p>
-                  <span [class]="'badge ' + (artist.isActive ? 'bg-success' : 'bg-secondary')">
+                  <p class="card-text text-muted small mb-1" *ngIf="artist.bio">
+                    {{ artist.bio }}
+                  </p>
+                  <span
+                    [class]="
+                      'badge ' +
+                      (artist.isActive ? 'bg-success' : 'bg-secondary')
+                    "
+                  >
                     {{ artist.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </div>
               </div>
               <div class="mt-3">
-                <button class="btn btn-sm btn-outline-primary me-2" (click)="openEditModal(artist)">
+                <button
+                  class="btn btn-sm btn-outline-primary me-2"
+                  (click)="openEditModal(artist)"
+                >
                   <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-sm btn-outline-warning me-2" (click)="toggleArtistStatus(artist)">
-                  <i class="fas fa-toggle-on"></i> {{ artist.isActive ? 'Deactivate' : 'Activate' }}
+                <button
+                  class="btn btn-sm btn-outline-warning me-2"
+                  (click)="toggleArtistStatus(artist)"
+                >
+                  <i class="fas fa-toggle-on"></i>
+                  {{ artist.isActive ? 'Deactivate' : 'Activate' }}
                 </button>
-                <button class="btn btn-sm btn-outline-danger" (click)="deleteArtist(artist)">
+                <button
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="deleteArtist(artist)"
+                >
                   <i class="fas fa-trash"></i> Delete
                 </button>
               </div>
@@ -68,12 +91,19 @@ import { Artist } from '../../../core/models/music.model';
       <div *ngIf="!loading && artists.length === 0" class="text-center py-5">
         <i class="fas fa-microphone fa-3x text-muted mb-3"></i>
         <h4 class="text-muted">No Artists Found</h4>
-        <p class="text-muted">Click "Add Artist" to create your first artist.</p>
+        <p class="text-muted">
+          Click "Add Artist" to create your first artist.
+        </p>
       </div>
     </div>
 
     <!-- Modal -->
-    <div class="modal fade" [class.show]="showModal" [style.display]="showModal ? 'block' : 'none'" *ngIf="showModal">
+    <div
+      class="modal fade"
+      [class.show]="showModal"
+      [style.display]="showModal ? 'block' : 'none'"
+      *ngIf="showModal"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -81,13 +111,19 @@ import { Artist } from '../../../core/models/music.model';
               <i class="fas fa-microphone me-2"></i>
               {{ isEditMode ? 'Edit Artist' : 'Add New Artist' }}
             </h5>
-            <button type="button" class="btn-close" (click)="closeModal()"></button>
+            <button
+              type="button"
+              class="btn-close"
+              (click)="closeModal()"
+            ></button>
           </div>
 
           <form [formGroup]="artistForm" (ngSubmit)="onSubmit()">
             <div class="modal-body">
               <div class="mb-3">
-                <label for="artistName" class="form-label">Name <span class="text-danger">*</span></label>
+                <label for="artistName" class="form-label"
+                  >Name <span class="text-danger">*</span></label
+                >
                 <input
                   id="artistName"
                   type="text"
@@ -95,8 +131,13 @@ import { Artist } from '../../../core/models/music.model';
                   formControlName="name"
                   placeholder="Enter artist name"
                 />
-                <div *ngIf="artistForm.get('name')?.invalid && artistForm.get('name')?.touched"
-                     class="text-danger small mt-1">
+                <div
+                  *ngIf="
+                    artistForm.get('name')?.invalid &&
+                    artistForm.get('name')?.touched
+                  "
+                  class="text-danger small mt-1"
+                >
                   Artist name is required
                 </div>
               </div>
@@ -137,11 +178,22 @@ import { Artist } from '../../../core/models/music.model';
             </div>
 
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" (click)="closeModal()">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="closeModal()"
+              >
                 Cancel
               </button>
-              <button type="submit" class="btn btn-primary" [disabled]="artistForm.invalid || submitting">
-                <span *ngIf="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="artistForm.invalid || submitting"
+              >
+                <span
+                  *ngIf="submitting"
+                  class="spinner-border spinner-border-sm me-1"
+                ></span>
                 <i *ngIf="!submitting" class="fas fa-check me-1"></i>
                 {{ isEditMode ? 'Update Artist' : 'Create Artist' }}
               </button>
@@ -151,45 +203,54 @@ import { Artist } from '../../../core/models/music.model';
       </div>
     </div>
 
-    <div class="modal-backdrop fade" [class.show]="showModal" *ngIf="showModal"></div>
-  `,  styles: [`
-    /* Force Font Awesome icons to display correctly */
-    .fas,
-    .far,
-    .fab,
-    .fa {
-      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
-      font-weight: 900 !important;
-    }
+    <div
+      class="modal-backdrop fade"
+      [class.show]="showModal"
+      *ngIf="showModal"
+    ></div>
+  `,
+  styles: [
+    `
+      /* Force Font Awesome icons to display correctly */
+      .fas,
+      .far,
+      .fab,
+      .fa {
+        font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro',
+          'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+        font-weight: 900 !important;
+      }
 
-    .far {
-      font-weight: 400 !important;
-    }
+      .far {
+        font-weight: 400 !important;
+      }
 
-    .fab {
-      font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
-      font-weight: 400 !important;
-    }
+      .fab {
+        font-family: 'Font Awesome 6 Brands', 'Font Awesome 5 Brands' !important;
+        font-weight: 400 !important;
+      }
 
-    /* Ensure icons are not affected by text font changes */
-    .btn i,
-    button i {
-      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
-    }
+      /* Ensure icons are not affected by text font changes */
+      .btn i,
+      button i {
+        font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro',
+          'Font Awesome 5 Free', 'Font Awesome 5 Pro' !important;
+      }
 
-    .modal {
-      z-index: 1050;
-    }
-    .modal-backdrop {
-      z-index: 1040;
-    }
-    .card {
-      transition: transform 0.2s;
-    }
-    .card:hover {
-      transform: translateY(-2px);
-    }
-  `]
+      .modal {
+        z-index: 1050;
+      }
+      .modal-backdrop {
+        z-index: 1040;
+      }
+      .card {
+        transition: transform 0.2s;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+      }
+    `,
+  ],
 })
 export class AdminArtistsComponent implements OnInit {
   artists: Artist[] = [];
@@ -210,7 +271,7 @@ export class AdminArtistsComponent implements OnInit {
       name: ['', [Validators.required, Validators.minLength(1)]],
       bio: [''],
       avatarUrl: [''],
-      isActive: [true]
+      isActive: [true],
     });
   }
 
@@ -221,17 +282,19 @@ export class AdminArtistsComponent implements OnInit {
   loadArtists() {
     this.loading = true;
 
-    this.adminArtistService.getAllArtists({ page: 0, size: 100 }, {}).subscribe({
-      next: (response: any) => {
-        if (response.success) {
-          this.artists = response.data.content;
+    this.adminArtistService.getAllArtists('', undefined, 1, 100).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.artists = response.data.content || [];
+        } else {
+          this.artists = [];
         }
         this.loading = false;
       },
-      error: (error: any) => {
+      error: (error) => {
         console.error('Error loading artists:', error);
         this.loading = false;
-      }
+      },
     });
   }
 
@@ -250,7 +313,7 @@ export class AdminArtistsComponent implements OnInit {
       name: artist.name,
       bio: artist.bio || '',
       avatarUrl: artist.avatarUrl || '',
-      isActive: artist.isActive
+      isActive: artist.isActive,
     });
     this.showModal = true;
   }
@@ -282,7 +345,7 @@ export class AdminArtistsComponent implements OnInit {
         error: (error: any) => {
           console.error('Error saving artist:', error);
           this.submitting = false;
-        }
+        },
       });
     }
   }
@@ -297,7 +360,7 @@ export class AdminArtistsComponent implements OnInit {
       },
       error: (error: any) => {
         console.error('Error toggling artist status:', error);
-      }
+      },
     });
   }
 
@@ -311,7 +374,7 @@ export class AdminArtistsComponent implements OnInit {
         },
         error: (error: any) => {
           console.error('Error deleting artist:', error);
-        }
+        },
       });
     }
   }

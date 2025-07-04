@@ -2,12 +2,17 @@ import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
-import { AuthResponse, LoginRequest, RegisterRequest, User } from '../models/auth.model';
+import {
+  AuthResponse,
+  LoginRequest,
+  RegisterRequest,
+  User,
+} from '../models/auth.model';
 import { ApiResponse } from '../models/api.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   private readonly API_URL = `${environment.apiUrl}/auth`;
@@ -25,9 +30,10 @@ export class AuthService {
   }
 
   login(loginRequest: LoginRequest): Observable<ApiResponse<AuthResponse>> {
-    return this.http.post<ApiResponse<AuthResponse>>(`${this.API_URL}/login`, loginRequest)
+    return this.http
+      .post<ApiResponse<AuthResponse>>(`${this.API_URL}/login`, loginRequest)
       .pipe(
-        tap(response => {
+        tap((response) => {
           if (response.success && response.data) {
             this.setAuthData(response.data);
           }
@@ -35,46 +41,54 @@ export class AuthService {
       );
   }
   register(registerRequest: RegisterRequest): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.API_URL}/register`, registerRequest);
+    return this.http.post<ApiResponse<any>>(
+      `${this.API_URL}/register`,
+      registerRequest
+    );
   }
 
   logout(): Observable<ApiResponse> {
-    return this.http.post<ApiResponse>(`${this.API_URL}/logout`, {})
-      .pipe(
-        tap(() => {
-          this.clearAuthData();
-        })
-      );
+    return this.http.post<ApiResponse>(`${this.API_URL}/logout`, {}).pipe(
+      tap(() => {
+        this.clearAuthData();
+      })
+    );
   }
 
   verifyEmail(token: string): Observable<ApiResponse> {
     return this.http.post<ApiResponse>(`${this.API_URL}/verify`, null, {
-      params: { token }
+      params: { token },
     });
   }
 
   forgotPassword(email: string): Observable<ApiResponse> {
-    return this.http.post<ApiResponse>(`${this.API_URL}/forgot-password`, null, {
-      params: { email }
-    });
+    return this.http.post<ApiResponse>(
+      `${this.API_URL}/forgot-password`,
+      null,
+      {
+        params: { email },
+      }
+    );
   }
 
   resetPassword(token: string, newPassword: string): Observable<ApiResponse> {
     return this.http.post<ApiResponse>(`${this.API_URL}/reset-password`, null, {
-      params: { token, newPassword }
+      params: { token, newPassword },
     });
-  }  private setAuthData(authResponse: AuthResponse): void {
+  }
+  private setAuthData(authResponse: AuthResponse): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('accessToken', authResponse.accessToken);
       localStorage.setItem('refreshToken', authResponse.refreshToken);
-    }    const user: User = {
+    }
+    const user: User = {
       id: authResponse.userId,
       username: authResponse.username,
       email: authResponse.email,
-      isVerified: true,
-      isAdmin: authResponse.isAdmin, // Now matches the backend JsonProperty
+      isVerified: authResponse.isVerified || true, // Use response value or default to true
+      isAdmin: authResponse.isAdmin,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
 
     if (isPlatformBrowser(this.platformId)) {
@@ -93,7 +107,8 @@ export class AuthService {
     }
     this.currentUserSubject.next(null);
     this.isLoggedInSubject.next(false);
-  }private loadStoredAuth(): void {
+  }
+  private loadStoredAuth(): void {
     if (isPlatformBrowser(this.platformId)) {
       const token = localStorage.getItem('accessToken');
       const storedUser = localStorage.getItem('currentUser');
@@ -133,7 +148,8 @@ export class AuthService {
   isAdmin(): boolean {
     const user = this.currentUserSubject.value;
     return user?.isAdmin || false;
-  }  getCurrentUser(): User | null {
+  }
+  getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 

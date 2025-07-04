@@ -11,6 +11,8 @@ public class AuthResponse {
     private String email;
     @JsonProperty("isAdmin")
     private boolean isAdmin;
+    @JsonProperty("isVerified")
+    private boolean isVerified;
 
     public AuthResponse(String accessToken, String refreshToken, Long userId, String username, String email, boolean isAdmin) {
         this.accessToken = accessToken;
@@ -19,6 +21,7 @@ public class AuthResponse {
         this.username = username;
         this.email = email;
         this.isAdmin = isAdmin;
+        this.isVerified = true; // Default to true since we removed email verification
     }
 
     // Getters and Setters
@@ -68,12 +71,23 @@ public class AuthResponse {
 
     public void setEmail(String email) {
         this.email = email;
-    }    @JsonProperty("isAdmin")
+    }
+
+    @JsonProperty("isAdmin")
     public boolean getIsAdmin() {
         return isAdmin;
     }
 
     public void setAdmin(boolean admin) {
         isAdmin = admin;
+    }
+
+    @JsonProperty("isVerified")
+    public boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setVerified(boolean verified) {
+        isVerified = verified;
     }
 }

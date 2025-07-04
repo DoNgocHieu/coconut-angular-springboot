@@ -1,4 +1,11 @@
-import { Component, Input, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnDestroy,
+  Inject,
+  PLATFORM_ID,
+} from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Music } from '../../../core/models/music.model';
 import { MusicPlayerService } from '../../../core/services/music-player.service';
@@ -6,26 +13,32 @@ import { MusicPlayerService } from '../../../core/services/music-player.service'
 import { UserMusicService } from '../../../core/services/user-music.service';
 import { SidebarService } from '../../../core/services/sidebar.service';
 
-
-
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-music-player',
   standalone: true,
   imports: [CommonModule],
-  template: `    <div class="music-player" [class.hidden]="!currentTrack">
+  template: `
+    <div class="music-player" [class.hidden]="!currentTrack">
       <div class="player-content">
         <!-- Track Info -->
         <div class="track-info">
           <div class="track-image">
-            <img [src]="currentTrack?.imageUrl || '/assets/default-music.png'" [alt]="currentTrack?.title">
+            <img
+              [src]="currentTrack?.imageUrl || '/assets/default-music.png'"
+              [alt]="currentTrack?.title"
+            />
           </div>
           <div class="track-details">
             <h4>{{ currentTrack?.title || 'No track selected' }}</h4>
             <p>{{ currentTrack?.artist?.name || 'Unknown Artist' }}</p>
           </div>
-          <button class="favorite-btn" (click)="toggleFavorite()" [class.active]="isFavorite">
+          <button
+            class="favorite-btn"
+            (click)="toggleFavorite()"
+            [class.active]="isFavorite"
+          >
             <i class="fas fa-heart"></i>
           </button>
         </div>
@@ -33,19 +46,31 @@ import { Subscription } from 'rxjs';
         <!-- Player Controls -->
         <div class="player-controls">
           <div class="control-buttons">
-            <button class="control-btn shuffle" (click)="toggleShuffle()" [class.active]="isShuffled">
+            <button
+              class="control-btn shuffle"
+              (click)="toggleShuffle()"
+              [class.active]="isShuffled"
+            >
               <i class="fas fa-random"></i>
             </button>
             <button class="control-btn" (click)="previousTrack()">
               <i class="fas fa-step-backward"></i>
             </button>
             <button class="control-btn play-pause" (click)="togglePlayPause()">
-              <i class="fas" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
+              <i
+                class="fas"
+                [class.fa-play]="!isPlaying"
+                [class.fa-pause]="isPlaying"
+              ></i>
             </button>
             <button class="control-btn" (click)="nextTrack()">
               <i class="fas fa-step-forward"></i>
             </button>
-            <button class="control-btn repeat" (click)="toggleRepeat()" [class.active]="isRepeated">
+            <button
+              class="control-btn repeat"
+              (click)="toggleRepeat()"
+              [class.active]="isRepeated"
+            >
               <i class="fas fa-redo"></i>
             </button>
           </div>
@@ -60,21 +85,25 @@ import { Subscription } from 'rxjs';
                 [value]="currentTime"
                 (input)="seek($event)"
                 class="progress-range"
-              >
+              />
             </div>
             <span class="time total">{{ formatTime(duration) }}</span>
           </div>
         </div>
 
         <!-- Additional Controls -->
-        <div class="additional-controls">          <button class="option-btn" (click)="showQueue()" >
+        <div class="additional-controls">
+          <button class="option-btn" (click)="showQueue()">
             <i class="fas fa-list"></i>
           </button>
           <div class="volume-control">
             <button class="option-btn" (click)="toggleMute()">
-              <i class="fas" [class.fa-volume-up]="!isMuted && volume > 50"
-                            [class.fa-volume-down]="!isMuted && volume <= 50 && volume > 0"
-                            [class.fa-volume-mute]="isMuted || volume === 0"></i>
+              <i
+                class="fas"
+                [class.fa-volume-up]="!isMuted && volume > 50"
+                [class.fa-volume-down]="!isMuted && volume <= 50 && volume > 0"
+                [class.fa-volume-mute]="isMuted || volume === 0"
+              ></i>
             </button>
             <div class="volume-slider">
               <input
@@ -84,9 +113,10 @@ import { Subscription } from 'rxjs';
                 [value]="volume"
                 (input)="setVolume($event)"
                 class="volume-range"
-              >
+              />
             </div>
-          </div>          <button class="option-btn" (click)="toggleFullscreen()">
+          </div>
+          <button class="option-btn" (click)="toggleFullscreen()">
             <i class="fas fa-expand"></i>
           </button>
         </div>
@@ -94,12 +124,21 @@ import { Subscription } from 'rxjs';
     </div>
 
     <!-- Toast Message -->
-    <div *ngIf="message" class="toast" [class.success]="message.type === 'success'" [class.error]="message.type === 'error'">
-      <i class="fas" [class.fa-check-circle]="message.type === 'success'" [class.fa-exclamation-circle]="message.type === 'error'"></i>
+    <div
+      *ngIf="message"
+      class="toast"
+      [class.success]="message.type === 'success'"
+      [class.error]="message.type === 'error'"
+    >
+      <i
+        class="fas"
+        [class.fa-check-circle]="message.type === 'success'"
+        [class.fa-exclamation-circle]="message.type === 'error'"
+      ></i>
       {{ message.text }}
     </div>
   `,
-  styleUrls: ['./music-player.component.scss']
+  styleUrls: ['./music-player.component.scss'],
 })
 export class MusicPlayerComponent implements OnInit, OnDestroy {
   @Input() currentTrack: Music | null = null;
@@ -107,11 +146,12 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   isPlaying = false;
   currentTime = 0;
   duration = 0;
-  volume = 80;  isMuted = false;
+  volume = 80;
+  isMuted = false;
   isFavorite = false;
   isShuffled = false;
   isRepeated = false;
-  message: { type: 'success' | 'error', text: string } | null = null;
+  message: { type: 'success' | 'error'; text: string } | null = null;
   private audio: HTMLAudioElement | null = null;
   private progressInterval: any;
   private subscriptions: Subscription[] = [];
@@ -124,7 +164,10 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     private sidebarService: SidebarService // Thêm dòng này
   ) {}
   ngOnInit() {
-    console.log('🎵 MusicPlayerComponent ngOnInit, platform browser:', isPlatformBrowser(this.platformId));
+    console.log(
+      '🎵 MusicPlayerComponent ngOnInit, platform browser:',
+      isPlatformBrowser(this.platformId)
+    );
     if (isPlatformBrowser(this.platformId)) {
       this.audio = new Audio();
       console.log('🎵 Audio element created:', this.audio);
@@ -135,21 +178,24 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
         volume: this.audio.volume,
         muted: this.audio.muted,
         paused: this.audio.paused,
-        src: this.audio.src
-      });      // Subscribe to music player service
+        src: this.audio.src,
+      }); // Subscribe to music player service
       this.subscriptions.push(
-        this.musicPlayerService.currentTrack$.subscribe(track => {
+        this.musicPlayerService.currentTrack$.subscribe((track) => {
           console.log('🎵 MusicPlayerComponent received track:', track);
           if (track && track !== this.currentTrack) {
             this.loadTrack(track);
           }
         }),
 
-        this.musicPlayerService.isPlaying$.subscribe(playing => {
-          console.log('🎵 MusicPlayerComponent received playing state:', playing);
+        this.musicPlayerService.isPlaying$.subscribe((playing) => {
+          console.log(
+            '🎵 MusicPlayerComponent received playing state:',
+            playing
+          );
           const wasPlaying = this.isPlaying;
           this.isPlaying = playing;
-            if (this.audio && this.currentTrack) {
+          if (this.audio && this.currentTrack) {
             if (playing && this.audio.paused) {
               console.log('🎵 Starting playback from state change...');
               // Add a small delay to ensure audio is ready
@@ -168,8 +214,9 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
         })
       );
     }
-  }  ngOnDestroy() {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+  ngOnDestroy() {
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
     this.playPromise = null;
     if (this.audio) {
       this.audio.pause();
@@ -178,7 +225,8 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
     }
-  }  private setupAudioListeners() {
+  }
+  private setupAudioListeners() {
     if (!this.audio) return;
 
     this.audio.addEventListener('loadedmetadata', () => {
@@ -188,11 +236,19 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
 
     this.audio.addEventListener('timeupdate', () => {
       this.currentTime = this.audio!.currentTime;
+      // Cập nhật biến CSS progress-percent
+      const progressPercent = (this.currentTime / this.duration) * 100;
+      document.documentElement.style.setProperty(
+        '--progress-percent',
+        `${progressPercent}%`
+      );
     });
 
     this.audio.addEventListener('ended', () => {
       console.log('🎵 Track ended, auto-playing next track');
       this.isPlaying = false;
+      // Reset progress-percent khi kết thúc
+      document.documentElement.style.setProperty('--progress-percent', '0%');
       // Use onTrackEnded to handle auto-play with proper play count increment
       this.musicPlayerService.onTrackEnded();
     });
@@ -214,7 +270,7 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
       if (error) {
         console.error('🎵 Audio error details:', {
           code: error.code,
-          message: error.message
+          message: error.message,
         });
         this.showMessage('error', 'Audio playback error. Please try again.');
       }
@@ -228,36 +284,30 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     this.audio.addEventListener('canplaythrough', () => {
       console.log('🎵 Audio can play through without interruption');
     });
-  }loadTrack(track: Music) {
-    if (!this.audio || !isPlatformBrowser(this.platformId)) return;
-
-    console.log('🎵 Loading track in player:', track.title, track.fileUrl);
-    console.log('🎵 Audio element before load:', this.audio);
-
+  }
+  loadTrack(track: Music) {
+    console.log('🎵 Loading track:', track);
     this.currentTrack = track;
 
-    // Reset audio state first
-    this.audio.pause();
-    this.audio.currentTime = 0;
+    if (!this.audio || !isPlatformBrowser(this.platformId)) return;
+
+    // Reset progress
     this.currentTime = 0;
+    this.duration = 0;
+    document.documentElement.style.setProperty('--progress-percent', '0%');
 
-    // Set new source
+    // Check if the track has a valid URL
+    if (!track.fileUrl) {
+      console.error('🎵 Track fileUrl is missing!');
+      return;
+    }
+
+    // Set new audio source
     this.audio.src = track.fileUrl;
-
-    console.log('🎵 Audio src set to:', this.audio.src);
-    console.log('🎵 Calling audio.load()...');
-
     this.audio.load();
 
     // Check if track is favorited
     this.checkFavoriteStatus(track.id);
-
-    console.log('🎵 Audio element after load:', {
-      src: this.audio.src,
-      readyState: this.audio.readyState,
-      paused: this.audio.paused,
-      volume: this.audio.volume
-    });
 
     // Improved auto-play handling with better timing
     const handleCanPlay = () => {
@@ -277,7 +327,8 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     this.audio.addEventListener('canplay', handleCanPlay, { once: true });
 
     // Fallback: If audio is already ready, trigger play immediately
-    if (this.audio.readyState >= 3) { // HAVE_FUTURE_DATA or higher
+    if (this.audio.readyState >= 3) {
+      // HAVE_FUTURE_DATA or higher
       console.log('🎵 Audio already ready, triggering canplay manually');
       setTimeout(() => handleCanPlay(), 100);
     }
@@ -313,8 +364,13 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
       console.error('🎵 Error playing audio:', error);
 
       // Handle common browser audio policy errors
-      if (error.name === 'NotAllowedError' || error.message.includes('user interaction')) {
-        console.log('🎵 Browser requires user interaction, will play on next user action');
+      if (
+        error.name === 'NotAllowedError' ||
+        error.message.includes('user interaction')
+      ) {
+        console.log(
+          '🎵 Browser requires user interaction, will play on next user action'
+        );
         this.showMessage('error', 'Click play button to start music');
       }
     }
@@ -336,14 +392,20 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('🎵 Error pausing audio:', error);
     }
-  }  togglePlayPause() {
+  }
+  togglePlayPause() {
     console.log('🎵 Toggle play/pause, current state:', this.isPlaying);
     console.log('🎵 Current track:', this.currentTrack?.title);
-    console.log('🎵 Audio element state:', this.audio ? {
-      paused: this.audio.paused,
-      readyState: this.audio.readyState,
-      src: this.audio.src
-    } : 'null');
+    console.log(
+      '🎵 Audio element state:',
+      this.audio
+        ? {
+            paused: this.audio.paused,
+            readyState: this.audio.readyState,
+            src: this.audio.src,
+          }
+        : 'null'
+    );
 
     if (!this.currentTrack) {
       console.log('🎵 No current track, cannot toggle playback');
@@ -365,11 +427,16 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
   }
 
   seek(event: any) {
-    if (!this.audio || !isPlatformBrowser(this.platformId)) return;
-
-    const seekTime = parseFloat(event.target.value);
-    this.audio.currentTime = seekTime;
-    this.currentTime = seekTime;
+    if (this.audio) {
+      const time = Number(event.target.value);
+      this.audio.currentTime = time;
+      // Cập nhật progress-percent khi seek
+      const progressPercent = (time / this.duration) * 100;
+      document.documentElement.style.setProperty(
+        '--progress-percent',
+        `${progressPercent}%`
+      );
+    }
   }
 
   setVolume(event: any) {
@@ -392,29 +459,50 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
 
     if (this.isFavorite) {
       // Remove from favorites
-      this.userMusicService.removeFromFavorites(this.currentTrack.id).subscribe({        next: (response) => {
-          if (response.success) {
-            this.isFavorite = false;
-            this.showMessage('success', `Removed "${this.currentTrack?.title}" from favorites!`);
-            console.log('✅ Removed from favorites:', this.currentTrack?.title);
-          }
-        },        error: (error) => {
-          console.error('❌ Error removing from favorites:', error);
-          this.showMessage('error', 'Failed to remove from favorites. Please try again.');
-        }
-      });
+      this.userMusicService
+        .removeFromFavorites(this.currentTrack.id)
+        .subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.isFavorite = false;
+              this.showMessage(
+                'success',
+                `Removed "${this.currentTrack?.title}" from favorites!`
+              );
+              console.log(
+                '✅ Removed from favorites:',
+                this.currentTrack?.title
+              );
+            }
+          },
+          error: (error) => {
+            console.error('❌ Error removing from favorites:', error);
+            this.showMessage(
+              'error',
+              'Failed to remove from favorites. Please try again.'
+            );
+          },
+        });
     } else {
       // Add to favorites
-      this.userMusicService.addToFavorites(this.currentTrack.id).subscribe({        next: (response) => {
+      this.userMusicService.addToFavorites(this.currentTrack.id).subscribe({
+        next: (response) => {
           if (response.success) {
             this.isFavorite = true;
-            this.showMessage('success', `Added "${this.currentTrack?.title}" to favorites!`);
+            this.showMessage(
+              'success',
+              `Added "${this.currentTrack?.title}" to favorites!`
+            );
             console.log('✅ Added to favorites:', this.currentTrack?.title);
           }
-        },        error: (error) => {
+        },
+        error: (error) => {
           console.error('❌ Error adding to favorites:', error);
-          this.showMessage('error', 'Failed to add to favorites. Please try again.');
-        }
+          this.showMessage(
+            'error',
+            'Failed to add to favorites. Please try again.'
+          );
+        },
       });
     }
   }
@@ -428,7 +516,7 @@ export class MusicPlayerComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('❌ Error checking favorite status:', error);
         this.isFavorite = false;
-      }
+      },
     });
   }
 
