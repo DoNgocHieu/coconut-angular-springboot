@@ -23,4 +23,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long>, JpaSp
 
     @Query("SELECT c FROM Category c JOIN c.musicList m WHERE c.isActive = true GROUP BY c ORDER BY COUNT(m) DESC")
     List<Category> findCategoriesOrderByMusicCount();
+
+    @Query("SELECT DISTINCT c FROM Category c LEFT JOIN FETCH c.musicList WHERE c.isActive = true ORDER BY c.name")
+    List<Category> findByIsActiveTrueWithMusicOrderByName();
 }

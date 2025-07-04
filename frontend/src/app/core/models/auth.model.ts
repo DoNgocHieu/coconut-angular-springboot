@@ -16,6 +16,7 @@ export interface AuthResponse {
   userId: number;
   username: string;
   email: string;
+  isVerified: boolean;
   isAdmin: boolean; // Changed back to isAdmin to match backend JsonProperty
 }
 

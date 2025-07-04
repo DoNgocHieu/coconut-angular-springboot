@@ -2,7 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Artist } from '../models/music.model';
-import { ApiResponse, PageResponse, PaginationParams } from '../models/api.model';
+import {
+  ApiResponse,
+  PageResponse,
+  PaginationParams,
+} from '../models/api.model';
 import { environment } from '../../../environments/environment';
 
 export interface ArtistCreateRequest {
@@ -31,32 +35,38 @@ export interface ArtistStats {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AdminArtistService {
   private readonly API_URL = `${environment.apiUrl}/admin/artists`;
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
-  getAllArtists(params?: PaginationParams, filters?: ArtistFilters): Observable<ApiResponse<PageResponse<Artist>>> {
-    let httpParams = new HttpParams();
+  getAllArtists(
+    searchTerm: string = '',
+    isActive?: boolean,
+    page: number = 1,
+    size: number = 10,
+    sort: string = 'name',
+    direction: string = 'asc'
+  ): Observable<ApiResponse<PageResponse<Artist>>> {
+    let httpParams = new HttpParams()
+      .set('page', (page - 1).toString())
+      .set('size', size.toString())
+      .set('sortBy', sort)
+      .set('sortDir', direction);
 
-    if (params) {
-      if (params.page !== undefined) httpParams = httpParams.set('page', params.page.toString());
-      if (params.size !== undefined) httpParams = httpParams.set('size', params.size.toString());
-      if (params.sort) httpParams = httpParams.set('sortBy', params.sort);
-      if (params.direction) httpParams = httpParams.set('sortDir', params.direction);
+    if (searchTerm.trim()) {
+      httpParams = httpParams.set('search', searchTerm.trim());
     }
 
-    if (filters) {
-      if (filters.search) httpParams = httpParams.set('search', filters.search);
-      if (filters.isActive !== undefined) httpParams = httpParams.set('isActive', filters.isActive.toString());
+    if (isActive !== undefined) {
+      httpParams = httpParams.set('isActive', isActive.toString());
     }
 
-    const url = `${this.API_URL}?${httpParams.toString()}`;
-    console.log('Calling admin artists API:', url);
-
-    return this.http.get<ApiResponse<PageResponse<Artist>>>(this.API_URL, { params: httpParams });
+    return this.http.get<ApiResponse<PageResponse<Artist>>>(this.API_URL, {
+      params: httpParams,
+    });
   }
 
   getArtistById(id: number): Observable<ApiResponse<Artist>> {
@@ -67,7 +77,10 @@ export class AdminArtistService {
     return this.http.post<ApiResponse<Artist>>(this.API_URL, request);
   }
 
-  updateArtist(id: number, request: ArtistUpdateRequest): Observable<ApiResponse<Artist>> {
+  updateArtist(
+    id: number,
+    request: ArtistUpdateRequest
+  ): Observable<ApiResponse<Artist>> {
     return this.http.put<ApiResponse<Artist>>(`${this.API_URL}/${id}`, request);
   }
 
@@ -76,26 +89,44 @@ export class AdminArtistService {
   }
 
   toggleActiveStatus(id: number): Observable<ApiResponse<Artist>> {
-    return this.http.patch<ApiResponse<Artist>>(`${this.API_URL}/${id}/toggle-active`, {});
+    return this.http.patch<ApiResponse<Artist>>(
+      `${this.API_URL}/${id}/toggle-active`,
+      {}
+    );
   }
 
   getArtistStats(id: number): Observable<ApiResponse<ArtistStats>> {
-    return this.http.get<ApiResponse<ArtistStats>>(`${this.API_URL}/${id}/stats`);
+    return this.http.get<ApiResponse<ArtistStats>>(
+      `${this.API_URL}/${id}/stats`
+    );
   }
 
   bulkDeleteArtists(artistIds: number[]): Observable<ApiResponse<void>> {
-    return this.http.post<ApiResponse<void>>(`${this.API_URL}/bulk-delete`, artistIds);
+    return this.http.post<ApiResponse<void>>(
+      `${this.API_URL}/bulk-delete`,
+      artistIds
+    );
   }
 
-  bulkToggleActive(artistIds: number[], active: boolean): Observable<ApiResponse<void>> {
-    return this.http.post<ApiResponse<void>>(`${this.API_URL}/bulk-toggle-active?active=${active}`, artistIds);
+  bulkToggleActive(
+    artistIds: number[],
+    active: boolean
+  ): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(
+      `${this.API_URL}/bulk-toggle-active?active=${active}`,
+      artistIds
+    );
   }
 
   // Convenience method to get active artists for dropdowns
   getActiveArtists(): Observable<ApiResponse<PageResponse<Artist>>> {
     return this.getAllArtists(
-      { page: 0, size: 1000, sort: 'name', direction: 'asc' },
-      { isActive: true }
+      '', // searchTerm
+      true, // isActive
+      1, // page
+      1000, // size
+      'name', // sort
+      'asc' // direction
     );
   }
 }

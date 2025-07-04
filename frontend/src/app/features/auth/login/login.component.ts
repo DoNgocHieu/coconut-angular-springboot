@@ -10,12 +10,12 @@ import { LoginRequest } from '../../../core/models/auth.model';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss']
+  styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements OnInit {
   loginData: LoginRequest = {
     usernameOrEmail: '',
-    password: ''
+    password: '',
   };
 
   showPassword = false;
@@ -33,7 +33,7 @@ export class LoginComponent implements OnInit {
 
   ngOnInit() {
     // Check for message from registration
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       if (params['message']) {
         this.successMessage = params['message'];
       }
@@ -42,7 +42,8 @@ export class LoginComponent implements OnInit {
 
   togglePassword() {
     this.showPassword = !this.showPassword;
-  }  onSubmit() {
+  }
+  onSubmit() {
     this.showErrors = true;
     this.errorMessage = '';
     this.successMessage = '';
@@ -66,26 +67,30 @@ export class LoginComponent implements OnInit {
           { username: 'admin', password: 'admin123' },
           { username: 'user', password: 'user123' },
           { username: 'demo', password: 'demo123' },
-          { username: 'test@coconutmusic.com', password: 'test123' }
+          { username: 'test@coconutmusic.com', password: 'test123' },
         ];
 
-        const isValid = validCredentials.some(cred =>
-          (cred.username === this.loginData.usernameOrEmail) &&
-          (cred.password === this.loginData.password)
+        const isValid = validCredentials.some(
+          (cred) =>
+            cred.username === this.loginData.usernameOrEmail &&
+            cred.password === this.loginData.password
         );
 
         if (isValid) {
           // Mock successful login
           const mockAuthResponse = {
             userId: Math.floor(Math.random() * 1000) + 1,
-            username: this.loginData.usernameOrEmail.includes('@') ?
-                     this.loginData.usernameOrEmail.split('@')[0] :
-                     this.loginData.usernameOrEmail,
-            email: this.loginData.usernameOrEmail.includes('@') ?                  this.loginData.usernameOrEmail :
-                  `${this.loginData.usernameOrEmail}@coconutmusic.com`,            accessToken: 'mock-access-token-' + Date.now(),
+            username: this.loginData.usernameOrEmail.includes('@')
+              ? this.loginData.usernameOrEmail.split('@')[0]
+              : this.loginData.usernameOrEmail,
+            email: this.loginData.usernameOrEmail.includes('@')
+              ? this.loginData.usernameOrEmail
+              : `${this.loginData.usernameOrEmail}@coconutmusic.com`,
+            accessToken: 'mock-access-token-' + Date.now(),
             refreshToken: 'mock-refresh-token-' + Date.now(),
             tokenType: 'Bearer',
-            isAdmin: this.loginData.usernameOrEmail === 'admin' // Changed from admin to isAdmin
+            isAdmin: this.loginData.usernameOrEmail === 'admin', // Changed from admin to isAdmin
+            isVerified: true, // Add isVerified field
           };
 
           this.authService.setAuthDataPublic(mockAuthResponse);
@@ -93,7 +98,8 @@ export class LoginComponent implements OnInit {
           this.router.navigate(['/home']);
         } else {
           this.isLoading = false;
-          this.errorMessage = 'Invalid username/email or password. Try: admin/admin123, user/user123, demo/demo123';
+          this.errorMessage =
+            'Invalid username/email or password. Try: admin/admin123, user/user123, demo/demo123';
         }
       } catch (error) {
         this.isLoading = false;
@@ -119,7 +125,8 @@ export class LoginComponent implements OnInit {
         this.isLoading = false;
         console.error('Login error:', error);
         if (error.status === 0) {
-          this.errorMessage = 'Cannot connect to server. Please check your internet connection.';
+          this.errorMessage =
+            'Cannot connect to server. Please check your internet connection.';
         } else if (error.status === 401) {
           this.errorMessage = 'Invalid username/email or password.';
         } else if (error.status === 400) {
@@ -130,9 +137,10 @@ export class LoginComponent implements OnInit {
             this.errorMessage = 'Invalid login data. Please check your inputs.';
           }
         } else {
-          this.errorMessage = error.error?.message || 'Login failed. Please try again.';
+          this.errorMessage =
+            error.error?.message || 'Login failed. Please try again.';
         }
-      }
+      },
     });
   }
 

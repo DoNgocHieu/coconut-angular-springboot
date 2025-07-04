@@ -30,15 +30,24 @@
   }
 }
 
-.admin-categories, .admin-music, .admin-users, .admin-playlists, .admin-dashboard {
+.admin-categories,
+.admin-music,
+.admin-users,
+.admin-playlists,
+.admin-dashboard {
   padding: 2rem;
   background: #121212;
   min-height: 100vh;
   color: #ffffff;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 
   /* Header Section */
-  .categories-header, .music-header, .users-header, .playlists-header, .dashboard-header {
+  .categories-header,
+  .music-header,
+  .users-header,
+  .playlists-header,
+  .dashboard-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -60,7 +69,8 @@
       background-clip: text;
     }
 
-    .admin-btn, .btn-primary {
+    .admin-btn,
+    .btn-primary {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -109,7 +119,8 @@
           color: #b3b3b3;
         }
 
-        input, select {
+        input,
+        select {
           width: 100%;
           padding: 0.75rem 1rem;
           background: #282828;
@@ -136,7 +147,8 @@
         display: flex;
         gap: 0.5rem;
 
-        .btn, .admin-btn {
+        .btn,
+        .admin-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -149,7 +161,8 @@
           cursor: pointer;
           transition: all 0.3s ease;
 
-          &.btn-secondary, &.btn-outline {
+          &.btn-secondary,
+          &.btn-outline {
             background: #282828;
             color: #b3b3b3;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -176,7 +189,10 @@
   }
 
   /* Table Container */
-  .categories-table-container, .music-table-container, .users-table-container, .playlists-table-container {
+  .categories-table-container,
+  .music-table-container,
+  .users-table-container,
+  .playlists-table-container {
     background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
@@ -184,7 +200,10 @@
     overflow: hidden;
     margin-bottom: 1.5rem;
 
-    .categories-table, .music-table, .users-table, .playlists-table {
+    .categories-table,
+    .music-table,
+    .users-table,
+    .playlists-table {
       width: 100%;
       border-collapse: collapse;
       background: #1e1e1e;
@@ -223,7 +242,9 @@
         }
       }
 
-      .category-thumb, .music-cover, .playlist-thumb {
+      .category-thumb,
+      .music-cover,
+      .playlist-thumb {
         width: 50px;
         height: 50px;
         object-fit: cover;
@@ -231,25 +252,35 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
       }
 
-      .category-name, .music-title, .playlist-name {
+      .category-name,
+      .music-title,
+      .playlist-name {
         font-weight: 500;
         color: #ffffff;
       }
 
-      .status-badge, .visibility-badge, .role-badge {
+      .status-badge,
+      .visibility-badge,
+      .role-badge {
         padding: 0.25rem 0.75rem;
         border-radius: 12px;
         font-size: 0.75rem;
         font-weight: 500;
         border: 1px solid transparent;
 
-        &.active, &.verified, &.public, &.admin {
+        &.active,
+        &.verified,
+        &.public,
+        &.admin {
           background-color: rgba(29, 185, 84, 0.2);
           color: #1db954;
           border-color: rgba(29, 185, 84, 0.3);
         }
 
-        &.inactive, &.unverified, &.private, &.user {
+        &.inactive,
+        &.unverified,
+        &.private,
+        &.user {
           background-color: rgba(226, 33, 52, 0.2);
           color: #e22134;
           border-color: rgba(226, 33, 52, 0.3);
@@ -282,10 +313,12 @@
         }
       }
 
-      .actions, .action-buttons {
+      .actions,
+      .action-buttons {
         white-space: nowrap;
 
-        .btn-icon, .btn {
+        .btn-icon,
+        .btn {
           background: none;
           border: none;
           padding: 0.5rem;
@@ -305,7 +338,8 @@
             color: #1db954;
           }
 
-          &.btn-danger, &.danger {
+          &.btn-danger,
+          &.danger {
             &:hover {
               background: rgba(226, 33, 52, 0.2);
               color: #e22134;
@@ -319,7 +353,8 @@
       }
     }
 
-    .no-data, .empty-state {
+    .no-data,
+    .empty-state {
       text-align: center;
       padding: 3rem 2rem;
       color: #6a6a6a;
@@ -330,20 +365,23 @@
         align-items: center;
       }
 
-      .no-data-icon, .empty-icon i {
+      .no-data-icon,
+      .empty-icon i {
         font-size: 3rem;
         margin-bottom: 1rem;
         color: #535353;
       }
 
-      h3, .empty-title {
+      h3,
+      .empty-title {
         font-size: 1.1rem;
         font-weight: 500;
         color: #b3b3b3;
         margin-bottom: 0.5rem;
       }
 
-      p, .empty-description p {
+      p,
+      .empty-description p {
         margin: 0.5rem 0;
         font-size: 0.8rem;
         color: #6a6a6a;
@@ -412,7 +450,8 @@
   }
 
   /* Pagination */
-  .pagination, .pagination-container {
+  .pagination,
+  .pagination-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -427,12 +466,15 @@
       font-size: 0.875rem;
     }
 
-    .pagination-controls, .pagination-buttons {
+    .pagination-controls,
+    .pagination-buttons {
       display: flex;
       align-items: center;
       gap: 0.5rem;
 
-      button, .page-btn, .pagination-btn {
+      button,
+      .page-btn,
+      .pagination-btn {
         padding: 0.5rem 0.75rem;
         background: #282828;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -493,7 +535,8 @@
     animation: fadeIn 0.3s ease-out;
   }
 
-  .modal, .modal-content {
+  .modal,
+  .modal-content {
     background: linear-gradient(145deg, #1e1e1e 0%, #282828 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 16px;
@@ -521,12 +564,16 @@
       justify-content: space-between;
       align-items: center;
 
-      h2, h3 {
+      h2,
+      h3 {
         margin: 0;
         color: #ffffff;
         font-size: 1.25rem;
         font-weight: 600;
-      }      .modal-close, .close-btn, .btn-close {
+      }
+      .modal-close,
+      .close-btn,
+      .btn-close {
         background: none;
         border: none;
         color: #6a6a6a;
@@ -557,7 +604,10 @@
           font-size: 0.875rem;
         }
 
-        input, textarea, select, .admin-input {
+        input,
+        textarea,
+        select,
+        .admin-input {
           width: 100%;
           padding: 0.75rem 1rem;
           background: #282828;
@@ -653,7 +703,8 @@
           transition: all 0.3s ease;
           cursor: pointer;
 
-          &:hover, &.dragover {
+          &:hover,
+          &.dragover {
             border-color: #1db954;
             background: #3e3e3e;
           }
@@ -721,7 +772,8 @@
       justify-content: flex-end;
       gap: 1rem;
 
-      .btn, .admin-btn {
+      .btn,
+      .admin-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -808,7 +860,8 @@
       gap: 0.5rem;
     }
 
-    .btn, .admin-btn {
+    .btn,
+    .admin-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -894,12 +947,30 @@
         justify-content: center;
         font-size: 1.5rem;
 
-        &.music { background: rgba(29, 185, 84, 0.2); color: #1db954; }
-        &.users { background: rgba(66, 165, 245, 0.2); color: #42a5f5; }
-        &.categories { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
-        &.playlists { background: rgba(156, 39, 176, 0.2); color: #9c27b0; }
-        &.artists { background: rgba(255, 87, 34, 0.2); color: #ff5722; }
-        &.admins { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        &.music {
+          background: rgba(29, 185, 84, 0.2);
+          color: #1db954;
+        }
+        &.users {
+          background: rgba(66, 165, 245, 0.2);
+          color: #42a5f5;
+        }
+        &.categories {
+          background: rgba(255, 165, 0, 0.2);
+          color: #ffa500;
+        }
+        &.playlists {
+          background: rgba(156, 39, 176, 0.2);
+          color: #9c27b0;
+        }
+        &.artists {
+          background: rgba(255, 87, 34, 0.2);
+          color: #ff5722;
+        }
+        &.admins {
+          background: rgba(244, 67, 54, 0.2);
+          color: #f44336;
+        }
       }
 
       .stat-content {
@@ -1160,11 +1231,76 @@
     }
   }
 
+  /* Pagination Styles */
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+
+    .page-item {
+      list-style: none;
+
+      &.active .page-link {
+        background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
+        border-color: #1db954;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
+      }
+
+      &.disabled .page-link {
+        background: #282828;
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #6a6a6a;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+    }
+
+    .page-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: #282828;
+      color: #b3b3b3;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      cursor: pointer;
+
+      &:hover:not(:disabled) {
+        background: #3e3e3e;
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+
+      &:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3);
+      }
+    }
+  }
+
+  .pagination-info {
+    color: #b3b3b3;
+    font-size: 0.875rem;
+  }
+
   /* Responsive */
   @media (max-width: 768px) {
     padding: 1rem;
 
-    .categories-header, .music-header, .users-header, .playlists-header, .dashboard-header {
+    .categories-header,
+    .music-header,
+    .users-header,
+    .playlists-header,
+    .dashboard-header {
       flex-direction: column;
       gap: 1rem;
       align-items: stretch;
@@ -1179,15 +1315,22 @@
       }
     }
 
-    .categories-table-container, .music-table-container, .users-table-container, .playlists-table-container {
+    .categories-table-container,
+    .music-table-container,
+    .users-table-container,
+    .playlists-table-container {
       overflow-x: auto;
 
-      .categories-table, .music-table, .users-table, .playlists-table {
+      .categories-table,
+      .music-table,
+      .users-table,
+      .playlists-table {
         min-width: 600px;
       }
     }
 
-    .modal, .modal-content {
+    .modal,
+    .modal-content {
       margin: 1rem;
       max-width: calc(100vw - 2rem);
       min-width: auto;
@@ -1201,7 +1344,8 @@
       grid-template-columns: 1fr;
     }
 
-    .pagination, .pagination-container {
+    .pagination,
+    .pagination-container {
       flex-direction: column;
       gap: 1rem;
     }
@@ -1210,8 +1354,12 @@
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInScale {
@@ -1226,6 +1374,10 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
