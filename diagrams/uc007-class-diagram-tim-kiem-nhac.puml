@@ -1,0 +1,95 @@
+@startuml UC007-Class-Diagram-Tim-Kiem-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC007: Tìm kiếm nhạc
+
+class MusicController {
+    + searchMusic(request: SearchRequest): ResponseEntity<SearchResponse>
+    + searchByCategory(categoryId: Long): ResponseEntity<List<MusicDto>>
+    + getPopularMusic(): ResponseEntity<List<MusicDto>>
+}
+
+class MusicService {
+    + searchMusic(criteria: SearchCriteria): List<Music>
+    + searchByTitle(title: String): List<Music>
+    + searchByArtist(artist: String): List<Music>
+    + searchByCategory(categoryId: Long): List<Music>
+    + getPopularMusic(): List<Music>
+}
+
+class MusicRepository {
+    + findByTitleContainingIgnoreCase(title: String): List<Music>
+    + findByArtistContainingIgnoreCase(artist: String): List<Music>
+    + findByCategoryId(categoryId: Long): List<Music>
+    + findByTitleOrArtistContaining(keyword: String): List<Music>
+    + findTop10ByOrderByPlayCountDesc(): List<Music>
+}
+
+class SearchRequest {
+    + String keyword
+    + String searchType
+    + Long categoryId
+    + String sortBy
+    + String sortDirection
+    + int page
+    + int size
+}
+
+class SearchResponse {
+    + List<MusicDto> results
+    + int totalElements
+    + int currentPage
+    + int totalPages
+    + String searchKeyword
+}
+
+class SearchCriteria {
+    + String keyword
+    + SearchType searchType
+    + Long categoryId
+    + SortCriteria sortCriteria
+    + PageRequest pageRequest
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - Long playCount
+    - Category category
+    - LocalDateTime createdAt
+}
+
+enum SearchType {
+    ALL
+    TITLE
+    ARTIST
+    CATEGORY
+}
+
+' Relationships
+MusicController --> MusicService : uses
+MusicService --> MusicRepository : uses
+MusicRepository --> Music : manages
+MusicController --> SearchRequest : receives
+MusicController --> SearchResponse : returns
+SearchResponse --> MusicDto : contains
+SearchCriteria --> SearchType : uses
+
+note right of MusicService
+  Search algorithms:
+  - Full-text search
+  - Fuzzy matching
+  - Popularity ranking
+  - Category filtering
+end note
+
+note bottom of MusicRepository
+  Database optimizations:
+  - Indexed search fields
+  - Pagination support
+  - Case-insensitive search
+end note
+
+@enduml

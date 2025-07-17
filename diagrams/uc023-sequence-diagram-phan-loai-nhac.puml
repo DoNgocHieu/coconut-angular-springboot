@@ -1,0 +1,352 @@
+@startuml UC023-Sequence-Diagram-Phan-Loai-Nhac
+!theme plain
+
+title Biểu đồ tuần tự - UC023: Phân loại nhạc
+
+actor Admin as "Quản trị viên"
+participant Browser as "Browser"
+participant AdminMusicCategoryComponent as "AdminMusicCategory\nComponent"
+participant MusicCategoryModalComponent as "MusicCategoryModal\nComponent"
+participant CategorySuggestionComponent as "CategorySuggestion\nComponent"
+participant BulkCategorizationModalComponent as "BulkCategorization\nModal"
+participant CategoryFilterComponent as "CategoryFilter\nComponent"
+participant AdminCategoryService as "AdminCategoryService\n(Frontend)"
+participant CategorySuggestionService as "CategorySuggestion\nService (Frontend)"
+participant MusicAnalysisService as "MusicAnalysis\nService (Frontend)"
+participant AdminCategoryController as "AdminCategory\nController"
+participant CategorySuggestionController as "CategorySuggestion\nController"
+participant AdminCategoryService_BE as "AdminCategory\nService"
+participant CategorySuggestionService_BE as "CategorySuggestion\nService"
+participant MusicAnalysisService_BE as "MusicAnalysis\nService"
+participant MLCategoryService as "MLCategory\nService"
+participant CategoryValidationService as "CategoryValidation\nService"
+participant AdminAuditService as "AdminAudit\nService"
+participant MusicRepository as "Music\nRepository"
+participant CategoryRepository as "Category\nRepository"
+participant MusicCategoryRepository as "MusicCategory\nRepository"
+participant Database as "Database"
+
+== Truy cập trang phân loại nhạc ==
+
+Admin -> Browser: Truy cập trang "Admin Music Categorization"
+Browser -> AdminMusicCategoryComponent: ngOnInit()
+AdminMusicCategoryComponent -> AdminCategoryService: getMusicsForCategorization(page, filters)
+AdminCategoryService -> AdminCategoryController: GET /api/admin/categorization/musics?page={page}&filters={filters}
+AdminCategoryController -> AdminCategoryService_BE: getMusicsForCategorization(pageable, filters, adminId)
+
+AdminCategoryService_BE -> CategoryValidationService: validateAdminPermissions(adminId)
+CategoryValidationService -> CategoryValidationService: validateAdminRole(adminId)
+CategoryValidationService --> AdminCategoryService_BE: Admin validation passed
+
+AdminCategoryService_BE -> MusicRepository: findAllByDeletedFalse(pageable)
+MusicRepository -> Database: SELECT m.*, c.name as category_name, c.id as category_id FROM musics m LEFT JOIN categories c ON m.category_id = c.id WHERE m.deleted = false ORDER BY m.created_at DESC
+Database --> MusicRepository: Page<Music> with category info
+MusicRepository --> AdminCategoryService_BE: Musics with categorization status
+
+AdminCategoryService_BE -> AdminCategoryService_BE: buildAdminMusicDtos(musics, adminId)
+AdminCategoryService_BE --> AdminCategoryController: Page<AdminMusicDto>
+AdminCategoryController --> AdminCategoryService: Musics for categorization loaded
+AdminCategoryService --> AdminMusicCategoryComponent: Musics with categorization info
+
+AdminMusicCategoryComponent -> AdminCategoryService: getAllCategories()
+AdminCategoryService -> AdminCategoryController: GET /api/admin/categories
+AdminCategoryController -> AdminCategoryService_BE: getAllCategories()
+
+AdminCategoryService_BE -> CategoryRepository: findAllByActiveTrue()
+CategoryRepository -> Database: SELECT * FROM categories WHERE active = true ORDER BY parent_id, name
+Database --> CategoryRepository: Active categories list
+CategoryRepository --> AdminCategoryService_BE: All active categories
+
+AdminCategoryService_BE -> AdminCategoryService_BE: buildCategoryDtos(categories)
+AdminCategoryService_BE --> AdminCategoryController: List<CategoryDto>
+AdminCategoryController --> AdminCategoryService: Categories loaded
+AdminCategoryService --> AdminMusicCategoryComponent: Categories received
+
+AdminMusicCategoryComponent -> CategoryFilterComponent: initialize(categories)
+CategoryFilterComponent -> CategoryFilterComponent: Setup category filters
+CategoryFilterComponent --> AdminMusicCategoryComponent: Filters initialized
+
+AdminMusicCategoryComponent --> Admin: Hiển thị danh sách nhạc với thông tin phân loại
+
+== Lọc nhạc theo trạng thái phân loại ==
+
+Admin -> CategoryFilterComponent: Chọn filter "Uncategorized Music"
+CategoryFilterComponent -> CategoryFilterComponent: onFilterChange()
+CategoryFilterComponent -> AdminMusicCategoryComponent: filterByCategorizationStatus("uncategorized")
+
+AdminMusicCategoryComponent -> AdminCategoryService: getMusicsForCategorization(page, {status: "uncategorized"})
+AdminCategoryService -> AdminCategoryController: GET /api/admin/categorization/musics?status=uncategorized
+AdminCategoryController -> AdminCategoryService_BE: getMusicsForCategorization with uncategorized filter
+
+AdminCategoryService_BE -> MusicRepository: findByDeletedFalseAndCategoryIdIsNull(pageable)
+MusicRepository -> Database: SELECT * FROM musics WHERE deleted = false AND category_id IS NULL ORDER BY created_at DESC
+Database --> MusicRepository: Uncategorized musics
+MusicRepository --> AdminCategoryService_BE: Musics without categories
+
+AdminCategoryService_BE --> AdminCategoryController: Uncategorized musics
+AdminCategoryController --> AdminCategoryService: Filtered musics loaded
+AdminCategoryService --> AdminMusicCategoryComponent: Updated music list
+AdminMusicCategoryComponent --> Admin: Hiển thị nhạc chưa được phân loại
+
+== Phân loại nhạc đơn lẻ ==
+
+Admin -> AdminMusicCategoryComponent: Click "Categorize" trên music card
+AdminMusicCategoryComponent -> MusicCategoryModalComponent: open(music)
+MusicCategoryModalComponent -> MusicCategoryModalComponent: ngOnInit()
+MusicCategoryModalComponent -> MusicCategoryModalComponent: loadMusicDetails()
+
+note over MusicCategoryModalComponent, MLCategoryService: Phân tích nhạc và đề xuất phân loại tự động
+
+MusicCategoryModalComponent -> CategorySuggestionService: analyzeMusicForCategorization(musicId)
+CategorySuggestionService -> CategorySuggestionController: GET /api/admin/categorization/suggestions/{musicId}
+CategorySuggestionController -> CategorySuggestionService_BE: analyzeMusicForCategorization(musicId)
+
+CategorySuggestionService_BE -> MusicAnalysisService_BE: extractMusicFeatures(musicId)
+MusicAnalysisService_BE -> MusicRepository: findByIdAndDeletedFalse(musicId)
+MusicRepository -> Database: SELECT * FROM musics WHERE id = ? AND deleted = false
+Database --> MusicRepository: Music details
+MusicRepository --> MusicAnalysisService_BE: Music entity
+
+MusicAnalysisService_BE -> MusicAnalysisService_BE: analyzeAudioContent(music.audioFileUrl)
+MusicAnalysisService_BE -> MusicAnalysisService_BE: extractMetadataFeatures(music)
+MusicAnalysisService_BE -> MusicAnalysisService_BE: getLyricsAnalysis(musicId)
+MusicAnalysisService_BE -> MusicAnalysisService_BE: getTempoAndKeyAnalysis(musicId)
+
+MusicAnalysisService_BE -> MusicAnalysisService_BE: buildComprehensiveAnalysis(audioFeatures, metadataFeatures, lyricsFeatures)
+MusicAnalysisService_BE --> CategorySuggestionService_BE: MusicFeaturesDto
+
+CategorySuggestionService_BE -> MLCategoryService: predictCategories(musicFeatures)
+MLCategoryService -> MLCategoryService: runCategoryClassification(features)
+MLCategoryService -> MLCategoryService: calculateConfidenceScores(predictions)
+MLCategoryService --> CategorySuggestionService_BE: List<CategoryPrediction>
+
+CategorySuggestionService_BE -> CategorySuggestionService_BE: getMetadataBasedSuggestions(musicId)
+CategorySuggestionService_BE -> CategorySuggestionService_BE: getUserBehaviorBasedSuggestions(musicId)
+CategorySuggestionService_BE -> CategorySuggestionService_BE: getGenreSimilaritySuggestions(musicId)
+
+CategorySuggestionService_BE -> CategorySuggestionService_BE: combineAndRankSuggestions(allSuggestions)
+CategorySuggestionService_BE --> CategorySuggestionController: List<CategorySuggestionDto>
+CategorySuggestionController --> CategorySuggestionService: Categorization suggestions
+CategorySuggestionService --> MusicCategoryModalComponent: Suggested categories received
+
+MusicCategoryModalComponent -> CategorySuggestionComponent: loadSuggestions(suggestions)
+CategorySuggestionComponent -> CategorySuggestionComponent: displaySuggestionsWithConfidence()
+CategorySuggestionComponent --> MusicCategoryModalComponent: Suggestions component ready
+
+MusicCategoryModalComponent --> Admin: Hiển thị modal với suggested categories
+
+Admin -> CategorySuggestionComponent: Click "Apply" trên suggested category
+CategorySuggestionComponent -> MusicCategoryModalComponent: applySuggestion(category)
+MusicCategoryModalComponent -> MusicCategoryModalComponent: onCategoryChange(category)
+
+Admin -> MusicCategoryModalComponent: Nhập lý do phân loại
+MusicCategoryModalComponent -> MusicCategoryModalComponent: validateCategorySelection()
+
+Admin -> MusicCategoryModalComponent: Click "Confirm Categorization"
+MusicCategoryModalComponent -> AdminCategoryService: categorizeMusicAsAdmin(musicId, request)
+AdminCategoryService -> AdminCategoryController: PUT /api/admin/categorization/musics/{musicId}
+AdminCategoryController -> AdminCategoryService_BE: categorizeMusicAsAdmin(musicId, request, adminId)
+
+AdminCategoryService_BE -> CategoryValidationService: validateCategoryExists(request.categoryId)
+CategoryValidationService -> CategoryRepository: findById(categoryId)
+CategoryRepository -> Database: SELECT * FROM categories WHERE id = ? AND active = true
+Database --> CategoryRepository: Category details
+CategoryRepository --> CategoryValidationService: Category entity
+CategoryValidationService --> AdminCategoryService_BE: Category validation passed
+
+AdminCategoryService_BE -> CategoryValidationService: validateMusicExists(musicId)
+CategoryValidationService -> MusicRepository: findByIdAndDeletedFalse(musicId)
+MusicRepository --> CategoryValidationService: Music exists
+CategoryValidationService --> AdminCategoryService_BE: Music validation passed
+
+AdminCategoryService_BE -> CategoryValidationService: validateAdminCanCategorizeMusic(musicId, adminId)
+CategoryValidationService --> AdminCategoryService_BE: Categorization validation passed
+
+note over AdminCategoryService_BE, AdminAuditService: Log categorization action before making changes
+
+AdminCategoryService_BE -> MusicRepository: findByIdAndDeletedFalse(musicId)
+MusicRepository --> AdminCategoryService_BE: Current music with old category
+
+AdminCategoryService_BE -> AdminAuditService: logMusicCategorization(musicId, adminId, oldCategoryId, newCategoryId, reason)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (admin_id, action_type, resource_type, resource_id, action_details, created_at)
+Database --> AdminAuditService: Categorization logged
+AdminAuditService --> AdminCategoryService_BE: Audit log created
+
+AdminCategoryService_BE -> MusicRepository: updateCategoryById(musicId, categoryId)
+MusicRepository -> Database: UPDATE musics SET category_id = ?, updated_at = NOW() WHERE id = ?
+Database --> MusicRepository: Music category updated
+MusicRepository --> AdminCategoryService_BE: Category assignment completed
+
+AdminCategoryService_BE -> MusicCategoryRepository: save(musicCategory)
+MusicCategoryRepository -> Database: INSERT INTO music_categories (music_id, category_id, categorized_by, categorized_at, confidence, source, reason)
+Database --> MusicCategoryRepository: Categorization record saved
+MusicCategoryRepository --> AdminCategoryService_BE: Categorization tracking saved
+
+AdminCategoryService_BE -> AdminCategoryService_BE: buildCategorizationResult(music, oldCategory, newCategory)
+AdminCategoryService_BE --> AdminCategoryController: CategorizationResultDto
+AdminCategoryController --> AdminCategoryService: Categorization successful
+AdminCategoryService --> AdminMusicCategoryComponent: Music categorized successfully
+
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: updateMusicInList(musicId, newCategory)
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: showSuccessMessage("Nhạc đã được phân loại thành công")
+
+MusicCategoryModalComponent -> MusicCategoryModalComponent: close()
+MusicCategoryModalComponent --> AdminMusicCategoryComponent: Modal closed
+AdminMusicCategoryComponent --> Admin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Phân loại hàng loạt nhạc ==
+
+Admin -> AdminMusicCategoryComponent: Click "Bulk Actions"
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: toggleBulkMode()
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: showBulkSelectionControls()
+
+Admin -> AdminMusicCategoryComponent: Select multiple musics via checkbox
+loop Chọn từng bài hát
+    AdminMusicCategoryComponent -> AdminMusicCategoryComponent: selectMusic(musicId)
+    AdminMusicCategoryComponent -> AdminMusicCategoryComponent: Add to selectedMusics
+    AdminMusicCategoryComponent -> AdminMusicCategoryComponent: updateSelectedCount()
+end
+
+Admin -> AdminMusicCategoryComponent: Click "Bulk Categorize"
+AdminMusicCategoryComponent -> BulkCategorizationModalComponent: open(selectedMusics)
+BulkCategorizationModalComponent -> BulkCategorizationModalComponent: ngOnInit()
+BulkCategorizationModalComponent -> BulkCategorizationModalComponent: initializeForm()
+
+BulkCategorizationModalComponent --> Admin: Hiển thị modal phân loại hàng loạt
+
+Admin -> BulkCategorizationModalComponent: Chọn category cho tất cả musics
+Admin -> BulkCategorizationModalComponent: Nhập lý do phân loại chung
+Admin -> BulkCategorizationModalComponent: Tick "Override existing categories"
+
+Admin -> BulkCategorizationModalComponent: Click "Start Bulk Categorization"
+BulkCategorizationModalComponent -> BulkCategorizationModalComponent: startBulkCategorization()
+
+BulkCategorizationModalComponent -> AdminCategoryService: bulkCategorizeMusicsAsAdmin(request)
+AdminCategoryService -> AdminCategoryController: POST /api/admin/categorization/musics/bulk
+AdminCategoryController -> AdminCategoryService_BE: bulkCategorizeMusicsAsAdmin(request, adminId)
+
+AdminCategoryService_BE -> CategoryValidationService: validateBulkCategorizationRequest(request)
+CategoryValidationService -> CategoryValidationService: Check musicIds not empty
+CategoryValidationService -> CategoryValidationService: Validate category exists
+CategoryValidationService -> CategoryValidationService: Check reasonable batch size
+CategoryValidationService -> CategoryValidationService: Validate admin permissions
+CategoryValidationService --> AdminCategoryService_BE: Bulk request validated
+
+AdminCategoryService_BE -> AdminAuditService: logBulkCategorization(musicIds, adminId, categoryId, reason)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (bulk categorization record)
+Database --> AdminAuditService: Bulk categorization logged
+AdminAuditService --> AdminCategoryService_BE: Bulk audit log created
+
+AdminCategoryService_BE -> AdminCategoryService_BE: Initialize bulk categorization counters
+AdminCategoryService_BE -> AdminCategoryService_BE: successCount = 0, failedCount = 0
+
+loop Phân loại từng bài hát
+    AdminCategoryService_BE -> MusicRepository: findByIdAndDeletedFalse(musicId)
+    MusicRepository -> Database: SELECT music for categorization
+    Database --> MusicRepository: Music to categorize or null
+    MusicRepository --> AdminCategoryService_BE: Music entity
+
+    note over AdminCategoryService_BE: Kiểm tra và cập nhật category cho từng bài hát
+
+    AdminCategoryService_BE -> MusicRepository: updateCategoryById(musicId, categoryId)
+    MusicRepository -> Database: UPDATE musics SET category_id = ? WHERE id = ?
+    Database --> MusicRepository: Music category updated
+    MusicRepository --> AdminCategoryService_BE: Category updated
+
+    AdminCategoryService_BE -> MusicCategoryRepository: save(new MusicCategory)
+    MusicCategoryRepository -> Database: INSERT categorization tracking record
+    Database --> MusicCategoryRepository: Tracking record saved
+    MusicCategoryRepository --> AdminCategoryService_BE: Tracking completed
+
+    AdminCategoryService_BE -> AdminCategoryService_BE: successCount++
+
+    AdminCategoryService_BE -> BulkCategorizationModalComponent: updateProgress(currentIndex, successCount, failedCount)
+    BulkCategorizationModalComponent -> BulkCategorizationModalComponent: updateProgress(progress)
+    BulkCategorizationModalComponent --> Admin: Hiển thị tiến độ phân loại
+end
+
+AdminCategoryService_BE -> AdminCategoryService_BE: buildBulkCategorizationResult()
+AdminCategoryService_BE --> AdminCategoryController: BulkCategorizationResultDto
+AdminCategoryController --> AdminCategoryService: Bulk categorization completed
+AdminCategoryService --> AdminMusicCategoryComponent: Bulk categorization result received
+
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: updateAfterBulkCategorization(result)
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: Remove categorized musics from uncategorized list
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: Clear selection
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: Update statistics
+AdminMusicCategoryComponent -> BulkCategorizationModalComponent: showFinalResults(result)
+BulkCategorizationModalComponent -> BulkCategorizationModalComponent: Display final summary
+BulkCategorizationModalComponent --> Admin: Hiển thị "Đã phân loại {successCount} bài hát, {failedCount} thất bại"
+
+BulkCategorizationModalComponent -> BulkCategorizationModalComponent: close()
+
+== Quản lý danh mục ==
+
+Admin -> AdminMusicCategoryComponent: Click "Manage Categories"
+AdminMusicCategoryComponent -> AdminMusicCategoryComponent: navigateToCategoryManagement()
+
+note over Admin, Database: Admin có thể tạo, chỉnh sửa, xóa categories
+
+Admin -> AdminCategoryService: createCategory(request)
+AdminCategoryService -> AdminCategoryController: POST /api/admin/categories
+AdminCategoryController -> AdminCategoryService_BE: createCategory(request, adminId)
+
+AdminCategoryService_BE -> CategoryValidationService: validateCreateCategoryRequest(request)
+CategoryValidationService -> CategoryRepository: findByNameIgnoreCase(request.name)
+CategoryValidationService -> CategoryValidationService: checkCategoryNameUnique()
+CategoryValidationService -> CategoryValidationService: validateParentCategoryExists()
+CategoryValidationService --> AdminCategoryService_BE: Create category validation passed
+
+AdminCategoryService_BE -> CategoryRepository: save(newCategory)
+CategoryRepository -> Database: INSERT INTO categories (name, description, parent_id, created_by, created_at)
+Database --> CategoryRepository: New category created
+CategoryRepository --> AdminCategoryService_BE: Category entity
+
+AdminCategoryService_BE -> AdminAuditService: logCategoryCreation(categoryId, adminId, categoryData)
+AdminAuditService --> AdminCategoryService_BE: Category creation logged
+
+AdminCategoryService_BE --> AdminCategoryController: CategoryDto
+AdminCategoryController --> AdminCategoryService: Category created successfully
+AdminCategoryService --> AdminMusicCategoryComponent: New category available
+AdminMusicCategoryComponent --> Admin: Category đã được tạo thành công
+
+== Phản hồi về đề xuất phân loại ==
+
+Admin -> CategorySuggestionComponent: Click "This suggestion is wrong"
+CategorySuggestionComponent -> CategorySuggestionService: submitCategorizationFeedback(feedback)
+CategorySuggestionService -> CategorySuggestionController: POST /api/admin/categorization/feedback
+CategorySuggestionController -> CategorySuggestionService_BE: submitCategorizationFeedback(feedback)
+
+CategorySuggestionService_BE -> MLCategoryService: retrainWithNewData(feedback)
+MLCategoryService -> MLCategoryService: updateTrainingDataset(feedback)
+MLCategoryService -> MLCategoryService: scheduleModelRetraining()
+MLCategoryService --> CategorySuggestionService_BE: Feedback incorporated
+
+CategorySuggestionService_BE --> CategorySuggestionController: Feedback submitted
+CategorySuggestionController --> CategorySuggestionService: Feedback processed
+CategorySuggestionService --> CategorySuggestionComponent: Feedback submitted successfully
+CategorySuggestionComponent --> Admin: "Cảm ơn phản hồi! Sẽ cải thiện đề xuất"
+
+== Xử lý lỗi ==
+
+note over Admin, Database: Các trường hợp lỗi có thể xảy ra trong quá trình phân loại
+
+note over CategoryValidationService: Lỗi category không tồn tại
+note over Admin: "Danh mục được chọn không tồn tại"
+
+note over CategoryValidationService: Lỗi nhạc không tồn tại
+note over Admin: "Bài hát không tồn tại hoặc đã bị xóa"
+
+note over CategoryValidationService: Lỗi quyền admin
+note over Admin: "Bạn không có quyền phân loại nhạc"
+
+note over MLCategoryService: Lỗi phân tích ML
+note over Admin: "Không thể phân tích nhạc tự động, vui lòng phân loại thủ công"
+
+note over CategoryValidationService: Lỗi circular reference trong category hierarchy
+note over Admin: "Không thể tạo category do tham chiếu vòng"
+
+note over Database: Lỗi database constraint
+note over Admin: "Không thể phân loại nhạc do ràng buộc dữ liệu"
+
+@enduml

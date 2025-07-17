@@ -1,0 +1,372 @@
+@startuml UC036-Sequence-Diagram-Quan-Ly-Banner
+!theme plain
+
+title Biểu đồ trình tự - UC036: Quản lý banner/quảng cáo (Admin)
+
+actor Admin
+participant "Angular\nAdmin Panel" as Client
+participant "AdminBanner\nController" as Controller
+participant "AdminBanner\nService" as Service
+participant "Banner\nValidationService" as ValidationService
+participant "Banner\nRepository" as BannerRepo
+participant "BannerView\nRepository" as ViewRepo
+participant "BannerClick\nRepository" as ClickRepo
+participant "File\nStorageService" as FileService
+participant "BannerScheduler\nService" as SchedulerService
+participant "Banner\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+Admin -> Client: Navigate to "Quản lý banner" > Click "Tạo banner mới"
+activate Client
+
+Client -> Client: Open create banner modal
+Client -> Client: Initialize form with banner types dropdown
+Client -> Client: Set up date pickers for start/end dates
+Client --> Admin: Create banner form displayed
+
+' Admin fills banner form
+Admin -> Client: Enter title: "Khuyến mãi mùa hè 2025"
+Admin -> Client: Enter description: "Giảm giá 50% cho tất cả bài hát"
+Admin -> Client: Enter link URL: "https://coconutmusic.com/promotion/summer2025"
+Admin -> Client: Select type: "HOMEPAGE_SLIDER"
+Admin -> Client: Set start date: "2025-06-01 00:00:00"
+Admin -> Client: Set end date: "2025-08-31 23:59:59"
+Admin -> Client: Click "Tạo banner"
+
+Client -> Client: Validate form data on frontend
+alt Form valid
+    Client -> Controller: POST /api/admin/banners\n{title: "Khuyến mãi mùa hè 2025", description: "...", linkUrl: "...", type: "HOMEPAGE_SLIDER", startDate: "2025-06-01T00:00:00", endDate: "2025-08-31T23:59:59"}
+    activate Controller
+
+    Controller -> Controller: Extract adminId from JWT token
+    Controller -> Controller: Validate request data
+
+    Controller -> Service: createBanner(request)
+    activate Service
+
+    ' Validate banner data
+    Service -> ValidationService: validateBannerTitle(title)
+    activate ValidationService
+    ValidationService -> ValidationService: Check title length (1-200 chars)
+    ValidationService -> ValidationService: Check for inappropriate content
+    ValidationService --> Service: List<String> errors (empty if valid)
+    deactivate ValidationService
+
+    Service -> ValidationService: validateBannerDescription(description)
+    activate ValidationService
+    ValidationService -> ValidationService: Check description length (max 1000 chars)
+    ValidationService --> Service: List<String> errors (empty if valid)
+    deactivate ValidationService
+
+    Service -> ValidationService: validateLinkUrl(linkUrl)
+    activate ValidationService
+    ValidationService -> ValidationService: Check URL format and accessibility
+    ValidationService --> Service: boolean valid = true
+    deactivate ValidationService
+
+    Service -> ValidationService: validateDateRange(startDate, endDate)
+    activate ValidationService
+    ValidationService -> ValidationService: Check startDate < endDate
+    ValidationService -> ValidationService: Check dates are in future
+    ValidationService --> Service: boolean valid = true
+    deactivate ValidationService
+
+    alt All validations passed
+        ' Get display order for banner type
+        Service -> BannerRepo: findMaxDisplayOrderByType(HOMEPAGE_SLIDER)
+        activate BannerRepo
+        BannerRepo -> DB: SELECT MAX(display_order) FROM banners WHERE type = 'HOMEPAGE_SLIDER' AND status != 'DELETED'
+        DB --> BannerRepo: maxOrder = 5
+        BannerRepo --> Service: Optional<Integer>
+        deactivate BannerRepo
+
+        Service -> Service: Set displayOrder = maxOrder + 1 = 6
+
+        ' Create banner entity
+        Service -> Mapper: toEntity(request)
+        activate Mapper
+        Mapper -> Mapper: Create new Banner entity
+        Mapper -> Mapper: Set title, description, linkUrl, type, dates
+        Mapper -> Mapper: Set status = SCHEDULED (future start date)
+        Mapper -> Mapper: Set displayOrder, createdBy = admin
+        Mapper -> Mapper: Set isActive = false, viewCount = 0, clickCount = 0
+        Mapper --> Service: Banner entity
+        deactivate Mapper
+
+        ' Save banner to database
+        Service -> BannerRepo: save(banner)
+        activate BannerRepo
+        BannerRepo -> DB: INSERT INTO banners\n(title, description, image_url, link_url, type, status, display_order, start_date, end_date, is_active, view_count, click_count, created_at, updated_at, created_by, updated_by)\nVALUES ('Khuyến mãi mùa hè 2025', '...', NULL, '...', 'HOMEPAGE_SLIDER', 'SCHEDULED', 6, '2025-06-01 00:00:00', '2025-08-31 23:59:59', false, 0, 0, NOW(), NOW(), adminId, adminId)
+        DB --> BannerRepo: Banner saved with ID = 15
+        BannerRepo --> Service: Banner entity with ID
+        deactivate BannerRepo
+
+        ' Schedule banner activation if needed
+        alt Start date in future
+            Service -> SchedulerService: scheduleActivation(banner)
+            activate SchedulerService
+            SchedulerService -> SchedulerService: Create scheduled task for banner activation
+            SchedulerService -> SchedulerService: Schedule task to run at start date
+            SchedulerService --> Service: void
+            deactivate SchedulerService
+        end
+
+        ' Schedule banner deactivation
+        Service -> SchedulerService: scheduleDeactivation(banner)
+        activate SchedulerService
+        SchedulerService -> SchedulerService: Create scheduled task for banner deactivation
+        SchedulerService -> SchedulerService: Schedule task to run at end date
+        SchedulerService --> Service: void
+        deactivate SchedulerService
+
+        ' Convert to DTO for response
+        Service -> Mapper: toDto(banner)
+        activate Mapper
+        Mapper -> Mapper: Convert Banner to BannerDto
+        Mapper -> Mapper: Set canEdit = true, canDelete = true
+        Mapper -> Mapper: Set statusDisplay based on dates
+        Mapper --> Service: BannerDto
+        deactivate Mapper
+
+        Service --> Controller: BannerDto
+        deactivate Service
+
+        Controller --> Client: 201 Created\nBannerDto
+        deactivate Controller
+
+        Client -> Client: Close create modal
+        Client -> Client: Add new banner to banners list
+        Client -> Client: Show success notification
+        Client --> Admin: "Đã tạo banner thành công (sẽ kích hoạt vào 01/06/2025)"
+
+    else Validation failed
+        Service --> Controller: throw ValidationException
+        Controller --> Client: 400 Bad Request\n{"errors": ["validation errors"]}
+        Client --> Admin: Show validation errors
+    end
+
+else Form invalid
+    Client --> Admin: Show form validation errors
+end
+
+' Admin wants to upload image for banner
+Admin -> Client: Click "Thêm ảnh banner" on newly created banner
+Client -> Client: Open file picker with banner type guidelines
+Admin -> Client: Select banner image (1920x500 for homepage slider)
+Client -> Client: Preview image with size validation
+
+Admin -> Client: Click "Upload"
+
+Client -> Controller: POST /api/admin/banners/15/image\n(multipart/form-data with image file)
+activate Controller
+
+Controller -> Service: uploadBannerImage(bannerId=15, file)
+activate Service
+
+' Validate banner exists
+Service -> ValidationService: validateBannerExists(bannerId)
+activate ValidationService
+ValidationService -> BannerRepo: findById(bannerId)
+activate BannerRepo
+BannerRepo -> DB: SELECT * FROM banners WHERE id = ? AND status != 'DELETED'
+DB --> BannerRepo: Banner entity
+BannerRepo --> ValidationService: Optional<Banner>
+deactivate BannerRepo
+ValidationService --> Service: Banner entity
+deactivate ValidationService
+
+' Validate image file
+Service -> ValidationService: validateBannerImageFile(file)
+activate ValidationService
+ValidationService -> ValidationService: Check file size (max 10MB for banners)
+ValidationService -> ValidationService: Check format (JPG/PNG/GIF)
+ValidationService -> ValidationService: Check dimensions based on banner type
+alt File valid
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Store banner image
+    Service -> FileService: storeBannerImage(file, bannerId)
+    activate FileService
+    FileService -> FileService: Generate unique filename: "banner_15_1234567890.jpg"
+    FileService -> FileService: Resize image based on banner type (1920x500 for HOMEPAGE_SLIDER)
+    FileService -> FileService: Optimize image quality and size
+    FileService -> FileService: Save file to uploads/banners/
+    FileService --> Service: New image file path
+    deactivate FileService
+
+    Service -> Service: newImageUrl = "/uploads/banners/banner_15_1234567890.jpg"
+
+    ' Update banner with image URL
+    Service -> Service: banner.setImageUrl(newImageUrl)
+    Service -> Service: banner.setUpdatedAt(now())
+    Service -> Service: banner.setUpdatedBy(admin)
+
+    Service -> BannerRepo: save(banner)
+    activate BannerRepo
+    BannerRepo -> DB: UPDATE banners SET\nimage_url = ?, updated_at = NOW(), updated_by = ?\nWHERE id = 15
+    DB --> BannerRepo: Updated banner
+    BannerRepo --> Service: Banner
+    deactivate BannerRepo
+
+    Service --> Controller: Image URL
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"imageUrl": "/uploads/banners/banner_15_1234567890.jpg"}
+    deactivate Controller
+
+    Client -> Client: Update banner image display
+    Client -> Client: Show image preview in banner list
+    Client --> Admin: "Đã cập nhật ảnh banner thành công"
+
+else File invalid
+    ValidationService --> Service: throw InvalidFileException
+    Service --> Controller: throw BadRequestException
+    Controller --> Client: 400 Bad Request\n{"error": "File ảnh không hợp lệ hoặc kích thước không phù hợp"}
+    Client --> Admin: Show file error with size guidelines
+end
+
+' Admin wants to reorder banners
+Admin -> Client: Navigate to banner list with drag & drop interface
+Client -> Client: Display banners sorted by display_order
+Admin -> Client: Drag banner "Khuyến mãi mùa hè" from position 6 to position 2
+Client -> Client: Update local order and show visual feedback
+
+Admin -> Client: Click "Lưu thứ tự"
+
+Client -> Controller: PUT /api/admin/banners/reorder\n{orderMappings: {15: 2, 12: 3, 13: 4, 14: 5, 11: 6}}
+activate Controller
+
+Controller -> Service: reorderBanners(orderMappings)
+activate Service
+
+' Update display orders in batch
+Service -> Service: Validate all banner IDs exist
+Service -> Service: Update each banner's display_order
+
+Service -> BannerRepo: saveAll(updatedBanners)
+activate BannerRepo
+BannerRepo -> DB: UPDATE banners SET display_order = CASE id\nWHEN 15 THEN 2\nWHEN 12 THEN 3\nWHEN 13 THEN 4\nWHEN 14 THEN 5\nWHEN 11 THEN 6\nEND,\nupdated_at = NOW()\nWHERE id IN (15, 12, 13, 14, 11)
+DB --> BannerRepo: 5 banners updated
+BannerRepo --> Service: List<Banner>
+deactivate BannerRepo
+
+Service --> Controller: void (success)
+deactivate Service
+
+Controller --> Client: 200 OK\n{"message": "Đã cập nhật thứ tự banner"}
+deactivate Controller
+
+Client -> Client: Confirm new order in UI
+Client --> Admin: "Đã lưu thứ tự banner mới"
+
+' Admin wants to view banner statistics
+Admin -> Client: Click "Thống kê banner"
+
+Client -> Controller: GET /api/admin/banners/statistics
+activate Controller
+
+Controller -> Service: getBannerStatistics()
+activate Service
+
+' Get overall banner statistics
+Service -> BannerRepo: countByStatus(ACTIVE)
+activate BannerRepo
+BannerRepo -> DB: SELECT COUNT(*) FROM banners WHERE status = 'ACTIVE'
+DB --> BannerRepo: count = 8
+BannerRepo --> Service: 8
+deactivate BannerRepo
+
+Service -> BannerRepo: countByStatus(SCHEDULED)
+activate BannerRepo
+BannerRepo -> DB: SELECT COUNT(*) FROM banners WHERE status = 'SCHEDULED'
+DB --> BannerRepo: count = 3
+BannerRepo --> Service: 3
+deactivate BannerRepo
+
+' Get view/click statistics
+Service -> ViewRepo: getTotalViews()
+activate ViewRepo
+ViewRepo -> DB: SELECT SUM(view_count) FROM banners WHERE status != 'DELETED'
+DB --> ViewRepo: totalViews = 15420
+ViewRepo --> Service: 15420
+deactivate ViewRepo
+
+Service -> ClickRepo: getTotalClicks()
+activate ClickRepo
+ClickRepo -> DB: SELECT SUM(click_count) FROM banners WHERE status != 'DELETED'
+DB --> ClickRepo: totalClicks = 1852
+ClickRepo --> Service: 1852
+deactivate ClickRepo
+
+' Get top performing banners
+Service -> BannerRepo: findTopPerformingBanners(limit=5)
+activate BannerRepo
+BannerRepo -> DB: SELECT b.*, (b.click_count * 100.0 / NULLIF(b.view_count, 0)) as ctr\nFROM banners b\nWHERE b.status != 'DELETED' AND b.view_count > 0\nORDER BY ctr DESC, b.click_count DESC\nLIMIT 5
+DB --> BannerRepo: List of top banners with CTR
+BannerRepo --> Service: List<Banner>
+deactivate BannerRepo
+
+Service -> Service: Build BannerStatsDto with all statistics
+Service -> Service: Calculate average CTR = (1852 / 15420) * 100 = 12.01%
+
+Service -> Mapper: toStatsDto(statistics)
+activate Mapper
+Mapper --> Service: BannerStatsDto
+deactivate Mapper
+
+Service --> Controller: BannerStatsDto
+deactivate Service
+
+Controller --> Client: 200 OK\nBannerStatsDto
+deactivate Controller
+
+Client -> Client: Display statistics dashboard
+Client -> Client: Show charts for views, clicks, CTR
+Client -> Client: Display top performing banners table
+Client --> Admin: "Tổng: 11 banner, 8 đang hoạt động, CTR trung bình: 12.01%"
+
+' Admin wants to toggle banner status
+Admin -> Client: Click "Tạm dừng" on active banner
+Client -> Client: Show confirmation dialog
+
+Admin -> Client: Confirm pause action
+
+Client -> Controller: PUT /api/admin/banners/12/toggle-status
+activate Controller
+
+Controller -> Service: toggleBannerStatus(bannerId=12)
+activate Service
+
+Service -> BannerRepo: findById(bannerId)
+activate BannerRepo
+BannerRepo -> DB: SELECT * FROM banners WHERE id = 12
+DB --> BannerRepo: Banner with status = ACTIVE
+BannerRepo --> Service: Banner
+deactivate BannerRepo
+
+Service -> Service: Toggle status: ACTIVE -> PAUSED
+Service -> Service: banner.setStatus(PAUSED)
+Service -> Service: banner.setIsActive(false)
+Service -> Service: banner.setUpdatedAt(now())
+
+Service -> BannerRepo: save(banner)
+activate BannerRepo
+BannerRepo -> DB: UPDATE banners SET\nstatus = 'PAUSED', is_active = false, updated_at = NOW()\nWHERE id = 12
+DB --> BannerRepo: Updated banner
+BannerRepo --> Service: Banner
+deactivate BannerRepo
+
+Service --> Controller: New status (PAUSED)
+deactivate Service
+
+Controller --> Client: 200 OK\n{"status": "PAUSED", "message": "Đã tạm dừng banner"}
+deactivate Controller
+
+Client -> Client: Update banner status display
+Client -> Client: Change action button to "Kích hoạt"
+Client --> Admin: "Đã tạm dừng banner thành công"
+
+deactivate Client
+
+@enduml

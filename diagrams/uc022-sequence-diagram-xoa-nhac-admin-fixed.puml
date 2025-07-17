@@ -1,0 +1,372 @@
+@startuml UC022-Sequence-Diagram-Xoa-Nhac-Admin-Fixed
+!theme plain
+
+title Biểu đồ tuần tự - UC022: Xóa nhạc (Admin)
+
+actor Admin as "Quản trị viên"
+participant Browser as "Browser"
+participant AdminMusicListComponent as "AdminMusicList\nComponent"
+participant AdminMusicCardComponent as "AdminMusicCard\nComponent"
+participant DeleteMusicModal as "DeleteMusic\nModal"
+participant DeletionImpactComponent as "DeletionImpact\nComponent"
+participant MusicBackupComponent as "MusicBackup\nComponent"
+participant BulkDeleteProgressComponent as "BulkDeleteProgress\nComponent"
+participant AdminMusicFiltersComponent as "AdminMusicFilters\nComponent"
+participant AdminMusicService as "AdminMusicService\n(Frontend)"
+participant AdminMusicController as "AdminMusic\nController"
+participant AdminMusicService_BE as "AdminMusic\nService"
+participant AdminValidationService as "AdminValidation\nService"
+participant MusicDeletionService as "MusicDeletion\nService"
+participant MusicBackupService as "MusicBackup\nService"
+participant AdminAuditService as "AdminAudit\nService"
+participant MusicRepository as "Music\nRepository"
+participant PlaylistMusicRepository as "PlaylistMusic\nRepository"
+participant UserFavoriteMusicRepository as "UserFavoriteMusic\nRepository"
+participant FileStorageService as "FileStorage\nService"
+participant PlaylistStatsService as "PlaylistStats\nService"
+participant UserActivityService as "UserActivity\nService"
+participant Database as "Database"
+
+== Truy cập trang quản lý nhạc ==
+
+Admin -> Browser: Truy cập trang "Admin Music Management"
+Browser -> AdminMusicListComponent: ngOnInit()
+AdminMusicListComponent -> AdminMusicService: getAllMusicsForAdmin(page, sortBy, filterBy)
+AdminMusicService -> AdminMusicController: GET /api/admin/musics?page={page}&sort={sortBy}&filter={filterBy}
+AdminMusicController -> AdminMusicService_BE: getAllMusicsForAdmin(pageable, sortBy, filterBy)
+
+AdminMusicService_BE -> AdminValidationService: validateAdminPermissions(adminId)
+AdminValidationService -> AdminValidationService: validateAdminRole(adminId)
+AdminValidationService --> AdminMusicService_BE: Admin validation passed
+
+AdminMusicService_BE -> MusicRepository: findAllByDeletedFalse(pageable)
+MusicRepository -> Database: SELECT m.*, c.name as category_name, u.username as uploader_name FROM musics m LEFT JOIN categories c ON m.category_id = c.id LEFT JOIN users u ON m.user_id = u.id WHERE m.deleted = false ORDER BY m.created_at DESC
+Database --> MusicRepository: Page<Music> with metadata
+MusicRepository --> AdminMusicService_BE: All musics with details
+
+AdminMusicService_BE -> AdminMusicService_BE: buildAdminMusicDtos(musics, adminId)
+AdminMusicService_BE --> AdminMusicController: Page<AdminMusicDto>
+AdminMusicController --> AdminMusicService: Admin musics loaded
+AdminMusicService --> AdminMusicListComponent: Musics with admin-specific flags
+
+AdminMusicListComponent -> AdminMusicFiltersComponent: initialize(sortOptions, filterOptions)
+AdminMusicFiltersComponent -> AdminMusicFiltersComponent: Setup admin filters and search
+AdminMusicFiltersComponent --> AdminMusicListComponent: Filters initialized
+
+AdminMusicListComponent -> AdminMusicListComponent: Initialize music cards
+AdminMusicListComponent --> Admin: Hiển thị danh sách nhạc với controls admin
+
+== Tìm kiếm và lọc nhạc ==
+
+note over Admin, Database: Admin có thể tìm kiếm và lọc nhạc theo các tiêu chí khác nhau
+
+Admin -> AdminMusicFiltersComponent: Nhập từ khóa tìm kiếm
+AdminMusicFiltersComponent -> AdminMusicFiltersComponent: onSearchChange()
+AdminMusicFiltersComponent -> AdminMusicListComponent: searchMusics(query)
+
+AdminMusicListComponent -> AdminMusicService: searchMusicsForAdmin(query, page)
+AdminMusicService -> AdminMusicController: GET /api/admin/musics/search?q={query}&page={page}
+AdminMusicController -> AdminMusicService_BE: searchMusicsForAdmin(query, pageable)
+
+AdminMusicService_BE -> MusicRepository: findByDeletedFalseAndTitleContainingIgnoreCase(query, pageable)
+MusicRepository -> Database: SELECT * FROM musics WHERE deleted = false AND (LOWER(title) LIKE LOWER(?) OR LOWER(artist) LIKE LOWER(?)) ORDER BY report_count DESC
+Database --> MusicRepository: Search results
+MusicRepository --> AdminMusicService_BE: Matching musics
+
+AdminMusicService_BE -> AdminMusicService_BE: buildSearchResultDtos(musics, adminId)
+AdminMusicService_BE --> AdminMusicController: Search results
+AdminMusicController --> AdminMusicService: Search completed
+AdminMusicService --> AdminMusicListComponent: Updated music list
+AdminMusicListComponent --> Admin: Hiển thị kết quả tìm kiếm với admin info
+
+== Xóa nhạc đơn lẻ ==
+
+Admin -> AdminMusicCardComponent: Click nút "Delete" trên music card
+AdminMusicCardComponent -> AdminMusicCardComponent: Kiểm tra quyền xóa (isAdmin && canDelete)
+
+note over AdminMusicCardComponent: Kiểm tra admin có quyền xóa bài hát này
+
+AdminMusicCardComponent -> AdminMusicListComponent: openDeleteModal(music)
+AdminMusicListComponent -> DeleteMusicModal: open(musicToDelete)
+DeleteMusicModal -> DeleteMusicModal: Load music information
+DeleteMusicModal -> DeleteMusicModal: Initialize deletion form
+
+DeleteMusicModal -> AdminMusicService: getMusicDeletionImpact(musicId)
+AdminMusicService -> AdminMusicController: GET /api/admin/musics/{musicId}/deletion-impact
+AdminMusicController -> MusicDeletionService: calculateDeletionImpact(musicId)
+
+MusicDeletionService -> PlaylistMusicRepository: findByMusicId(musicId)
+PlaylistMusicRepository -> Database: SELECT pm.*, p.name as playlist_name, u.username as owner_name FROM playlist_musics pm JOIN playlists p ON pm.playlist_id = p.id JOIN users u ON p.user_id = u.id WHERE pm.music_id = ?
+Database --> PlaylistMusicRepository: Affected playlists
+PlaylistMusicRepository --> MusicDeletionService: Playlist impacts
+
+MusicDeletionService -> UserFavoriteMusicRepository: findByMusicId(musicId)
+UserFavoriteMusicRepository -> Database: SELECT ufm.*, u.username, u.display_name FROM user_favorite_musics ufm JOIN users u ON ufm.user_id = u.id WHERE ufm.music_id = ?
+Database --> UserFavoriteMusicRepository: Affected users
+UserFavoriteMusicRepository --> MusicDeletionService: User impacts
+
+MusicDeletionService -> MusicRepository: findByIdAndDeletedFalse(musicId)
+MusicRepository -> Database: SELECT * FROM musics WHERE id = ? AND deleted = false
+Database --> MusicRepository: Music details
+MusicRepository --> MusicDeletionService: Music to delete
+
+MusicDeletionService -> MusicDeletionService: buildDeletionImpactDto(music, playlistImpacts, userImpacts)
+MusicDeletionService --> AdminMusicController: DeletionImpactDto
+AdminMusicController --> AdminMusicService: Impact analysis loaded
+AdminMusicService --> DeleteMusicModal: Deletion impact received
+
+DeleteMusicModal -> DeletionImpactComponent: loadImpactAnalysis(impactData)
+DeletionImpactComponent -> DeletionImpactComponent: Display impact breakdown
+DeletionImpactComponent -> DeletionImpactComponent: Calculate severity and recommendations
+DeletionImpactComponent --> DeleteMusicModal: Impact component initialized
+DeleteMusicModal --> Admin: Hiển thị modal với impact analysis
+
+Admin -> DeleteMusicModal: Nhập lý do xóa
+DeleteMusicModal -> DeleteMusicModal: validateDeletionReason()
+
+Admin -> DeleteMusicModal: Tick "Create backup before deletion"
+DeleteMusicModal -> MusicBackupComponent: initialize(musicToDelete)
+MusicBackupComponent -> MusicBackupComponent: Setup backup options
+MusicBackupComponent --> DeleteMusicModal: Backup component ready
+
+Admin -> DeleteMusicModal: Click "Confirm Deletion"
+DeleteMusicModal -> DeleteMusicModal: Validate all required fields
+
+note over DeleteMusicModal, MusicBackupService: Nếu cần backup, tạo backup trước khi xóa
+
+DeleteMusicModal -> AdminMusicService: createMusicBackup(musicId)
+AdminMusicService -> AdminMusicController: POST /api/admin/musics/{musicId}/backup
+AdminMusicController -> MusicBackupService: createMusicBackup(musicId, adminId)
+
+MusicBackupService -> MusicRepository: findByIdAndDeletedFalse(musicId)
+MusicRepository -> Database: SELECT * FROM musics WHERE id = ? AND deleted = false
+Database --> MusicRepository: Music data to backup
+MusicRepository --> MusicBackupService: Music entity
+
+MusicBackupService -> FileStorageService: backupMusicFile(music.audioFileUrl, musicId)
+FileStorageService -> FileStorageService: copyFile(audioFileUrl, backupPath)
+FileStorageService --> MusicBackupService: Audio file backed up
+
+MusicBackupService -> FileStorageService: backupCoverImage(music.coverImageUrl, musicId)
+FileStorageService -> FileStorageService: copyFile(coverImageUrl, backupCoverPath)
+FileStorageService --> MusicBackupService: Cover image backed up
+
+MusicBackupService -> MusicBackupService: backupMusicMetadata(musicId)
+MusicBackupService -> Database: INSERT INTO music_backups (music_id, admin_id, backup_path, metadata_backup_path, backup_size, verified, created_at)
+Database --> MusicBackupService: Backup record created
+
+MusicBackupService -> AdminAuditService: logMusicBackup(musicId, adminId, backupPath)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (admin_id, action_type, resource_id, action_details, created_at)
+Database --> AdminAuditService: Backup logged
+AdminAuditService --> MusicBackupService: Backup activity logged
+
+MusicBackupService -> MusicBackupService: buildBackupResultDto(backup)
+MusicBackupService --> AdminMusicController: BackupResultDto
+AdminMusicController --> AdminMusicService: Backup created successfully
+AdminMusicService --> DeleteMusicModal: Backup completed
+
+DeleteMusicModal -> MusicBackupComponent: updateBackupStatus(success)
+MusicBackupComponent -> MusicBackupComponent: Show backup success
+MusicBackupComponent --> DeleteMusicModal: Backup status updated
+
+note over DeleteMusicModal, AdminAuditService: Thực hiện xóa nhạc với đầy đủ audit trail
+
+DeleteMusicModal -> AdminMusicService: deleteMusicAsAdmin(musicId, deleteRequest)
+AdminMusicService -> AdminMusicController: DELETE /api/admin/musics/{musicId}
+AdminMusicController -> AdminMusicService_BE: deleteMusicAsAdmin(musicId, request, adminId)
+
+AdminMusicService_BE -> AdminValidationService: validateAdminCanDeleteMusic(musicId, adminId)
+AdminValidationService -> AdminValidationService: validateMusicExists(musicId)
+AdminValidationService -> AdminValidationService: validateAdminPermissions(adminId)
+AdminValidationService -> AdminValidationService: checkMusicNotCurrentlyPlaying(musicId)
+AdminValidationService --> AdminMusicService_BE: Deletion validation passed
+
+AdminMusicService_BE -> MusicDeletionService: executeMusicDeletion(musicId, reason, adminId)
+
+' Log deletion before actual deletion
+MusicDeletionService -> AdminAuditService: logMusicDeletion(musicId, adminId, reason, impactData)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (admin_id, action_type, resource_type, resource_id, action_details, created_at)
+Database --> AdminAuditService: Deletion logged
+AdminAuditService --> MusicDeletionService: Deletion activity logged
+
+' Remove from all playlists
+MusicDeletionService -> PlaylistMusicRepository: findByMusicId(musicId)
+PlaylistMusicRepository -> Database: SELECT playlist_id FROM playlist_musics WHERE music_id = ?
+Database --> PlaylistMusicRepository: Affected playlist IDs
+PlaylistMusicRepository --> MusicDeletionService: Playlists to update
+
+MusicDeletionService -> PlaylistMusicRepository: deleteAllByMusicId(musicId)
+PlaylistMusicRepository -> Database: DELETE FROM playlist_musics WHERE music_id = ?
+Database --> PlaylistMusicRepository: Music removed from all playlists
+PlaylistMusicRepository --> MusicDeletionService: Playlist references cleaned
+
+' Remove from all favorites
+MusicDeletionService -> UserFavoriteMusicRepository: deleteAllByMusicId(musicId)
+UserFavoriteMusicRepository -> Database: DELETE FROM user_favorite_musics WHERE music_id = ?
+Database --> UserFavoriteMusicRepository: Music removed from all favorites
+UserFavoriteMusicRepository --> MusicDeletionService: Favorite references cleaned
+
+' Delete music files
+MusicDeletionService -> FileStorageService: deleteMusicFile(music.audioFileUrl)
+FileStorageService -> FileStorageService: deleteFile(audioFileUrl)
+FileStorageService --> MusicDeletionService: Audio file deleted
+
+MusicDeletionService -> FileStorageService: deleteCoverImage(music.coverImageUrl)
+FileStorageService -> FileStorageService: deleteFile(coverImageUrl)
+FileStorageService --> MusicDeletionService: Cover image deleted
+
+' Soft delete music record
+MusicDeletionService -> MusicRepository: softDeleteById(musicId, adminId, reason)
+MusicRepository -> Database: UPDATE musics SET deleted = true, deleted_at = NOW(), deleted_by = ?, deletion_reason = ? WHERE id = ?
+Database --> MusicRepository: Music marked as deleted
+MusicRepository --> MusicDeletionService: Music soft deleted
+
+' Update affected playlist statistics
+MusicDeletionService -> PlaylistStatsService: updateAllAffectedPlaylists(musicId)
+PlaylistStatsService -> PlaylistStatsService: updatePlaylistAfterMusicDeletion(playlistId)
+PlaylistStatsService -> Database: UPDATE playlists SET music_count = music_count - 1, total_duration = total_duration - ? WHERE id = ?
+Database --> PlaylistStatsService: Playlist stats updated
+PlaylistStatsService --> MusicDeletionService: All playlist stats updated
+
+' Notify affected users
+MusicDeletionService -> UserActivityService: notifyAffectedUsers(musicId, reason)
+UserActivityService -> UserActivityService: removeFromUserHistory(musicId)
+UserActivityService -> Database: DELETE FROM user_listening_history WHERE music_id = ?
+Database --> UserActivityService: User history cleaned
+UserActivityService --> MusicDeletionService: Users notified and history cleaned
+
+MusicDeletionService --> AdminMusicService_BE: Deletion completed successfully
+AdminMusicService_BE --> AdminMusicController: Music deleted
+AdminMusicController --> AdminMusicService: Success response
+AdminMusicService --> AdminMusicListComponent: Music deleted successfully
+
+AdminMusicListComponent -> AdminMusicListComponent: removeMusicFromList(musicId)
+AdminMusicListComponent -> AdminMusicListComponent: updateMusicStats()
+AdminMusicListComponent -> AdminMusicListComponent: showSuccessMessage("Bài hát đã được xóa thành công")
+
+DeleteMusicModal -> DeleteMusicModal: close()
+DeleteMusicModal --> AdminMusicListComponent: Modal closed
+AdminMusicListComponent --> Admin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Xóa hàng loạt nhạc ==
+
+Admin -> AdminMusicListComponent: Click "Bulk Actions"
+AdminMusicListComponent -> AdminMusicListComponent: toggleBulkMode()
+AdminMusicListComponent -> AdminMusicListComponent: showBulkSelectionControls()
+
+Admin -> AdminMusicCardComponent: Select multiple musics via checkbox
+loop Chọn từng bài hát
+    AdminMusicCardComponent -> AdminMusicListComponent: selectMusic(musicId)
+    AdminMusicListComponent -> AdminMusicListComponent: Add to selectedMusics
+    AdminMusicListComponent -> AdminMusicListComponent: updateSelectedCount()
+end
+
+Admin -> AdminMusicListComponent: Click "Delete Selected"
+AdminMusicListComponent -> AdminMusicListComponent: openBulkDeleteModal()
+
+AdminMusicListComponent -> DeleteMusicModal: openBulk(selectedMusics)
+DeleteMusicModal -> DeleteMusicModal: isBulkMode = true
+DeleteMusicModal -> DeleteMusicModal: Show bulk deletion form
+DeleteMusicModal --> Admin: Hiển thị modal xóa hàng loạt
+
+Admin -> DeleteMusicModal: Nhập lý do xóa chung
+DeleteMusicModal -> DeleteMusicModal: validateBulkDeletionForm()
+
+Admin -> DeleteMusicModal: Click "Confirm Bulk Delete"
+DeleteMusicModal -> BulkDeleteProgressComponent: initialize(selectedMusics)
+BulkDeleteProgressComponent -> BulkDeleteProgressComponent: Setup progress tracking
+BulkDeleteProgressComponent --> DeleteMusicModal: Progress component ready
+
+DeleteMusicModal -> AdminMusicService: bulkDeleteMusicsAsAdmin(selectedMusicIds, bulkRequest)
+AdminMusicService -> AdminMusicController: DELETE /api/admin/musics/bulk
+AdminMusicController -> AdminMusicService_BE: bulkDeleteMusicsAsAdmin(request, adminId)
+
+AdminMusicService_BE -> AdminValidationService: validateBulkDeleteRequest(request)
+AdminValidationService -> AdminValidationService: Check musicIds not empty
+AdminValidationService -> AdminValidationService: Validate reasonable batch size
+AdminValidationService -> AdminValidationService: Check admin permissions for each music
+AdminValidationService --> AdminMusicService_BE: Bulk request validated
+
+AdminMusicService_BE -> MusicDeletionService: executeBulkDeletion(musicIds, reason, adminId)
+
+MusicDeletionService -> AdminAuditService: logBulkMusicDeletion(musicIds, adminId, reason)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (bulk deletion record)
+Database --> AdminAuditService: Bulk deletion logged
+AdminAuditService --> MusicDeletionService: Bulk activity logged
+
+MusicDeletionService -> MusicDeletionService: Initialize bulk deletion counters
+MusicDeletionService -> MusicDeletionService: successCount = 0, failedCount = 0
+
+loop Xóa từng bài hát
+    MusicDeletionService -> MusicRepository: findByIdAndDeletedFalse(musicId)
+    MusicRepository -> Database: SELECT music for deletion
+    Database --> MusicRepository: Music to delete or null
+    MusicRepository --> MusicDeletionService: Music entity
+
+    note over MusicDeletionService: Xử lý từng bài hát - backup, clean references, delete files, soft delete
+
+    MusicDeletionService -> MusicBackupService: createMusicBackup(musicId, adminId)
+    MusicBackupService --> MusicDeletionService: Backup created
+
+    MusicDeletionService -> PlaylistMusicRepository: deleteAllByMusicId(musicId)
+    MusicDeletionService -> UserFavoriteMusicRepository: deleteAllByMusicId(musicId)
+
+    MusicDeletionService -> FileStorageService: deleteMusicFile(music.audioFileUrl)
+    MusicDeletionService -> FileStorageService: deleteCoverImage(music.coverImageUrl)
+
+    MusicDeletionService -> MusicRepository: softDeleteById(musicId, adminId, reason)
+
+    MusicDeletionService -> MusicDeletionService: successCount++
+
+    MusicDeletionService -> BulkDeleteProgressComponent: updateProgress(currentIndex, successCount, failedCount)
+    BulkDeleteProgressComponent -> BulkDeleteProgressComponent: Update progress bar and status
+    BulkDeleteProgressComponent --> Admin: Hiển thị tiến độ xóa
+end
+
+' Update all affected playlists
+MusicDeletionService -> PlaylistStatsService: updateAllAffectedPlaylists(allDeletedMusicIds)
+PlaylistStatsService --> MusicDeletionService: All playlist stats updated
+
+' Notify affected users
+MusicDeletionService -> UserActivityService: notifyAffectedUsers(allDeletedMusicIds, reason)
+UserActivityService --> MusicDeletionService: Users notified
+
+MusicDeletionService -> MusicDeletionService: buildBulkDeleteResult()
+MusicDeletionService --> AdminMusicService_BE: BulkDeleteResultDto
+AdminMusicService_BE --> AdminMusicController: Bulk deletion result
+AdminMusicController --> AdminMusicService: Bulk deletion completed
+AdminMusicService --> AdminMusicListComponent: Bulk deletion result received
+
+AdminMusicListComponent -> AdminMusicListComponent: updateAfterBulkDeletion(result)
+AdminMusicListComponent -> AdminMusicListComponent: Remove deleted musics from list
+AdminMusicListComponent -> AdminMusicListComponent: Clear selection
+AdminMusicListComponent -> AdminMusicListComponent: Update statistics
+AdminMusicListComponent -> BulkDeleteProgressComponent: showFinalResults(result)
+BulkDeleteProgressComponent -> BulkDeleteProgressComponent: Display final summary
+BulkDeleteProgressComponent --> Admin: Hiển thị "Đã xóa {successCount} bài hát, {failedCount} thất bại"
+
+DeleteMusicModal -> DeleteMusicModal: close()
+
+== Xử lý lỗi ==
+
+note over Admin, Database: Các trường hợp lỗi có thể xảy ra trong quá trình xóa nhạc
+
+note over AdminValidationService: Lỗi xác thực quyền admin
+note over Admin: "Bạn không có quyền quản trị để xóa nhạc"
+
+note over AdminValidationService: Lỗi nhạc không tồn tại
+note over Admin: "Bài hát không tồn tại hoặc đã bị xóa"
+
+note over AdminValidationService: Lỗi nhạc đang được phát
+note over Admin: "Không thể xóa bài hát đang được phát"
+
+note over FileStorageService: Lỗi xóa file storage
+note over Admin: "Bài hát đã xóa nhưng có lỗi dọn dẹp file"
+
+note over MusicBackupService: Lỗi tạo backup
+note over Admin: "Không thể tạo backup, vẫn tiếp tục xóa? (Y/N)"
+
+note over Database: Lỗi database constraint
+note over Admin: "Không thể xóa bài hát do ràng buộc dữ liệu"
+
+@enduml

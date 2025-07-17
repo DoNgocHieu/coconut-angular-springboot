@@ -1,0 +1,302 @@
+@startuml UC025-Class-Diagram-Khoa-Mo-Khoa-Tai-Khoan
+!theme plain
+
+title Biểu đồ lớp - UC025: Khóa/mở khóa tài khoản (Admin)
+
+class AdminUserController {
+    + getUserById(id: Long): ResponseEntity<UserDetailDto>
+    + banUser(id: Long, request: BanUserRequest): ResponseEntity<ApiResponse>
+    + unbanUser(id: Long, request: UnbanUserRequest): ResponseEntity<ApiResponse>
+    + lockUser(id: Long, request: LockUserRequest): ResponseEntity<ApiResponse>
+    + unlockUser(id: Long): ResponseEntity<ApiResponse>
+    + getUserBanHistory(id: Long): ResponseEntity<List<UserBanHistoryDto>>
+    + getUserStatus(id: Long): ResponseEntity<UserStatusDto>
+    + bulkBanUsers(request: BulkBanUsersRequest): ResponseEntity<BulkActionResult>
+    + getActiveBannedUsers(page: int, size: int): ResponseEntity<Page<UserDto>>
+}
+
+class AdminUserService {
+    + getUserForManagement(id: Long): User
+    + banUser(id: Long, adminId: Long, request: BanUserRequest): void
+    + unbanUser(id: Long, adminId: Long, request: UnbanUserRequest): void
+    + lockUser(id: Long, adminId: Long, request: LockUserRequest): void
+    + unlockUser(id: Long, adminId: Long): void
+    + getUserBanHistory(id: Long): List<UserBanHistory>
+    + getUserCurrentStatus(id: Long): UserStatusInfo
+    + bulkBanUsers(adminId: Long, request: BulkBanUsersRequest): BulkActionResult
+    + getActiveBannedUsers(pageable: Pageable): Page<User>
+    + validateBanPermission(targetUser: User, adminUser: User): void
+    + calculateBanExpiry(banType: BanType, duration: int): LocalDateTime
+    + invalidateUserSessions(userId: Long): void
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - String fullName
+    - UserRole role
+    - UserStatus status
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - LocalDateTime lastLoginAt
+    - LocalDateTime bannedAt
+    - LocalDateTime bannedUntil
+    - String banReason
+    - User bannedBy
+    - LocalDateTime lockedAt
+    - LocalDateTime lockedUntil
+    - String lockReason
+    - User lockedBy
+    - boolean isEmailVerified
+    - int failedLoginAttempts
+    + getId(): Long
+    + getUsername(): String
+    + getStatus(): UserStatus
+    + isBanned(): boolean
+    + isLocked(): boolean
+    + canPerformActions(): boolean
+}
+
+enum UserStatus {
+    ACTIVE
+    INACTIVE
+    BANNED
+    LOCKED
+    PENDING_VERIFICATION
+    SUSPENDED
+}
+
+enum UserRole {
+    USER
+    MODERATOR
+    ADMIN
+    SUPER_ADMIN
+}
+
+enum BanType {
+    TEMPORARY
+    PERMANENT
+    WARNING
+}
+
+enum LockReason {
+    SECURITY_VIOLATION
+    SUSPICIOUS_ACTIVITY
+    MULTIPLE_FAILED_LOGINS
+    ADMIN_ACTION
+    SYSTEM_MAINTENANCE
+}
+
+class UserBanHistory {
+    - Long id
+    - User user
+    - User bannedBy
+    - BanType banType
+    - String reason
+    - LocalDateTime bannedAt
+    - LocalDateTime bannedUntil
+    - LocalDateTime unbannedAt
+    - User unbannedBy
+    - String unbanReason
+    - boolean isActive
+    + getId(): Long
+    + getUser(): User
+    + getBanType(): BanType
+    + isCurrentlyActive(): boolean
+}
+
+class UserRepository {
+    + save(user: User): User
+    + findById(id: Long): Optional<User>
+    + findByIdAndStatusNot(id: Long, status: UserStatus): Optional<User>
+    + findByStatus(status: UserStatus, pageable: Pageable): Page<User>
+    + findByStatusIn(statuses: List<UserStatus>, pageable: Pageable): Page<User>
+    + findByBannedUntilBefore(date: LocalDateTime): List<User>
+    + findByLockedUntilBefore(date: LocalDateTime): List<User>
+    + countByStatus(status: UserStatus): Long
+}
+
+class UserBanHistoryRepository {
+    + save(userBanHistory: UserBanHistory): UserBanHistory
+    + saveAll(histories: List<UserBanHistory>): List<UserBanHistory>
+    + findByUserIdOrderByBannedAtDesc(userId: Long): List<UserBanHistory>
+    + findByUserIdAndIsActiveTrue(userId: Long): Optional<UserBanHistory>
+    + findActiveBanByUserId(userId: Long): Optional<UserBanHistory>
+    + countByBannedByAndBannedAtBetween(admin: User, start: LocalDateTime, end: LocalDateTime): Long
+}
+
+class UserSessionService {
+    + invalidateAllUserSessions(userId: Long): void
+    + getUserActiveSessions(userId: Long): List<UserSession>
+    + forceLogoutUser(userId: Long): void
+    + notifyUserOfStatusChange(userId: Long, statusChange: String): void
+}
+
+class EmailNotificationService {
+    + sendBanNotification(user: User, banInfo: UserBanHistory): void
+    + sendUnbanNotification(user: User, unbanInfo: UserBanHistory): void
+    + sendLockNotification(user: User, lockReason: String): void
+    + sendUnlockNotification(user: User): void
+    + sendStatusChangeNotification(user: User, statusChange: String): void
+}
+
+class BanUserRequest {
+    + BanType banType
+    + String reason
+    + int durationDays
+    + boolean sendNotification
+    + boolean invalidateSessions
+}
+
+class UnbanUserRequest {
+    + String reason
+    + boolean sendNotification
+}
+
+class LockUserRequest {
+    + LockReason lockReason
+    + String customReason
+    + int lockDurationHours
+    + boolean sendNotification
+    + boolean invalidateSessions
+}
+
+class BulkBanUsersRequest {
+    + List<Long> userIds
+    + BanType banType
+    + String reason
+    + int durationDays
+    + boolean sendNotification
+}
+
+class UserDetailDto {
+    + Long id
+    + String username
+    + String email
+    + String fullName
+    + UserRole role
+    + UserStatus status
+    + LocalDateTime createdAt
+    + LocalDateTime lastLoginAt
+    + boolean isBanned
+    + boolean isLocked
+    + LocalDateTime bannedUntil
+    + String banReason
+    + String bannedByUsername
+    + LocalDateTime lockedUntil
+    + String lockReason
+    + int playlistCount
+    + int favoriteCount
+    + int loginCount
+}
+
+class UserBanHistoryDto {
+    + Long id
+    + BanType banType
+    + String reason
+    + LocalDateTime bannedAt
+    + LocalDateTime bannedUntil
+    + String bannedByUsername
+    + LocalDateTime unbannedAt
+    + String unbannedByUsername
+    + String unbanReason
+    + boolean isActive
+    + int durationDays
+}
+
+class UserStatusDto {
+    + Long userId
+    + UserStatus status
+    + boolean isBanned
+    + boolean isLocked
+    + LocalDateTime bannedUntil
+    + LocalDateTime lockedUntil
+    + boolean canLogin
+    + boolean canPerformActions
+    + List<String> restrictions
+}
+
+class BulkActionResult {
+    + int totalRequested
+    + int successfulActions
+    + int failedActions
+    + List<String> errors
+    + List<Long> processedUserIds
+    + List<Long> failedUserIds
+}
+
+class UserMapper {
+    + toDetailDto(user: User): UserDetailDto
+    + toBanHistoryDto(banHistory: UserBanHistory): UserBanHistoryDto
+    + toStatusDto(user: User): UserStatusDto
+    + toDtoList(users: List<User>): List<UserDto>
+}
+
+class UserValidationService {
+    + validateUserExists(userId: Long): User
+    + validateBanPermission(targetUser: User, adminUser: User): void
+    + validateBanDuration(banType: BanType, duration: int): void
+    + validateLockDuration(duration: int): void
+    + validateUnbanPermission(targetUser: User, adminUser: User): void
+    + validateUserNotSelf(targetUserId: Long, adminUserId: Long): void
+}
+
+' Relationships
+AdminUserController --> AdminUserService : uses
+AdminUserController --> BanUserRequest : receives
+AdminUserController --> UnbanUserRequest : receives
+AdminUserController --> LockUserRequest : receives
+AdminUserController --> BulkBanUsersRequest : receives
+AdminUserController --> UserDetailDto : returns
+AdminUserController --> UserBanHistoryDto : returns
+AdminUserController --> UserStatusDto : returns
+
+AdminUserService --> UserRepository : uses
+AdminUserService --> UserBanHistoryRepository : uses
+AdminUserService --> UserSessionService : uses
+AdminUserService --> EmailNotificationService : uses
+AdminUserService --> UserMapper : uses
+AdminUserService --> UserValidationService : uses
+
+UserRepository --> User : manages
+UserBanHistoryRepository --> UserBanHistory : manages
+UserBanHistory --> User : references
+UserBanHistory --> BanType : has
+User --> UserStatus : has
+User --> UserRole : has
+
+UserMapper --> User : maps
+UserMapper --> UserDetailDto : creates
+
+note right of AdminUserService
+  Business rules:
+  - Only ADMIN can ban/lock users
+  - Cannot ban other admins
+  - SUPER_ADMIN can ban anyone
+  - Auto-expire bans/locks
+  - Audit all actions
+  - Notification system
+  - Session invalidation
+end note
+
+note bottom of User
+  User constraints:
+  - Status transitions controlled
+  - Ban/lock timestamps tracked
+  - Reason required for actions
+  - Admin attribution stored
+  - Audit trail maintained
+  - Session management
+end note
+
+note left of UserBanHistory
+  Ban tracking:
+  - Complete ban/unban history
+  - Duration and reason tracking
+  - Admin attribution
+  - Active ban identification
+  - Automatic expiry handling
+end note
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC020-Upload-Nhac
+!theme plain
+
+actor Admin
+usecase "Upload nhạc mới" as UC020
+
+Admin --> UC020
+
+@enduml

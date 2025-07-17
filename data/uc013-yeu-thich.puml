@@ -1,0 +1,9 @@
+@startuml UC013-Yeu-Thich
+!theme plain
+
+actor User
+usecase "Quản lý danh sách yêu thích" as UC013
+
+User --> UC013
+
+@enduml

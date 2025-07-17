@@ -1,0 +1,347 @@
+@startuml Coconut_Music_Technical_Schema
+!theme cerulean-outline
+title Coconut Music Database - Complete Technical Schema
+
+skinparam class {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    FontName Arial
+    FontSize 10
+}
+
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+class "👤 USERS" as users {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Core Fields**
+    ──────────────────────────────────
+    username: VARCHAR(255) NOT NULL
+    email: VARCHAR(255) NOT NULL
+    password: VARCHAR(255) NOT NULL
+    ──────────────────────────────────
+    🔐 **Security & Status**
+    ──────────────────────────────────
+    is_admin: BIT(1) DEFAULT NULL
+    is_verified: BIT(1) DEFAULT NULL
+    avatar_url: VARCHAR(255)
+    ──────────────────────────────────
+    🔄 **Password Recovery**
+    ──────────────────────────────────
+    forgot_password_token: VARCHAR(255)
+    forgot_password_token_expiry: DATETIME(6)
+    ──────────────────────────────────
+    ✅ **Email Verification**
+    ──────────────────────────────────
+    verify_token: VARCHAR(255)
+    verify_token_expiry: DATETIME(6)
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    ───────────────────────────────────
+    🔒 **Constraints**
+    ───────────────────────────────────
+    ★ UNIQUE(email)
+    ★ UNIQUE(username)
+}
+
+class "🎤 ARTISTS" as artists {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Profile Information**
+    ──────────────────────────────────
+    name: VARCHAR(255) NOT NULL
+    bio: TEXT
+    avatar_url: VARCHAR(255)
+    ──────────────────────────────────
+    🔐 **Status**
+    ──────────────────────────────────
+    is_active: BIT(1) DEFAULT NULL
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+}
+
+class "📂 CATEGORIES" as categories {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Category Information**
+    ──────────────────────────────────
+    name: VARCHAR(255) NOT NULL
+    description: TEXT
+    image_url: VARCHAR(255)
+    ──────────────────────────────────
+    🔐 **Status**
+    ──────────────────────────────────
+    is_active: BIT(1) DEFAULT NULL
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    ───────────────────────────────────
+    🔒 **Constraints**
+    ───────────────────────────────────
+    ★ UNIQUE(name)
+}
+
+class "🎵 MUSIC" as music {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Content Information**
+    ──────────────────────────────────
+    title: VARCHAR(255) NOT NULL
+    file_url: VARCHAR(255) NOT NULL
+    image_url: VARCHAR(255)
+    ──────────────────────────────────
+    📊 **Media Properties**
+    ──────────────────────────────────
+    duration_seconds: INT NOT NULL
+    play_count: BIGINT DEFAULT NULL
+    like_count: BIGINT DEFAULT NULL
+    ──────────────────────────────────
+    🔐 **Status & Classification**
+    ──────────────────────────────────
+    is_active: BIT(1) DEFAULT NULL
+    type_music: ENUM('NEW_MUSIC',
+        'TRENDING', 'TOP_VIEW',
+        'VN_LOFI', 'FAVORITE')
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 artist_id: BIGINT
+    🔸 category_id: BIGINT
+    🔸 uploaded_by: BIGINT
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_music_artist (artist_id)
+    IDX_music_category (category_id)
+    IDX_music_uploader (uploaded_by)
+}
+
+class "🎧 PLAYLISTS" as playlists {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Playlist Information**
+    ──────────────────────────────────
+    name: VARCHAR(255) NOT NULL
+    description: TEXT
+    image_url: VARCHAR(255)
+    ──────────────────────────────────
+    🔐 **Privacy Settings**
+    ──────────────────────────────────
+    is_public: BIT(1) DEFAULT NULL
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 user_id: BIGINT NOT NULL
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_playlists_user (user_id)
+}
+
+class "🔗 PLAYLIST_MUSIC" as playlist_music {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Relationship Data**
+    ──────────────────────────────────
+    position: INT DEFAULT NULL
+    added_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 playlist_id: BIGINT NOT NULL
+    🔸 music_id: BIGINT NOT NULL
+    ───────────────────────────────────
+    🔒 **Constraints**
+    ───────────────────────────────────
+    ★ UNIQUE(playlist_id, music_id)
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_playlist_music_music (music_id)
+}
+
+class "❤️ FAVORITES" as favorites {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📅 **Timestamp**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 user_id: BIGINT NOT NULL
+    🔸 music_id: BIGINT NOT NULL
+    ───────────────────────────────────
+    🔒 **Constraints**
+    ───────────────────────────────────
+    ★ UNIQUE(user_id, music_id)
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_favorites_music (music_id)
+}
+
+class "📊 HISTORY" as history {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📅 **Tracking Data**
+    ──────────────────────────────────
+    played_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 user_id: BIGINT NOT NULL
+    🔸 music_id: BIGINT NOT NULL
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_history_user (user_id)
+    IDX_history_music (music_id)
+    IDX_history_played_at (played_at)
+}
+
+class "💖 FAVORITE_PLAYLISTS" as favorite_playlists {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📅 **Timestamp**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    ──────────────────────────────────
+    🔗 **Foreign Keys**
+    ──────────────────────────────────
+    🔸 user_id: BIGINT NOT NULL
+    🔸 playlist_id: BIGINT NOT NULL
+    ───────────────────────────────────
+    🔒 **Constraints**
+    ───────────────────────────────────
+    ★ UNIQUE(user_id, playlist_id)
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_fav_playlists_playlist (playlist_id)
+}
+
+class "🎪 BANNERS" as banners {
+    🔑 **id**: BIGINT AUTO_INCREMENT
+    ═══════════════════════════════════
+    📋 **Banner Content**
+    ──────────────────────────────────
+    title: VARCHAR(255) NOT NULL
+    image_url: VARCHAR(255) NOT NULL
+    link_url: VARCHAR(255)
+    ──────────────────────────────────
+    🔐 **Display Settings**
+    ──────────────────────────────────
+    is_active: BIT(1) DEFAULT NULL
+    sort_order: INT DEFAULT NULL
+    ──────────────────────────────────
+    📅 **Timestamps**
+    ──────────────────────────────────
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    ───────────────────────────────────
+    📇 **Indexes**
+    ───────────────────────────────────
+    IDX_banners_active_sort (is_active, sort_order)
+}
+
+' Relationships with detailed FK constraints
+users ||--o{ playlists : "FK_playlists_user\n(user_id)"
+users ||--o{ music : "FK_music_uploader\n(uploaded_by)"
+users ||--o{ history : "FK_history_user\n(user_id)"
+users ||--o{ favorites : "FK_favorites_user\n(user_id)"
+users ||--o{ favorite_playlists : "FK_fav_playlists_user\n(user_id)"
+
+artists ||--o{ music : "FK_music_artist\n(artist_id)"
+categories ||--o{ music : "FK_music_category\n(category_id)"
+
+playlists ||--o{ playlist_music : "FK_playlist_music_playlist\n(playlist_id)"
+music ||--o{ playlist_music : "FK_playlist_music_music\n(music_id)"
+
+music ||--o{ favorites : "FK_favorites_music\n(music_id)"
+music ||--o{ history : "FK_history_music\n(music_id)"
+
+playlists ||--o{ favorite_playlists : "FK_fav_playlists_playlist\n(playlist_id)"
+
+' Technical notes
+note top of users : "**👤 USERS - SECURITY FEATURES**\n\
+• BCrypt password hashing\n\
+• JWT token-based authentication\n\
+• Email verification workflow\n\
+• Password reset with expiry\n\
+• Role-based access control"
+
+note top of music : "**🎵 MUSIC - PERFORMANCE OPTIMIZATION**\n\
+• Indexes on foreign keys for joins\n\
+• Play count for trending algorithms\n\
+• Type classification for filtering\n\
+• File URLs point to Firebase Storage\n\
+• Duration for streaming calculations"
+
+note bottom of playlist_music : "**🔗 JUNCTION TABLE DESIGN**\n\
+• Position field for ordered playlists\n\
+• Unique constraint prevents duplicates\n\
+• Composite indexes for performance\n\
+• Added_at for chronological tracking"
+
+note bottom of history : "**📊 ANALYTICS & TRACKING**\n\
+• No unique constraint (multiple plays allowed)\n\
+• Played_at index for time-based queries\n\
+• Essential for recommendation algorithms\n\
+• Data retention policies may apply"
+
+note right of banners : "**🎪 CONTENT MANAGEMENT**\n\
+• Independent table (no FK dependencies)\n\
+• Sort order for display sequence\n\
+• Active flag for publishing control\n\
+• Links can be internal or external"
+
+' Storage and performance info
+package "🏗️ DATABASE CONFIGURATION" {
+    rectangle "Storage Engine" as SE #LightGray {
+        **InnoDB**
+        • ACID compliance
+        • Foreign key support
+        • Row-level locking
+        • Crash recovery
+    }
+
+    rectangle "Character Set" as CS #LightGray {
+        **UTF8MB4**
+        • Full Unicode support
+        • Emoji compatibility
+        • International characters
+        • 4-byte UTF-8 encoding
+    }
+
+    rectangle "Collation" as CO #LightGray {
+        **utf8mb4_0900_ai_ci**
+        • Accent insensitive
+        • Case insensitive
+        • Latest Unicode rules
+        • Optimized sorting
+    }
+}
+
+@enduml

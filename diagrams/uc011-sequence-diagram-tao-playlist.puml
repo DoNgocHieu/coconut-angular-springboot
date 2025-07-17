@@ -1,0 +1,127 @@
+@startuml UC011-Sequence-Diagram-Tao-Playlist
+!theme plain
+
+title Biểu đồ trình tự - UC011: Tạo playlist
+
+actor User
+participant "PlaylistUI" as UI
+participant "PlaylistController" as Controller
+participant "PlaylistService" as PlaylistService
+participant "PlaylistRepository" as PlaylistRepo
+participant "FileStorageService" as FileService
+participant "UserRepository" as UserRepo
+database "Database" as DB
+participant "FileSystem" as FS
+
+User -> UI: Click "Tạo playlist mới"
+activate UI
+
+UI -> UI: showCreatePlaylistForm()
+User -> UI: Fill form (name, description, image, visibility)
+UI -> UI: validateForm(playlistData)
+
+alt Form validation failed
+    UI --> User: Show validation errors
+else Form validation passed
+    UI -> UI: showLoadingIndicator()
+    UI -> Controller: POST /api/playlists (with FormData)
+    activate Controller
+
+    Controller -> Controller: validateRequest(playlistCreateRequest)
+    Controller -> PlaylistService: createPlaylist(userId, request)
+    activate PlaylistService
+
+    ' Validate business rules
+    PlaylistService -> PlaylistRepo: countByUserId(userId)
+    activate PlaylistRepo
+    PlaylistRepo -> DB: SELECT COUNT(*) FROM playlists WHERE user_id = ?
+    DB --> PlaylistRepo: count
+    PlaylistRepo --> PlaylistService: playlistCount
+    deactivate PlaylistRepo
+
+    alt User đã có quá nhiều playlist (> 50)
+        PlaylistService --> Controller: BusinessRuleException("Maximum playlists exceeded")
+        Controller --> UI: 400 Bad Request
+        UI --> User: "Bạn đã đạt giới hạn 50 playlist"
+    else Chưa đạt giới hạn
+        ' Check duplicate name
+        PlaylistService -> PlaylistRepo: findByNameAndUserId(name, userId)
+        activate PlaylistRepo
+        PlaylistRepo -> DB: SELECT * FROM playlists WHERE name = ? AND user_id = ?
+        DB --> PlaylistRepo: Optional<Playlist>
+        PlaylistRepo --> PlaylistService: existingPlaylist
+        deactivate PlaylistRepo
+
+        alt Tên playlist đã tồn tại
+            PlaylistService --> Controller: BusinessRuleException("Playlist name already exists")
+            Controller --> UI: 400 Bad Request
+            UI --> User: "Tên playlist đã tồn tại"
+        else Tên playlist hợp lệ
+            ' Process image upload (if provided)
+            alt User upload image
+                PlaylistService -> FileService: validateImageFile(imageFile)
+                activate FileService
+
+                alt Invalid image file
+                    FileService --> PlaylistService: InvalidFileException
+                    PlaylistService --> Controller: BadRequestException("Invalid image file")
+                    Controller --> UI: 400 Bad Request
+                    UI --> User: "File ảnh không hợp lệ"
+                else Valid image file
+                    FileService -> FileService: generateUniqueFileName(originalName)
+                    FileService -> FS: saveFile(imageFile, fileName)
+                    activate FS
+                    FS --> FileService: filePath
+                    deactivate FS
+                    FileService --> PlaylistService: imageUrl
+                    deactivate FileService
+                end
+            end
+
+            ' Get user information
+            PlaylistService -> UserRepo: findById(userId)
+            activate UserRepo
+            UserRepo -> DB: SELECT * FROM users WHERE id = ?
+            DB --> UserRepo: User
+            UserRepo --> PlaylistService: user
+            deactivate UserRepo
+
+            ' Create playlist entity
+            PlaylistService -> PlaylistService: createPlaylistEntity(request, user, imageUrl)
+
+            ' Save to database
+            PlaylistService -> PlaylistRepo: save(playlist)
+            activate PlaylistRepo
+            PlaylistRepo -> DB: INSERT INTO playlists (name, description, image_url, user_id, is_public, created_at)
+            DB --> PlaylistRepo: savedPlaylist
+            PlaylistRepo --> PlaylistService: savedPlaylist
+            deactivate PlaylistRepo
+
+            ' Convert to DTO
+            PlaylistService -> PlaylistService: convertToDto(savedPlaylist)
+            PlaylistService --> Controller: PlaylistDto
+            deactivate PlaylistService
+
+            Controller --> UI: 201 Created + PlaylistDto
+            deactivate Controller
+
+            UI -> UI: hideLoadingIndicator()
+            UI -> UI: addPlaylistToList(newPlaylist)
+            UI -> UI: showSuccessMessage("Playlist đã được tạo thành công")
+            UI -> UI: redirectToPlaylistDetail(playlistId)
+            UI --> User: "Playlist '{name}' đã được tạo"
+            deactivate UI
+        end
+    end
+end
+
+note over UI, FS
+  Playlist creation process:
+  1. Form validation (client & server)
+  2. Business rule validation
+  3. Image upload processing
+  4. Database persistence
+  5. UI update and feedback
+end note
+
+@enduml

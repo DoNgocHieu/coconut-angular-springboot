@@ -1,0 +1,90 @@
+@startuml UC007-Nghe-Nhac
+!theme plain
+title UC007 - Nghe Nhạc
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Coconut Music Player" {
+    frame "Song Info Display" as song_info {
+        rectangle "🎵 Tên Bài Hát" as song_title #lightgreen
+        rectangle "👤 Nghệ Sĩ" as artist_name
+        rectangle "💿 Album" as album_name
+        rectangle "🖼️ Album Art (300x300)" as album_art #lightyellow
+    }
+
+    frame "Player Controls" as controls {
+        rectangle "⏮️ Previous" as prev_btn
+        rectangle "⏯️ Play/Pause" as play_btn #lightgreen
+        rectangle "⏭️ Next" as next_btn
+        rectangle "🔀 Shuffle" as shuffle_btn
+        rectangle "🔁 Repeat" as repeat_btn
+    }
+
+    frame "Progress & Time" as progress {
+        rectangle "⏰ 00:00" as current_time
+        rectangle "▓▓▓▓▓░░░░░ Progress Bar" as progress_bar #lightblue
+        rectangle "⏰ 03:45" as total_time
+        rectangle "📊 Buffer Indicator" as buffer
+    }
+
+    frame "Volume Control" as volume {
+        rectangle "🔊 Volume Icon" as volume_icon
+        rectangle "▓▓▓▓▓▓░░░░ Volume Bar" as volume_bar
+        rectangle "🔇 Mute Toggle" as mute_btn
+    }
+
+    frame "Additional Features" as features {
+        rectangle "❤️ Add to Favorites" as favorite_btn
+        rectangle "➕ Add to Playlist" as playlist_btn
+        rectangle "📤 Share Song" as share_btn
+        rectangle "📝 Show Lyrics" as lyrics_btn
+    }
+
+    frame "Queue Management" as queue {
+        rectangle "📋 Current Queue" as current_queue
+        rectangle "🔢 Track Position: 3/15" as track_position
+        rectangle "⏭️ Up Next Preview" as up_next
+    }
+
+    frame "Audio States" as states {
+        rectangle "⏳ Loading..." as loading #yellow
+        rectangle "▶️ Playing" as playing #lightgreen
+        rectangle "⏸️ Paused" as paused #lightyellow
+        rectangle "❌ Error Loading" as error #lightcoral
+        rectangle "📶 Buffering..." as buffering #orange
+    }
+}
+
+' Flow connections
+song_title --> artist_name
+artist_name --> album_art
+album_art --> play_btn
+
+play_btn --> playing : "Click Play"
+playing --> paused : "Click Pause"
+paused --> playing : "Click Play"
+
+current_time --> progress_bar
+progress_bar --> total_time
+progress_bar --> buffer
+
+volume_icon --> volume_bar
+volume_bar --> mute_btn
+
+favorite_btn ..> "❤️ Added to Favorites" : "Toggle"
+playlist_btn ..> "Playlist Selection Modal" : "UC016"
+
+' Error handling
+loading --> error : "Network Error"
+error --> loading : "Retry"
+
+footer UC007 - Nghe Nhạc: Giao diện phát nhạc với đầy đủ controls
+@enduml

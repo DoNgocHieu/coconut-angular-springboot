@@ -1,0 +1,127 @@
+@startuml Coconut_Music_System_Architecture
+!theme cerulean-outline
+title Kiến trúc mã nguồn Back-end - Coconut Music Platform
+
+skinparam rectangle {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    FontName Arial
+    FontSize 12
+}
+
+skinparam database {
+    BackgroundColor LightGreen
+    BorderColor DarkGreen
+}
+
+skinparam cloud {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+skinparam arrow {
+    Color Black
+    FontSize 10
+}
+
+' Frontend
+rectangle "🅰️ Angular\nFrontend" as angular {
+    rectangle "Components" as comp
+    rectangle "Services" as services
+    rectangle "Guards" as guards
+}
+
+' Nginx
+rectangle "🔧 NGINX\nReverse Proxy" as nginx {
+    note bottom : Chuyển tiếp API Request
+}
+
+' Spring Boot Backend với các layer
+rectangle "🍃 Spring Boot\nBackend" as springboot {
+    rectangle "🎮 Controller\nLayer" as controller #LightCoral
+    rectangle "⚙️ Service\nLayer" as service #LightGoldenRodYellow
+    rectangle "🗄️ Repository\nLayer" as repository #LightSeaGreen
+}
+
+' Database
+database "🗃️ MySQL\nDatabase" as mysql {
+    rectangle "10 Tables" as tables
+    rectangle "15 Foreign Keys" as fks
+    rectangle "6 Unique Constraints" as constraints
+}
+
+' Firebase Storage
+cloud "🔥 Firebase\nStorage" as firebase {
+    rectangle "Audio Files" as audio
+    rectangle "Images" as images
+}
+
+' Connections với labels
+angular --> nginx : "HTTP Requests"
+nginx --> controller : "API Calls"
+controller --> service : "Business Logic"
+service --> repository : "Data Access"
+repository --> mysql : "JDBC/JPA\nHibernate"
+
+' Firebase connections
+service --> firebase : "File Upload/\nDownload"
+angular -.-> firebase : "Direct Media\nStreaming"
+
+' Notes for each layer
+note top of angular : "**Frontend Layer**\n• User Interface\n• Component-based Architecture\n• RxJS Reactive Programming\n• Route Guards & Lazy Loading"
+
+note top of nginx : "**Proxy Layer**\n• Static File Serving\n• Load Balancing\n• SSL Termination\n• Request Routing"
+
+note right of springboot : "**Backend Layers**\n• **Controller**: REST API Endpoints\n• **Service**: Business Logic & Validation\n• **Repository**: Data Access with JPA"
+
+note bottom of mysql : "**Database Schema**\n• Users, Artists, Categories\n• Music, Playlists, History\n• Favorites, Banners\n• Normalized 3NF Design"
+
+note bottom of firebase : "**Media Storage**\n• CDN Distribution\n• Scalable File Storage\n• Direct Stream Access"
+
+' Technology stack info
+package "🛠️ Technology Stack" {
+    rectangle "Frontend" as fe_tech #LightBlue {
+        **Angular 17**
+        TypeScript
+        RxJS
+        Angular Material
+    }
+
+    rectangle "Backend" as be_tech #LightGreen {
+        **Spring Boot 3.x**
+        Java 17
+        Spring Security
+        Spring Data JPA
+    }
+
+    rectangle "Database" as db_tech #LightYellow {
+        **MySQL 8.0**
+        InnoDB Engine
+        UTF8MB4
+        HikariCP Pool
+    }
+
+    rectangle "Infrastructure" as infra_tech #LightPink {
+        **Nginx**
+        Docker
+        Firebase
+        JWT Auth
+    }
+}
+
+' Security flow
+package "🔐 Security Flow" as security {
+    rectangle "Authentication" as auth #LightCoral
+    rectangle "Authorization" as authz #LightSalmon
+    rectangle "JWT Token" as jwt #MistyRose
+
+    auth --> jwt : "Generate"
+    jwt --> authz : "Validate"
+    authz --> service : "Access Control"
+}
+
+' Data flow arrows
+angular -.-> auth : "Login/Register"
+controller -.-> security : "Security Check"
+
+@enduml

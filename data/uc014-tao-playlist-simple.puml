@@ -1,0 +1,9 @@
+@startuml UC014-Tao-Playlist
+!theme plain
+
+actor User
+usecase "Tạo playlist mới" as UC014
+
+User --> UC014
+
+@enduml

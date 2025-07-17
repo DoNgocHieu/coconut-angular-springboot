@@ -1,0 +1,66 @@
+@startuml UC001-Class-Diagram-Dang-Ky
+!theme plain
+
+title Biểu đồ lớp - UC001: Đăng ký
+
+class RegistrationController {
+    + submitRegistration(form: RegistrationForm): void
+}
+
+class RegistrationService {
+    + validateRegistration(form: RegistrationForm): boolean
+    + registerUser(form: RegistrationForm): User
+    + registerModerator(user: User): ModeratorRequest
+}
+
+class User {
+    - String id
+    - String username
+    - String password
+    - String email
+    - String fullName
+    - Boolean isActive
+    + prePersist()
+}
+
+class ModeratorRequest {
+    - String id
+    - User user
+    - User admin
+    - LocalDateTime requestDate
+    - String status
+    - String commentRejected
+    - LocalDateTime processedAt
+    + prePersist()
+}
+
+class RegistrationForm {
+    + String username
+    + String password
+    + String email
+    + String fullName
+    + boolean registerAsModerator
+}
+
+' Relationships
+RegistrationController --> RegistrationService : uses
+RegistrationService --> User : "tạo mới tài khoản"
+RegistrationService --> ModeratorRequest : "tạo yêu cầu Moderator (nếu có)"
+RegistrationController --> RegistrationForm : "nhận dữ liệu từ UI"
+User ||--o{ ModeratorRequest : "kiểm tra dữ liệu"
+
+note right of RegistrationService
+  validateRegistration(): boolean
+  - Kiểm tra username đã tồn tại
+  - Kiểm tra email hợp lệ
+  - Validate password strength
+end note
+
+note bottom of ModeratorRequest
+  Status có thể là:
+  - PENDING
+  - APPROVED
+  - REJECTED
+end note
+
+@enduml

@@ -1,0 +1,92 @@
+@startuml UC014-Class-Diagram-Them-Vao-Yeu-Thich
+!theme plain
+
+title Biểu đồ lớp - UC014: Thêm vào yêu thích
+
+class UserMusicController {
+    + addToFavorites(request: AddToFavoritesRequest): ResponseEntity<ApiResponse>
+    + removeFromFavorites(musicId: Long): ResponseEntity<ApiResponse>
+    + getFavoriteMusic(userId: Long): ResponseEntity<List<MusicDto>>
+    + checkIsFavorite(musicId: Long): ResponseEntity<Boolean>
+}
+
+class UserMusicService {
+    + addMusicToFavorites(userId: Long, musicId: Long): void
+    + removeMusicFromFavorites(userId: Long, musicId: Long): void
+    + getUserFavoriteMusic(userId: Long): List<Music>
+    + isMusicInFavorites(userId: Long, musicId: Long): boolean
+}
+
+class Favorite {
+    - Long id
+    - User user
+    - Music music
+    - LocalDateTime addedAt
+    + getId(): Long
+    + getUser(): User
+    + getMusic(): Music
+}
+
+class FavoriteRepository {
+    + save(favorite: Favorite): Favorite
+    + findByUserIdAndMusicId(userId: Long, musicId: Long): Optional<Favorite>
+    + deleteByUserIdAndMusicId(userId: Long, musicId: Long): void
+    + findByUserIdOrderByAddedAtDesc(userId: Long): List<Favorite>
+    + countByUserId(userId: Long): Long
+}
+
+class MusicRepository {
+    + findById(id: Long): Optional<Music>
+    + existsById(id: Long): boolean
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+    + existsById(id: Long): boolean
+}
+
+class AddToFavoritesRequest {
+    + Long musicId
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - Category category
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - Set<Favorite> favorites
+}
+
+' Relationships
+UserMusicController --> UserMusicService : uses
+UserMusicService --> FavoriteRepository : uses
+UserMusicService --> MusicRepository : uses
+UserMusicService --> UserRepository : uses
+FavoriteRepository --> Favorite : manages
+Favorite --> User : references
+Favorite --> Music : references
+UserMusicController --> AddToFavoritesRequest : receives
+
+note right of UserMusicService
+  Business rules:
+  - User must be authenticated
+  - Music must exist
+  - No duplicate favorites
+  - Max 1000 favorites per user
+end note
+
+note bottom of Favorite
+  Favorite entity:
+  - Composite unique key (user_id, music_id)
+  - Timestamp for sorting
+  - Cascade delete with user
+end note
+
+@enduml

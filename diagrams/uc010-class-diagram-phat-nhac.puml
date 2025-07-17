@@ -1,0 +1,91 @@
+@startuml UC010-Class-Diagram-Phat-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC010: Phát nhạc
+
+class MusicPlayerController {
+    + playMusic(musicId: Long): ResponseEntity<MusicDto>
+    + pauseMusic(): ResponseEntity<ApiResponse>
+    + getMusicStream(musicId: Long): ResponseEntity<Resource>
+}
+
+class MusicService {
+    + getMusicById(musicId: Long): Music
+    + getMusicStream(musicId: Long): Resource
+    + updatePlayCount(musicId: Long): void
+    + addToHistory(userId: Long, musicId: Long): void
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - String duration
+    - Long playCount
+    - Category category
+    + incrementPlayCount(): void
+}
+
+class MusicRepository {
+    + findById(id: Long): Optional<Music>
+    + save(music: Music): Music
+    + findByTitleContaining(title: String): List<Music>
+}
+
+class HistoryService {
+    + addToHistory(userId: Long, musicId: Long): void
+    + getUserHistory(userId: Long): List<History>
+}
+
+class History {
+    - Long id
+    - User user
+    - Music music
+    - LocalDateTime playedAt
+}
+
+class FileStorageService {
+    + loadFileAsResource(filePath: String): Resource
+    + getContentType(filePath: String): String
+}
+
+class MusicDto {
+    + Long id
+    + String title
+    + String artist
+    + String duration
+    + String streamUrl
+    + CategoryDto category
+    + from(music: Music): MusicDto
+}
+
+' Relationships
+MusicPlayerController --> MusicService : uses
+MusicService --> MusicRepository : uses
+MusicService --> HistoryService : uses
+MusicService --> FileStorageService : uses
+MusicRepository --> Music : manages
+HistoryService --> History : manages
+MusicPlayerController --> MusicDto : returns
+MusicDto --> Music : "converts from"
+Music --> Category : belongs to
+History --> User : references
+History --> Music : references
+
+note right of MusicService
+  playMusic():
+  1. Get music metadata
+  2. Increment play count
+  3. Add to user history
+  4. Return music info
+end note
+
+note bottom of FileStorageService
+  Handles file streaming:
+  - MP3, FLAC, WAV support
+  - Range requests for streaming
+  - Content-Type detection
+end note
+
+@enduml

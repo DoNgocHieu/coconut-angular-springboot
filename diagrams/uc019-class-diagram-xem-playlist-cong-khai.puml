@@ -1,0 +1,649 @@
+@startuml UC019-Class-Diagram-Xem-Playlist-Cong-Khai
+!theme plain
+
+title Biểu đồ lớp - UC019: Xem playlist công khai
+
+package "Frontend Layer" {
+    class PublicPlaylistListComponent {
+        +publicPlaylists: PublicPlaylistDto[]
+        +currentPage: number
+        +totalPages: number
+        +pageSize: number
+        +totalPlaylists: number
+        +isLoading: boolean
+        +searchQuery: string
+        +sortBy: string
+        +filterBy: string
+        +currentUser: UserDto
+        +ngOnInit(): void
+        +loadPublicPlaylists(): void
+        +searchPlaylists(): void
+        +sortPlaylists(): void
+        +filterPlaylists(): void
+        +viewPlaylistDetail(playlistId: number): void
+        +playPlaylist(playlistId: number): void
+        +forkPlaylist(playlistId: number): void
+        +loadNextPage(): void
+        +onPageChange(): void
+        +refreshPlaylists(): void
+    }
+
+    class PublicPlaylistCardComponent {
+        +playlist: PublicPlaylistDto
+        +currentUser: UserDto
+        +isPlaying: boolean
+        +canFork: boolean
+        +isForking: boolean
+        +showActions: boolean
+        +onViewDetail(): void
+        +onPlayPlaylist(): void
+        +onForkPlaylist(): void
+        +onFollowUser(): void
+        +onSharePlaylist(): void
+        +toggleActions(): void
+        +formatMusicCount(): string
+        +formatDuration(): string
+        +formatCreatedDate(): string
+        +getOwnerAvatar(): string
+    }
+
+    class PublicPlaylistDetailComponent {
+        +playlist: PublicPlaylistDetailDto
+        +playlistMusics: PlaylistMusicDto[]
+        +currentUser: UserDto
+        +isPlaying: boolean
+        +currentPlayingIndex: number
+        +canFork: boolean
+        +isForking: boolean
+        +currentPage: number
+        +totalPages: number
+        +isLoading: boolean
+        +ngOnInit(): void
+        +loadPlaylistDetail(): void
+        +loadPlaylistMusics(): void
+        +playAllFromStart(): void
+        +playMusicAtIndex(index: number): void
+        +pauseMusic(): void
+        +nextMusic(): void
+        +previousMusic(): void
+        +addToFavorites(musicId: number): void
+        +forkPlaylist(): void
+        +sharePlaylist(): void
+        +followOwner(): void
+        +loadNextPage(): void
+    }
+
+    class ForkPlaylistModalComponent {
+        +originalPlaylist: PublicPlaylistDto
+        +newPlaylistName: string
+        +newPlaylistDescription: string
+        +makePublic: boolean
+        +isForking: boolean
+        +isVisible: boolean
+        +errorMessage: string
+        +validationErrors: string[]
+        +open(playlist: PublicPlaylistDto): void
+        +close(): void
+        +onConfirmFork(): void
+        +onCancelFork(): void
+        +validatePlaylistName(): boolean
+        +resetForm(): void
+        +generateSuggestedName(): string
+    }
+
+    class PublicPlaylistFiltersComponent {
+        +sortOptions: SortOptionDto[]
+        +filterOptions: FilterOptionDto[]
+        +selectedSort: string
+        +selectedFilter: string
+        +searchQuery: string
+        +totalCount: number
+        +onSortChange(): void
+        +onFilterChange(): void
+        +onSearchChange(): void
+        +clearFilters(): void
+        +resetToDefault(): void
+    }
+
+    class PlaylistStatsComponent {
+        +totalPublicPlaylists: number
+        +totalMusics: number
+        +totalCreators: number
+        +popularGenres: GenreStatsDto[]
+        +recentActivity: ActivityDto[]
+        +loadStats(): void
+        +formatStats(): string
+        +getPopularGenres(): string
+    }
+
+    class MusicPlayerComponent {
+        +currentMusic: MusicDto
+        +playlist: PlaylistMusicDto[]
+        +currentIndex: number
+        +isPlaying: boolean
+        +isPaused: boolean
+        +duration: number
+        +currentTime: number
+        +volume: number
+        +onPlay(): void
+        +onPause(): void
+        +onNext(): void
+        +onPrevious(): void
+        +onSeek(time: number): void
+        +onVolumeChange(volume: number): void
+        +onMusicEnd(): void
+        +formatTime(seconds: number): string
+    }
+}
+
+package "Backend Controller Layer" {
+    class PublicPlaylistController {
+        -publicPlaylistService: PublicPlaylistService
+        +getPublicPlaylists(pageable: Pageable, sortBy: String, filterBy: String): ResponseEntity<Page<PublicPlaylistDto>>
+        +searchPublicPlaylists(query: String, pageable: Pageable): ResponseEntity<Page<PublicPlaylistDto>>
+        +getPublicPlaylistDetail(playlistId: Long): ResponseEntity<PublicPlaylistDetailDto>
+        +getPublicPlaylistMusics(playlistId: Long, pageable: Pageable): ResponseEntity<Page<PlaylistMusicDto>>
+        +forkPlaylist(playlistId: Long, request: ForkPlaylistRequestDto): ResponseEntity<PlaylistDto>
+        +getPublicPlaylistStats(): ResponseEntity<PublicPlaylistStatsDto>
+        +getPopularPublicPlaylists(): ResponseEntity<List<PublicPlaylistDto>>
+        +getRecentPublicPlaylists(): ResponseEntity<List<PublicPlaylistDto>>
+    }
+}
+
+package "Service Layer" {
+    class PublicPlaylistService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -userRepository: UserRepository
+        -playlistValidationService: PlaylistValidationService
+        -playlistForkService: PlaylistForkService
+        -playlistStatsService: PlaylistStatsService
+        -playlistMapper: PlaylistMapper
+        +getPublicPlaylists(pageable: Pageable, sortBy: String, filterBy: String): Page<PublicPlaylistDto>
+        +searchPublicPlaylists(query: String, pageable: Pageable): Page<PublicPlaylistDto>
+        +getPublicPlaylistDetail(playlistId: Long, userId: Long): PublicPlaylistDetailDto
+        +getPublicPlaylistMusics(playlistId: Long, pageable: Pageable): Page<PlaylistMusicDto>
+        +canUserForkPlaylist(playlistId: Long, userId: Long): boolean
+        +validatePublicPlaylistAccess(playlistId: Long): void
+        +getPlaylistOwnerInfo(playlistId: Long): UserDto
+        +incrementPlaylistViewCount(playlistId: Long): void
+    }
+
+    class PlaylistForkService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -userRepository: UserRepository
+        -playlistValidationService: PlaylistValidationService
+        -auditService: AuditService
+        +forkPlaylist(originalPlaylistId: Long, request: ForkPlaylistRequestDto, userId: Long): PlaylistDto
+        +validateForkRequest(originalPlaylistId: Long, userId: Long): void
+        +createForkedPlaylist(originalPlaylist: Playlist, request: ForkPlaylistRequestDto, userId: Long): Playlist
+        +copyPlaylistMusics(originalPlaylistId: Long, newPlaylistId: Long): void
+        +updateForkStatistics(originalPlaylistId: Long): void
+        +canUserFork(playlistId: Long, userId: Long): boolean
+        +getForkHistory(userId: Long): List<ForkHistoryDto>
+    }
+
+    class PlaylistValidationService {
+        +validatePlaylistIsPublic(playlistId: Long): void
+        +validatePlaylistExists(playlistId: Long): void
+        +validateUserCanAccessPlaylist(playlistId: Long, userId: Long): void
+        +validateForkPermissions(playlistId: Long, userId: Long): void
+        +validateForkRequestData(request: ForkPlaylistRequestDto): List<String>
+        +validatePlaylistNotEmpty(playlistId: Long): void
+        +checkForkNameAvailability(playlistName: String, userId: Long): boolean
+    }
+
+    class PlaylistStatsService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -userRepository: UserRepository
+        +getPublicPlaylistStats(): PublicPlaylistStatsDto
+        +getPopularPlaylists(limit: Integer): List<PublicPlaylistDto>
+        +getRecentPlaylists(limit: Integer): List<PublicPlaylistDto>
+        +getTrendingPlaylists(): List<PublicPlaylistDto>
+        +updatePlaylistViewCount(playlistId: Long): void
+        +updatePlaylistForkCount(playlistId: Long): void
+        +getGenreDistribution(): List<GenreStatsDto>
+        +getPlaylistActivity(): List<ActivityDto>
+    }
+
+    class UserService {
+        +getUserPublicInfo(userId: Long): UserDto
+        +followUser(followerId: Long, followeeId: Long): void
+        +unfollowUser(followerId: Long, followeeId: Long): void
+        +isUserFollowing(followerId: Long, followeeId: Long): boolean
+        +getUserFollowerCount(userId: Long): Integer
+        +getUserFollowingCount(userId: Long): Integer
+    }
+
+    class AudioPlayerService {
+        +playPlaylist(playlistId: Long, startIndex: Integer): void
+        +playMusic(musicId: Long): void
+        +pauseCurrentMusic(): void
+        +nextMusic(): void
+        +previousMusic(): void
+        +seekTo(position: Integer): void
+        +setVolume(volume: Float): void
+        +getCurrentPlaybackState(): PlaybackStateDto
+    }
+}
+
+package "Repository Layer" {
+    interface PlaylistRepository {
+        +findByIsPublicTrueAndDeletedFalse(pageable: Pageable): Page<Playlist>
+        +findByIsPublicTrueAndDeletedFalseAndNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Playlist>
+        +findByIdAndIsPublicTrueAndDeletedFalse(id: Long): Optional<Playlist>
+        +findPopularPublicPlaylists(limit: Integer): List<Playlist>
+        +findRecentPublicPlaylists(limit: Integer): List<Playlist>
+        +findTrendingPublicPlaylists(): List<Playlist>
+        +countByIsPublicTrueAndDeletedFalse(): Long
+        +incrementViewCount(id: Long): void
+        +incrementForkCount(id: Long): void
+        +updatePlaylistStats(id: Long): void
+    }
+
+    interface PlaylistMusicRepository {
+        +findByPlaylistIdOrderByOrderIndex(playlistId: Long, pageable: Pageable): Page<PlaylistMusic>
+        +findByPlaylistIdOrderByOrderIndex(playlistId: Long): List<PlaylistMusic>
+        +countByPlaylistId(playlistId: Long): Integer
+        +sumDurationByPlaylistId(playlistId: Long): Integer
+        +bulkInsertPlaylistMusics(playlistMusics: List<PlaylistMusic>): void
+    }
+
+    interface UserRepository {
+        +findByIdAndActiveTrueAndDeletedFalse(id: Long): Optional<User>
+        +findActivePublicPlaylistCreators(): List<User>
+        +countPublicPlaylistsByUserId(userId: Long): Integer
+    }
+
+    interface UserFollowRepository {
+        +findByFollowerIdAndFolloweeId(followerId: Long, followeeId: Long): Optional<UserFollow>
+        +countByFolloweeId(followeeId: Long): Integer
+        +countByFollowerId(followerId: Long): Integer
+        +save(userFollow: UserFollow): UserFollow
+        +deleteByFollowerIdAndFolloweeId(followerId: Long, followeeId: Long): void
+    }
+
+    interface PlaylistForkRepository {
+        +save(playlistFork: PlaylistFork): PlaylistFork
+        +findByUserIdOrderByCreatedAtDesc(userId: Long): List<PlaylistFork>
+        +countByOriginalPlaylistId(originalPlaylistId: Long): Integer
+        +existsByOriginalPlaylistIdAndUserId(originalPlaylistId: Long, userId: Long): boolean
+    }
+}
+
+package "Entity Layer" {
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -coverImageUrl: String
+        -isPublic: Boolean
+        -userId: Long
+        -musicCount: Integer
+        -totalDuration: Integer
+        -viewCount: Long
+        -forkCount: Integer
+        -likeCount: Integer
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getUserId(): Long
+        +isPublic(): Boolean
+        +getViewCount(): Long
+        +getForkCount(): Integer
+        +incrementViewCount(): void
+        +incrementForkCount(): void
+        +isAccessibleBy(userId: Long): boolean
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+        +belongsToPlaylist(playlistId: Long): boolean
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -playCount: Long
+        -deleted: Boolean
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +isPublic(): Boolean
+        +getPlayCount(): Long
+        +incrementPlayCount(): void
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -bio: String
+        -role: UserRole
+        -followerCount: Integer
+        -followingCount: Integer
+        -publicPlaylistCount: Integer
+        -active: Boolean
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+        +getBio(): String
+        +getFollowerCount(): Integer
+        +getPublicPlaylistCount(): Integer
+        +isActive(): Boolean
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -color: String
+        -imageUrl: String
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +getImageUrl(): String
+        +isActive(): Boolean
+    }
+
+    class UserFollow {
+        -id: Long
+        -followerId: Long
+        -followeeId: Long
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getFollowerId(): Long
+        +getFolloweeId(): Long
+        +getCreatedAt(): LocalDateTime
+    }
+
+    class PlaylistFork {
+        -id: Long
+        -originalPlaylistId: Long
+        -forkedPlaylistId: Long
+        -userId: Long
+        -forkReason: String
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getOriginalPlaylistId(): Long
+        +getForkedPlaylistId(): Long
+        +getUserId(): Long
+        +getForkReason(): String
+    }
+}
+
+package "DTO Layer" {
+    class PublicPlaylistDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +musicCount: Integer
+        +totalDuration: Integer
+        +viewCount: Long
+        +forkCount: Integer
+        +likeCount: Integer
+        +owner: UserDto
+        +isOwner: Boolean
+        +canFork: Boolean
+        +canPlay: Boolean
+        +isLiked: Boolean
+        +isFollowingOwner: Boolean
+        +createdAt: LocalDateTime
+        +formattedDuration: String
+        +formattedCreatedAt: String
+    }
+
+    class PublicPlaylistDetailDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +musicCount: Integer
+        +totalDuration: Integer
+        +viewCount: Long
+        +forkCount: Integer
+        +likeCount: Integer
+        +musics: List<PlaylistMusicDto>
+        +owner: UserDto
+        +isOwner: Boolean
+        +canFork: Boolean
+        +canPlay: Boolean
+        +isLiked: Boolean
+        +isFollowingOwner: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +tags: List<String>
+        +relatedPlaylists: List<PublicPlaylistDto>
+    }
+
+    class PlaylistMusicDto {
+        +id: Long
+        +music: MusicDto
+        +orderIndex: Integer
+        +addedAt: LocalDateTime
+        +canPlay: Boolean
+        +isLiked: Boolean
+        +addedAtFormatted: String
+        +positionDisplay: String
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +category: CategoryDto
+        +uploader: UserDto
+        +playCount: Long
+        +isPublic: Boolean
+        +isLiked: Boolean
+        +durationFormatted: String
+    }
+
+    class ForkPlaylistRequestDto {
+        +originalPlaylistId: Long
+        +newPlaylistName: String
+        +newPlaylistDescription: String
+        +makePublic: Boolean
+        +forkReason: String
+    }
+
+    class PublicPlaylistStatsDto {
+        +totalPublicPlaylists: Long
+        +totalPublicMusics: Long
+        +totalCreators: Long
+        +totalViews: Long
+        +totalForks: Long
+        +popularGenres: List<GenreStatsDto>
+        +recentActivity: List<ActivityDto>
+        +topCreators: List<UserDto>
+    }
+
+    class ForkHistoryDto {
+        +id: Long
+        +originalPlaylist: PublicPlaylistDto
+        +forkedPlaylist: PlaylistDto
+        +forkReason: String
+        +createdAt: LocalDateTime
+        +formattedCreatedAt: String
+    }
+
+    class SortOptionDto {
+        +value: String
+        +label: String
+        +isDefault: Boolean
+    }
+
+    class FilterOptionDto {
+        +value: String
+        +label: String
+        +count: Integer
+    }
+
+    class GenreStatsDto {
+        +genreName: String
+        +playlistCount: Integer
+        +percentage: Double
+        +color: String
+    }
+
+    class ActivityDto {
+        +type: String
+        +description: String
+        +timestamp: LocalDateTime
+        +user: UserDto
+        +playlist: PublicPlaylistDto
+    }
+
+    class PlaybackStateDto {
+        +currentMusicId: Long
+        +isPlaying: Boolean
+        +currentTime: Integer
+        +duration: Integer
+        +volume: Float
+        +playlistId: Long
+        +currentIndex: Integer
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+        +bio: String
+        +followerCount: Integer
+        +publicPlaylistCount: Integer
+        +isFollowing: Boolean
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+
+    class PlaylistDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +musicCount: Integer
+        +totalDuration: Integer
+        +createdAt: LocalDateTime
+    }
+}
+
+package "Mapper Layer" {
+    class PlaylistMapper {
+        +toPublicDto(playlist: Playlist, owner: User): PublicPlaylistDto
+        +toPublicDetailDto(playlist: Playlist, musics: List<PlaylistMusic>, owner: User): PublicPlaylistDetailDto
+        +toDtoList(playlists: List<Playlist>): List<PublicPlaylistDto>
+        +setUserSpecificFlags(dto: PublicPlaylistDto, userId: Long): void
+        +formatDuration(duration: Integer): String
+        +formatCreatedAt(createdAt: LocalDateTime): String
+    }
+
+    class PlaylistMusicMapper {
+        +toDto(playlistMusic: PlaylistMusic, music: Music): PlaylistMusicDto
+        +toDtoList(playlistMusics: List<PlaylistMusic>): List<PlaylistMusicDto>
+        +setUserSpecificFlags(dto: PlaylistMusicDto, userId: Long): void
+        +formatAddedAt(addedAt: LocalDateTime): String
+        +formatPosition(orderIndex: Integer): String
+    }
+
+    class UserMapper {
+        +toPublicDto(user: User): UserDto
+        +toDtoList(users: List<User>): List<UserDto>
+        +setFollowingStatus(dto: UserDto, currentUserId: Long): void
+    }
+
+    class ForkHistoryMapper {
+        +toDto(playlistFork: PlaylistFork): ForkHistoryDto
+        +toDtoList(playlistForks: List<PlaylistFork>): List<ForkHistoryDto>
+        +formatCreatedAt(createdAt: LocalDateTime): String
+    }
+}
+
+' Relationships
+PublicPlaylistListComponent --> PublicPlaylistCardComponent : contains
+PublicPlaylistListComponent --> PublicPlaylistFiltersComponent : contains
+PublicPlaylistListComponent --> PlaylistStatsComponent : contains
+PublicPlaylistListComponent --> ForkPlaylistModalComponent : opens
+
+PublicPlaylistDetailComponent --> MusicPlayerComponent : contains
+PublicPlaylistDetailComponent --> ForkPlaylistModalComponent : opens
+
+PublicPlaylistCardComponent --> ForkPlaylistModalComponent : triggers
+
+PublicPlaylistListComponent --> PublicPlaylistController : calls
+PublicPlaylistDetailComponent --> PublicPlaylistController : calls
+
+PublicPlaylistController --> PublicPlaylistService : uses
+
+PublicPlaylistService --> PlaylistRepository : uses
+PublicPlaylistService --> PlaylistMusicRepository : uses
+PublicPlaylistService --> UserRepository : uses
+PublicPlaylistService --> PlaylistValidationService : uses
+PublicPlaylistService --> PlaylistForkService : uses
+PublicPlaylistService --> PlaylistStatsService : uses
+
+PlaylistForkService --> PlaylistRepository : uses
+PlaylistForkService --> PlaylistMusicRepository : uses
+PlaylistForkService --> PlaylistForkRepository : uses
+PlaylistForkService --> UserRepository : uses
+
+PlaylistStatsService --> UserFollowRepository : uses
+
+UserService --> UserFollowRepository : uses
+
+PlaylistRepository --> Playlist : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+UserRepository --> User : manages
+UserFollowRepository --> UserFollow : manages
+PlaylistForkRepository --> PlaylistFork : manages
+
+Playlist --> User : belongs to
+PlaylistMusic --> Playlist : belongs to
+PlaylistMusic --> Music : references
+Music --> Category : belongs to
+Music --> User : uploaded by
+UserFollow --> User : follower/followee relationship
+PlaylistFork --> Playlist : original/forked relationship
+PlaylistFork --> User : belongs to
+
+PlaylistMapper --> PublicPlaylistDto : creates
+PlaylistMusicMapper --> PlaylistMusicDto : creates
+UserMapper --> UserDto : creates
+ForkHistoryMapper --> ForkHistoryDto : creates
+
+@enduml

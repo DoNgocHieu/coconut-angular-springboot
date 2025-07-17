@@ -1,0 +1,9 @@
+@startuml UC033-Bao-Cao-Bai-Hat
+!theme plain
+
+actor Admin
+usecase "Báo cáo bài hát phổ biến" as UC033
+
+Admin --> UC033
+
+@enduml

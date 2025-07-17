@@ -1,0 +1,106 @@
+@startuml UC012-Sequence-Diagram-Tao-Playlist
+!theme plain
+
+title Biểu đồ tuần tự - UC012: Tạo playlist
+
+actor User
+participant "Angular\nClient" as Client
+participant "Playlist\nController" as Controller
+participant "Playlist\nService" as Service
+participant "Playlist\nRepository" as PlaylistRepo
+participant "User\nRepository" as UserRepo
+database "MySQL\nDatabase" as DB
+
+User -> Client: Click "Tạo playlist mới"
+activate Client
+
+Client -> Client: Open create playlist modal
+User -> Client: Fill form (name, description, isPublic)
+User -> Client: Click "Tạo playlist"
+
+Client -> Client: Validate form data
+alt Form valid
+    Client -> Controller: POST /api/playlists\n{name: "My Playlist", description: "...", isPublic: true}
+    activate Controller
+
+    Controller -> Controller: Extract userId from JWT token
+    Controller -> Controller: Validate request data
+
+    alt Request valid
+        Controller -> Service: createUserPlaylist(userId, request)
+        activate Service
+
+        ' Check if user exists
+        Service -> UserRepo: findById(userId)
+        activate UserRepo
+        UserRepo -> DB: SELECT * FROM users WHERE id = ?
+        DB --> UserRepo: User entity
+        UserRepo --> Service: User
+        deactivate UserRepo
+
+        ' Check playlist count limit
+        Service -> PlaylistRepo: countByUserId(userId)
+        activate PlaylistRepo
+        PlaylistRepo -> DB: SELECT COUNT(*) FROM playlists WHERE user_id = ? AND deleted = false
+        DB --> PlaylistRepo: count = 25
+        PlaylistRepo --> Service: 25
+        deactivate PlaylistRepo
+
+        alt count < 100
+            ' Check name uniqueness
+            Service -> PlaylistRepo: existsByUserIdAndName(userId, name)
+            activate PlaylistRepo
+            PlaylistRepo -> DB: SELECT COUNT(*) FROM playlists WHERE user_id = ? AND name = ? AND deleted = false
+            DB --> PlaylistRepo: exists = false
+            PlaylistRepo --> Service: false
+            deactivate PlaylistRepo
+
+            alt name unique
+                ' Create playlist entity
+                Service -> Service: Create new Playlist()
+                Service -> Service: Set playlist properties\n(name, description, user, timestamps)
+
+                ' Save to database
+                Service -> PlaylistRepo: save(playlist)
+                activate PlaylistRepo
+                PlaylistRepo -> DB: INSERT INTO playlists\n(name, description, user_id, is_public, created_at, updated_at)\nVALUES (?, ?, ?, ?, ?, ?)
+                DB --> PlaylistRepo: playlist saved with ID
+                PlaylistRepo --> Service: Playlist entity
+                deactivate PlaylistRepo
+
+                Service --> Controller: Playlist entity
+                deactivate Service
+
+                Controller -> Controller: Convert to PlaylistDto
+                Controller --> Client: 201 Created\nPlaylistDto
+                deactivate Controller
+
+                Client -> Client: Close modal
+                Client -> Client: Add playlist to local list
+                Client -> Client: Show success toast
+                Client --> User: "Đã tạo playlist thành công"
+
+            else name not unique
+                Service --> Controller: throw PlaylistNameExistsException
+                Controller --> Client: 409 Conflict\n{"error": "Tên playlist đã tồn tại"}
+                Client --> User: Show error message
+            end
+
+        else count >= 100
+            Service --> Controller: throw PlaylistLimitExceededException
+            Controller --> Client: 400 Bad Request\n{"error": "Đã đạt giới hạn 100 playlist"}
+            Client --> User: Show error message
+        end
+
+    else Request invalid
+        Controller --> Client: 400 Bad Request\n{"error": "Dữ liệu không hợp lệ"}
+        Client --> User: Show validation errors
+    end
+
+else Form invalid
+    Client --> User: Show form validation errors
+end
+
+deactivate Client
+
+@enduml

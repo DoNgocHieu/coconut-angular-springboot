@@ -1,0 +1,132 @@
+@startuml UC015-Class-Diagram-Xem-Lich-Su
+!theme plain
+
+title Biểu đồ lớp - UC015: Xem lịch sử nghe nhạc
+
+class UserMusicController {
+    + getUserHistory(userId: Long, page: int, size: int): ResponseEntity<Page<HistoryDto>>
+    + clearUserHistory(userId: Long): ResponseEntity<ApiResponse>
+    + removeFromHistory(historyId: Long): ResponseEntity<ApiResponse>
+    + getHistoryStatistics(userId: Long): ResponseEntity<HistoryStatsDto>
+}
+
+class UserMusicService {
+    + getUserListeningHistory(userId: Long, pageable: Pageable): Page<History>
+    + clearUserHistory(userId: Long): void
+    + removeHistoryEntry(historyId: Long, userId: Long): void
+    + getHistoryStatistics(userId: Long): HistoryStatsDto
+    + recordMusicPlay(userId: Long, musicId: Long): void
+}
+
+class History {
+    - Long id
+    - User user
+    - Music music
+    - LocalDateTime playedAt
+    - int playCount
+    - int playDuration
+    + getId(): Long
+    + getUser(): User
+    + getMusic(): Music
+    + getPlayedAt(): LocalDateTime
+}
+
+class HistoryRepository {
+    + save(history: History): History
+    + findByUserIdOrderByPlayedAtDesc(userId: Long, pageable: Pageable): Page<History>
+    + findByUserIdAndMusicId(userId: Long, musicId: Long): Optional<History>
+    + deleteByUserId(userId: Long): void
+    + deleteById(id: Long): void
+    + countByUserId(userId: Long): Long
+    + findTopPlayedMusicByUserId(userId: Long, limit: int): List<Object[]>
+    + getTotalPlayTimeByUserId(userId: Long): Long
+}
+
+class MusicRepository {
+    + findById(id: Long): Optional<Music>
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+    + existsById(id: Long): boolean
+}
+
+class HistoryDto {
+    + Long id
+    + MusicDto music
+    + LocalDateTime playedAt
+    + int playCount
+    + int playDuration
+}
+
+class HistoryStatsDto {
+    + Long totalSongs
+    + Long totalPlayTime
+    + List<MusicDto> topPlayedSongs
+    + Long thisWeekPlayTime
+    + Long thisMonthPlayTime
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - int duration
+    - Category category
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - Set<History> history
+}
+
+class Pageable {
+    + int getPageNumber()
+    + int getPageSize()
+    + Sort getSort()
+}
+
+class Page<T> {
+    + List<T> getContent()
+    + int getTotalPages()
+    + long getTotalElements()
+    + boolean hasNext()
+}
+
+' Relationships
+UserMusicController --> UserMusicService : uses
+UserMusicController --> HistoryDto : returns
+UserMusicController --> HistoryStatsDto : returns
+UserMusicController --> Pageable : receives
+
+UserMusicService --> HistoryRepository : uses
+UserMusicService --> MusicRepository : uses
+UserMusicService --> UserRepository : uses
+UserMusicService --> History : manages
+
+HistoryRepository --> History : manages
+History --> User : references
+History --> Music : references
+User --> History : has
+
+note right of UserMusicService
+  Business rules:
+  - Auto-record music plays
+  - Update play count for existing entries
+  - Limit history to 10,000 entries per user
+  - Cleanup old entries (>6 months)
+  - Statistics calculation
+end note
+
+note bottom of History
+  History tracking:
+  - Unique constraint (user_id, music_id, date)
+  - Increment play_count for same day
+  - Track play duration
+  - Index on user_id, played_at
+end note
+
+@enduml

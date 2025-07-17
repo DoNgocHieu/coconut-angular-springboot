@@ -1,0 +1,9 @@
+@startuml UC007-Nghe-Nhac
+!theme plain
+
+actor User
+usecase "Nghe nhạc" as UC007
+
+User --> UC007
+
+@enduml

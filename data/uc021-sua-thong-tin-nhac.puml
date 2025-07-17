@@ -1,0 +1,9 @@
+@startuml UC021-Sua-Thong-Tin-Nhac
+!theme plain
+
+actor Admin
+usecase "Chỉnh sửa thông tin nhạc" as UC021
+
+Admin --> UC021
+
+@enduml

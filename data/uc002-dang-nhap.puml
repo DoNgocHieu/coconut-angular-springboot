@@ -1,0 +1,76 @@
+@startuml UC002-Dang-Nhap
+!theme plain
+title UC002 - Đăng Nhập
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Coconut Music - Đăng Nhập" {
+    frame "Header" as header {
+        [Logo Coconut Music]
+        note right: "🎵 Welcome Back!"
+    }
+
+    frame "Login Form" as form {
+        rectangle "👤 Username/Email" as username
+        rectangle "🔒 Password" as password
+        rectangle "☑️ Remember Me" as remember
+        rectangle "🔑 Đăng Nhập" as login_btn #lightgreen
+    }
+
+    frame "Quick Actions" as actions {
+        rectangle "❓ Quên mật khẩu?" as forgot_password
+        rectangle "📝 Chưa có tài khoản? Đăng ký" as register_link
+    }
+
+    frame "Authentication States" as auth_states {
+        rectangle "⏳ Đang xác thực..." as loading #yellow
+        rectangle "✅ Đăng nhập thành công" as success #lightgreen
+        rectangle "❌ Sai thông tin đăng nhập" as error #lightcoral
+        rectangle "🔒 Tài khoản bị khóa" as blocked #red
+    }
+
+    frame "JWT Token Flow" as jwt {
+        rectangle "🎫 Generate JWT Token" as generate_token
+        rectangle "💾 Store in localStorage" as store_token
+        rectangle "🏠 Redirect to Home" as redirect_home
+    }
+
+    frame "Security Features" as security {
+        note as security_note
+            🛡️ Security:
+            • Rate limiting: 5 attempts/5min
+            • JWT expiry: 24 hours
+            • Secure HTTP-only cookies
+            • CSRF protection
+        end note
+    }
+}
+
+' Flow connections
+username --> password
+password --> remember
+remember --> login_btn
+login_btn --> loading
+loading --> success : "Valid Credentials"
+loading --> error : "Invalid Credentials"
+loading --> blocked : "Account Blocked"
+
+success --> generate_token
+generate_token --> store_token
+store_token --> redirect_home
+
+' Alternative flows
+forgot_password ..> "Reset Password Flow" : "UC005"
+register_link ..> "Register Flow" : "UC001"
+error ..> username : "Try Again"
+
+footer UC002 - Đăng Nhập: User xác thực và truy cập hệ thống
+@enduml

@@ -1,0 +1,533 @@
+@startuml UC009-Class-Diagram-Xem-Chi-Tiet-Bai-Hat
+!theme plain
+
+title Biểu đồ lớp - UC009: Xem chi tiết bài hát
+
+package "Frontend Layer" {
+    class MusicDetailComponent {
+        +musicId: number
+        +music: MusicDetailDto
+        +isLoading: boolean
+        +isPlaying: boolean
+        +isFavorite: boolean
+        +showLyrics: boolean
+        +relatedMusics: MusicDto[]
+        +comments: CommentDto[]
+        +viewHistory: ViewHistoryDto
+        +ngOnInit(): void
+        +loadMusicDetail(): void
+        +playMusic(): void
+        +pauseMusic(): void
+        +toggleFavorite(): void
+        +toggleLyrics(): void
+        +addToPlaylist(): void
+        +shareMusic(): void
+        +loadRelatedMusics(): void
+        +loadComments(): void
+        +addComment(content: string): void
+        +reportMusic(): void
+        +downloadMusic(): void
+    }
+
+    class MusicPlayerComponent {
+        +currentMusic: MusicDto
+        +isPlaying: boolean
+        +progress: number
+        +volume: number
+        +play(music: MusicDto): void
+        +pause(): void
+        +updateProgress(): void
+        +seek(time: number): void
+    }
+
+    class AddToPlaylistModalComponent {
+        +userPlaylists: PlaylistDto[]
+        +selectedPlaylistIds: number[]
+        +musicId: number
+        +loadUserPlaylists(): void
+        +addToSelectedPlaylists(): void
+        +createNewPlaylist(): void
+        +close(): void
+    }
+
+    class ShareMusicModalComponent {
+        +music: MusicDto
+        +shareLink: string
+        +generateShareLink(): void
+        +copyToClipboard(): void
+        +shareToSocialMedia(platform: string): void
+        +close(): void
+    }
+
+    class MusicCommentsComponent {
+        +musicId: number
+        +comments: CommentDto[]
+        +currentPage: number
+        +totalPages: number
+        +newComment: string
+        +loadComments(): void
+        +addComment(): void
+        +editComment(commentId: number): void
+        +deleteComment(commentId: number): void
+        +likeComment(commentId: number): void
+        +loadMoreComments(): void
+    }
+}
+
+package "Backend Controller Layer" {
+    class MusicController {
+        -musicService: MusicService
+        +getMusicDetail(musicId: Long): ResponseEntity<MusicDetailDto>
+        +getRelatedMusics(musicId: Long): ResponseEntity<List<MusicDto>>
+        +incrementViewCount(musicId: Long): ResponseEntity<Void>
+    }
+
+    class FavoriteController {
+        -favoriteService: FavoriteService
+        +toggleFavorite(musicId: Long): ResponseEntity<FavoriteStatusDto>
+        +checkFavoriteStatus(musicId: Long): ResponseEntity<Boolean>
+    }
+
+    class PlaylistController {
+        -playlistService: PlaylistService
+        +getUserPlaylists(): ResponseEntity<List<PlaylistDto>>
+        +addMusicToPlaylist(playlistId: Long, musicId: Long): ResponseEntity<Void>
+    }
+
+    class CommentController {
+        -commentService: CommentService
+        +getMusicComments(musicId: Long, page: int): ResponseEntity<Page<CommentDto>>
+        +addComment(musicId: Long, request: CommentRequestDto): ResponseEntity<CommentDto>
+        +updateComment(commentId: Long, request: CommentRequestDto): ResponseEntity<CommentDto>
+        +deleteComment(commentId: Long): ResponseEntity<Void>
+        +likeComment(commentId: Long): ResponseEntity<Void>
+    }
+
+    class ViewHistoryController {
+        -viewHistoryService: ViewHistoryService
+        +recordView(musicId: Long): ResponseEntity<ViewHistoryDto>
+        +getUserViewHistory(): ResponseEntity<List<ViewHistoryDto>>
+    }
+}
+
+package "Service Layer" {
+    class MusicService {
+        -musicRepository: MusicRepository
+        -musicMapper: MusicMapper
+        -viewHistoryService: ViewHistoryService
+        -musicValidationService: MusicValidationService
+        +getMusicDetail(musicId: Long): MusicDetailDto
+        +getRelatedMusics(musicId: Long): List<MusicDto>
+        +incrementViewCount(musicId: Long): void
+        +getMusicsByArtist(artistId: Long): List<MusicDto>
+        +getMusicsByCategory(categoryId: Long): List<MusicDto>
+        +checkMusicExists(musicId: Long): boolean
+        +updateMusicStatistics(musicId: Long): void
+    }
+
+    class FavoriteService {
+        -favoriteRepository: FavoriteRepository
+        -favoriteMapper: FavoriteMapper
+        -musicService: MusicService
+        +toggleFavorite(userId: Long, musicId: Long): FavoriteStatusDto
+        +checkIsFavorite(userId: Long, musicId: Long): boolean
+        +getUserFavorites(userId: Long): List<FavoriteDto>
+        +getFavoriteCount(musicId: Long): long
+    }
+
+    class PlaylistService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -playlistMapper: PlaylistMapper
+        +getUserPlaylists(userId: Long): List<PlaylistDto>
+        +addMusicToPlaylist(playlistId: Long, musicId: Long): void
+        +removeMusicFromPlaylist(playlistId: Long, musicId: Long): void
+        +checkMusicInPlaylist(playlistId: Long, musicId: Long): boolean
+    }
+
+    class CommentService {
+        -commentRepository: CommentRepository
+        -commentMapper: CommentMapper
+        -commentValidationService: CommentValidationService
+        +getMusicComments(musicId: Long, pageable: Pageable): Page<CommentDto>
+        +addComment(userId: Long, musicId: Long, content: String): CommentDto
+        +updateComment(commentId: Long, userId: Long, content: String): CommentDto
+        +deleteComment(commentId: Long, userId: Long): void
+        +likeComment(commentId: Long, userId: Long): void
+        +getCommentReplies(commentId: Long): List<CommentDto>
+    }
+
+    class ViewHistoryService {
+        -viewHistoryRepository: ViewHistoryRepository
+        -viewHistoryMapper: ViewHistoryMapper
+        +recordView(userId: Long, musicId: Long): ViewHistoryDto
+        +getUserViewHistory(userId: Long, pageable: Pageable): Page<ViewHistoryDto>
+        +getViewCount(musicId: Long): long
+        +getUniqueViewCount(musicId: Long): long
+        +getMostViewedMusics(limit: int): List<MusicDto>
+    }
+
+    class MusicValidationService {
+        +validateMusicExists(musicId: Long): void
+        +validateMusicAvailable(musicId: Long): void
+        +validateUserCanView(userId: Long, musicId: Long): void
+        +validateMusicNotDeleted(musicId: Long): void
+    }
+
+    class CommentValidationService {
+        +validateCommentContent(content: String): List<String>
+        +validateCommentLength(content: String): boolean
+        +validateInappropriateContent(content: String): boolean
+        +validateUserCanComment(userId: Long, musicId: Long): boolean
+        +validateCommentOwnership(commentId: Long, userId: Long): boolean
+    }
+}
+
+package "Repository Layer" {
+    interface MusicRepository {
+        +findById(id: Long): Optional<Music>
+        +findByIdAndDeletedFalse(id: Long): Optional<Music>
+        +findRelatedMusicsByArtist(artistId: Long, musicId: Long, pageable: Pageable): Page<Music>
+        +findRelatedMusicsByCategory(categoryId: Long, musicId: Long, pageable: Pageable): Page<Music>
+        +incrementViewCount(musicId: Long): void
+        +findTopViewedMusics(pageable: Pageable): Page<Music>
+    }
+
+    interface FavoriteRepository {
+        +findByUserIdAndMusicId(userId: Long, musicId: Long): Optional<Favorite>
+        +countByMusicId(musicId: Long): long
+        +deleteByUserIdAndMusicId(userId: Long, musicId: Long): void
+        +findByUserId(userId: Long, pageable: Pageable): Page<Favorite>
+    }
+
+    interface PlaylistRepository {
+        +findByUserIdAndDeletedFalse(userId: Long): List<Playlist>
+        +findByIdAndUserId(id: Long, userId: Long): Optional<Playlist>
+    }
+
+    interface PlaylistMusicRepository {
+        +findByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): Optional<PlaylistMusic>
+        +countByPlaylistId(playlistId: Long): long
+        +findByPlaylistId(playlistId: Long, pageable: Pageable): Page<PlaylistMusic>
+        +deleteByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): void
+    }
+
+    interface CommentRepository {
+        +findByMusicIdOrderByCreatedAtDesc(musicId: Long, pageable: Pageable): Page<Comment>
+        +findByIdAndUserId(id: Long, userId: Long): Optional<Comment>
+        +findRepliesByParentId(parentId: Long, pageable: Pageable): Page<Comment>
+        +countByMusicId(musicId: Long): long
+    }
+
+    interface ViewHistoryRepository {
+        +findByUserIdAndMusicId(userId: Long, musicId: Long): Optional<ViewHistory>
+        +findByUserId(userId: Long, pageable: Pageable): Page<ViewHistory>
+        +countByMusicId(musicId: Long): long
+        +countDistinctUserIdByMusicId(musicId: Long): long
+    }
+}
+
+package "Entity Layer" {
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -lyrics: String
+        -viewCount: Long
+        -favoriteCount: Long
+        -commentCount: Long
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +incrementViewCount(): void
+        +updateStatistics(): void
+    }
+
+    class Favorite {
+        -id: Long
+        -userId: Long
+        -musicId: Long
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUserId(): Long
+        +getMusicId(): Long
+        +getCreatedAt(): LocalDateTime
+    }
+
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -coverImageUrl: String
+        -isPublic: Boolean
+        -userId: Long
+        -musicCount: Integer
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getUserId(): Long
+        +isPublic(): Boolean
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+    }
+
+    class Comment {
+        -id: Long
+        -content: String
+        -userId: Long
+        -musicId: Long
+        -parentId: Long
+        -likeCount: Integer
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getContent(): String
+        +getUserId(): Long
+        +getMusicId(): Long
+        +isReply(): Boolean
+    }
+
+    class ViewHistory {
+        -id: Long
+        -userId: Long
+        -musicId: Long
+        -viewedAt: LocalDateTime
+        -duration: Integer
+        -deviceInfo: String
+        +getId(): Long
+        +getUserId(): Long
+        +getMusicId(): Long
+        +getViewedAt(): LocalDateTime
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -description: String
+        -color: String
+        -imageUrl: String
+        -displayOrder: Integer
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +getImageUrl(): String
+    }
+}
+
+package "DTO Layer" {
+    class MusicDetailDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +lyrics: String
+        +viewCount: Long
+        +favoriteCount: Long
+        +commentCount: Long
+        +category: CategoryDto
+        +uploadedBy: UserDto
+        +isFavorite: Boolean
+        +isInPlaylist: Boolean
+        +uploadedAt: LocalDateTime
+        +canEdit: Boolean
+        +canDelete: Boolean
+        +canDownload: Boolean
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +viewCount: Long
+        +favoriteCount: Long
+        +category: CategoryDto
+        +uploadedAt: LocalDateTime
+        +isFavorite: Boolean
+    }
+
+    class FavoriteStatusDto {
+        +isFavorite: Boolean
+        +favoriteCount: Long
+        +message: String
+    }
+
+    class CommentDto {
+        +id: Long
+        +content: String
+        +user: UserDto
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +likeCount: Integer
+        +isLiked: Boolean
+        +canEdit: Boolean
+        +canDelete: Boolean
+        +replies: List<CommentDto>
+        +replyCount: Integer
+    }
+
+    class ViewHistoryDto {
+        +id: Long
+        +music: MusicDto
+        +viewedAt: LocalDateTime
+        +duration: Integer
+        +deviceInfo: String
+    }
+
+    class PlaylistDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +musicCount: Integer
+        +isPublic: Boolean
+        +createdAt: LocalDateTime
+        +canEdit: Boolean
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class MusicMapper {
+        +toDetailDto(music: Music, user: User): MusicDetailDto
+        +toDto(music: Music): MusicDto
+        +toDtoList(musics: List<Music>): List<MusicDto>
+        +setUserSpecificFlags(dto: MusicDetailDto, userId: Long): void
+    }
+
+    class FavoriteMapper {
+        +toDto(favorite: Favorite): FavoriteDto
+        +toStatusDto(isFavorite: Boolean, count: Long): FavoriteStatusDto
+    }
+
+    class CommentMapper {
+        +toDto(comment: Comment, user: User): CommentDto
+        +toDtoWithReplies(comment: Comment, replies: List<Comment>): CommentDto
+        +toDtoList(comments: List<Comment>): List<CommentDto>
+    }
+
+    class ViewHistoryMapper {
+        +toDto(viewHistory: ViewHistory, music: Music): ViewHistoryDto
+        +toDtoList(viewHistories: List<ViewHistory>): List<ViewHistoryDto>
+    }
+
+    class PlaylistMapper {
+        +toDto(playlist: Playlist): PlaylistDto
+        +toDtoList(playlists: List<Playlist>): List<PlaylistDto>
+    }
+}
+
+' Relationships
+MusicDetailComponent --> MusicPlayerComponent : uses
+MusicDetailComponent --> AddToPlaylistModalComponent : opens
+MusicDetailComponent --> ShareMusicModalComponent : opens
+MusicDetailComponent --> MusicCommentsComponent : contains
+
+MusicDetailComponent --> MusicController : calls
+MusicDetailComponent --> FavoriteController : calls
+MusicDetailComponent --> PlaylistController : calls
+MusicDetailComponent --> ViewHistoryController : calls
+
+MusicController --> MusicService : uses
+FavoriteController --> FavoriteService : uses
+PlaylistController --> PlaylistService : uses
+CommentController --> CommentService : uses
+ViewHistoryController --> ViewHistoryService : uses
+
+MusicService --> MusicRepository : uses
+MusicService --> MusicMapper : uses
+MusicService --> MusicValidationService : uses
+MusicService --> ViewHistoryService : uses
+
+FavoriteService --> FavoriteRepository : uses
+FavoriteService --> FavoriteMapper : uses
+
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> PlaylistMusicRepository : uses
+PlaylistService --> PlaylistMapper : uses
+
+CommentService --> CommentRepository : uses
+CommentService --> CommentMapper : uses
+CommentService --> CommentValidationService : uses
+
+ViewHistoryService --> ViewHistoryRepository : uses
+ViewHistoryService --> ViewHistoryMapper : uses
+
+MusicRepository --> Music : manages
+FavoriteRepository --> Favorite : manages
+PlaylistRepository --> Playlist : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+CommentRepository --> Comment : manages
+ViewHistoryRepository --> ViewHistory : manages
+
+Music --> Category : belongs to
+Music --> User : uploaded by
+Favorite --> User : belongs to
+Favorite --> Music : references
+Comment --> User : written by
+Comment --> Music : belongs to
+ViewHistory --> User : belongs to
+ViewHistory --> Music : references
+Playlist --> User : created by
+PlaylistMusic --> Playlist : belongs to
+PlaylistMusic --> Music : contains
+
+@enduml

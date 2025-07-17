@@ -1,0 +1,9 @@
+@startuml UC006-Doi-Mat-Khau
+!theme plain
+
+actor User
+usecase "Đổi mật khẩu" as UC006
+
+User --> UC006
+
+@enduml

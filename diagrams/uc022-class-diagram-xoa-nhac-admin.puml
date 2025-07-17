@@ -1,0 +1,702 @@
+@startuml UC022-Class-Diagram-Xoa-Nhac-Admin
+!theme plain
+
+title Biểu đồ lớp - UC022: Xóa nhạc (Admin)
+
+package "Frontend Layer" {
+    class AdminMusicListComponent {
+        +musics: AdminMusicDto[]
+        +selectedMusics: AdminMusicDto[]
+        +currentPage: number
+        +totalPages: number
+        +pageSize: number
+        +totalMusics: number
+        +isLoading: boolean
+        +searchQuery: string
+        +sortBy: string
+        +filterBy: string
+        +currentAdmin: AdminDto
+        +ngOnInit(): void
+        +loadAdminMusics(): void
+        +searchMusics(): void
+        +sortMusics(): void
+        +filterMusics(): void
+        +selectMusic(musicId: number): void
+        +selectAllMusics(): void
+        +clearSelection(): void
+        +openDeleteModal(music: AdminMusicDto): void
+        +openBulkDeleteModal(): void
+        +loadNextPage(): void
+        +refreshMusicList(): void
+    }
+
+    class AdminMusicCardComponent {
+        +music: AdminMusicDto
+        +isSelected: boolean
+        +isAdmin: boolean
+        +showActions: boolean
+        +canDelete: boolean
+        +isDangerous: boolean
+        +reportCount: number
+        +onViewDetail(): void
+        +onEditMusic(): void
+        +onDeleteMusic(): void
+        +onSelectMusic(): void
+        +onViewReports(): void
+        +onPlayMusic(): void
+        +toggleActions(): void
+        +formatDuration(): string
+        +formatUploadDate(): string
+        +getStatusColor(): string
+        +getDangerLevel(): string
+    }
+
+    class DeleteMusicModalComponent {
+        +musicToDelete: AdminMusicDto
+        +musicsToDelete: AdminMusicDto[]
+        +isBulkMode: boolean
+        +deletionReason: string
+        +impactAnalysis: DeletionImpactDto
+        +affectedPlaylists: PlaylistImpactDto[]
+        +affectedUsers: UserImpactDto[]
+        +isDeleting: boolean
+        +isVisible: boolean
+        +hasBackup: boolean
+        +confirmDeletion: boolean
+        +open(music: AdminMusicDto): void
+        +openBulk(musics: AdminMusicDto[]): void
+        +close(): void
+        +onConfirmDelete(): void
+        +onCancelDelete(): void
+        +loadImpactAnalysis(): void
+        +toggleBackupOption(): void
+        +validateDeletionReason(): boolean
+    }
+
+    class DeletionImpactComponent {
+        +impactData: DeletionImpactDto
+        +affectedPlaylistCount: number
+        +affectedUserCount: number
+        +totalPlayCount: number
+        +estimatedLoss: number
+        +showDetailedBreakdown: boolean
+        +onShowDetails(): void
+        +formatImpactSummary(): string
+        +getImpactSeverity(): string
+        +getSuggestions(): string[]
+    }
+
+    class MusicBackupComponent {
+        +musicToBackup: AdminMusicDto
+        +backupProgress: number
+        +backupStatus: string
+        +backupLocation: string
+        +isBackingUp: boolean
+        +backupMetadata: boolean
+        +backupFiles: boolean
+        +onStartBackup(): void
+        +onCancelBackup(): void
+        +updateProgress(): void
+        +showBackupDetails(): void
+    }
+
+    class BulkDeleteProgressComponent {
+        +musicsToDelete: AdminMusicDto[]
+        +currentIndex: number
+        +successCount: number
+        +errorCount: number
+        +totalCount: number
+        +isProcessing: boolean
+        +progressPercentage: number
+        +currentMusic: AdminMusicDto
+        +errors: DeletionErrorDto[]
+        +onStartBulkDelete(): void
+        +onPauseBulkDelete(): void
+        +onCancelBulkDelete(): void
+        +updateProgress(): void
+        +showErrorDetails(): void
+        +retryFailedDeletions(): void
+    }
+
+    class AdminMusicFiltersComponent {
+        +sortOptions: SortOptionDto[]
+        +filterOptions: FilterOptionDto[]
+        +selectedSort: string
+        +selectedFilter: string
+        +searchQuery: string
+        +dateRange: DateRangeDto
+        +reportCountFilter: number
+        +dangerLevelFilter: string
+        +onSortChange(): void
+        +onFilterChange(): void
+        +onSearchChange(): void
+        +onDateRangeChange(): void
+        +clearFilters(): void
+        +resetToDefault(): void
+    }
+}
+
+package "Backend Controller Layer" {
+    class AdminMusicController {
+        -adminMusicService: AdminMusicService
+        +getAllMusicsForAdmin(pageable: Pageable, sortBy: String, filterBy: String): ResponseEntity<Page<AdminMusicDto>>
+        +searchMusicsForAdmin(query: String, pageable: Pageable): ResponseEntity<Page<AdminMusicDto>>
+        +deleteMusicAsAdmin(musicId: Long, request: AdminDeleteMusicRequestDto): ResponseEntity<Void>
+        +bulkDeleteMusicsAsAdmin(request: BulkDeleteMusicRequestDto): ResponseEntity<BulkDeleteResultDto>
+        +getMusicDeletionImpact(musicId: Long): ResponseEntity<DeletionImpactDto>
+        +createMusicBackup(musicId: Long): ResponseEntity<BackupResultDto>
+        +getDeletedMusicHistory(): ResponseEntity<List<DeletedMusicDto>>
+        +restoreDeletedMusic(musicId: Long): ResponseEntity<Void>
+    }
+}
+
+package "Service Layer" {
+    class AdminMusicService {
+        -musicRepository: MusicRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -userFavoriteMusicRepository: UserFavoriteMusicRepository
+        -adminValidationService: AdminValidationService
+        -musicDeletionService: MusicDeletionService
+        -musicBackupService: MusicBackupService
+        -adminAuditService: AdminAuditService
+        +getAllMusicsForAdmin(pageable: Pageable, sortBy: String, filterBy: String): Page<AdminMusicDto>
+        +searchMusicsForAdmin(query: String, pageable: Pageable): Page<AdminMusicDto>
+        +deleteMusicAsAdmin(musicId: Long, request: AdminDeleteMusicRequestDto, adminId: Long): void
+        +bulkDeleteMusicsAsAdmin(request: BulkDeleteMusicRequestDto, adminId: Long): BulkDeleteResultDto
+        +getMusicDeletionImpact(musicId: Long): DeletionImpactDto
+        +canAdminDeleteMusic(musicId: Long, adminId: Long): boolean
+        +validateAdminDeletion(musicId: Long, adminId: Long): void
+    }
+
+    class AdminValidationService {
+        +validateAdminPermissions(adminId: Long): void
+        +validateMusicExists(musicId: Long): void
+        +validateAdminCanDeleteMusic(musicId: Long, adminId: Long): void
+        +validateBulkDeleteRequest(request: BulkDeleteMusicRequestDto): List<String>
+        +validateDeletionReason(reason: String): List<String>
+        +checkMusicNotCurrentlyPlaying(musicId: Long): void
+        +validateAdminRole(adminId: Long): void
+        +checkDeletionConstraints(musicId: Long): List<String>
+    }
+
+    class MusicDeletionService {
+        -musicRepository: MusicRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -userFavoriteMusicRepository: UserFavoriteMusicRepository
+        -fileStorageService: FileStorageService
+        -musicBackupService: MusicBackupService
+        -adminAuditService: AdminAuditService
+        +executeMusicDeletion(musicId: Long, reason: String, adminId: Long): void
+        +cleanupMusicReferences(musicId: Long): void
+        +removeFromAllPlaylists(musicId: Long): Integer
+        +removeFromAllFavorites(musicId: Long): Integer
+        +deleteMusicFiles(musicId: Long): void
+        +updatePlaylistStats(affectedPlaylistIds: List<Long>): void
+        +executeBulkDeletion(musicIds: List<Long>, reason: String, adminId: Long): BulkDeleteResultDto
+        +calculateDeletionImpact(musicId: Long): DeletionImpactDto
+    }
+
+    class MusicBackupService {
+        -fileStorageService: FileStorageService
+        -musicRepository: MusicRepository
+        +createMusicBackup(musicId: Long, adminId: Long): BackupResultDto
+        +backupMusicFile(musicFileUrl: String, musicId: Long): String
+        +backupCoverImage(coverImageUrl: String, musicId: Long): String
+        +backupMusicMetadata(musicId: Long): String
+        +validateBackupIntegrity(backupPath: String): boolean
+        +getBackupLocation(musicId: Long): String
+        +cleanupOldBackups(cutoffDate: LocalDateTime): void
+        +restoreFromBackup(backupId: Long, adminId: Long): void
+    }
+
+    class FileStorageService {
+        +deleteFile(fileUrl: String): boolean
+        +deleteMusicFile(audioFileUrl: String): boolean
+        +deleteCoverImage(coverImageUrl: String): boolean
+        +moveToBackup(fileUrl: String, backupPath: String): boolean
+        +copyFile(sourceUrl: String, destinationUrl: String): boolean
+        +validateFileExists(fileUrl: String): boolean
+        +getFileSize(fileUrl: String): Long
+        +getFileInfo(fileUrl: String): FileInfoDto
+        +bulkDeleteFiles(fileUrls: List<String>): List<String>
+    }
+
+    class AdminAuditService {
+        +logMusicDeletion(musicId: Long, adminId: Long, reason: String, impact: DeletionImpactDto): void
+        +logBulkMusicDeletion(musicIds: List<Long>, adminId: Long, reason: String): void
+        +logMusicBackup(musicId: Long, adminId: Long, backupPath: String): void
+        +logAdminAction(adminId: Long, action: String, details: Map<String, Object>): void
+        +getMusicDeletionHistory(adminId: Long): List<AdminAuditLogDto>
+        +trackAdminActivity(adminId: Long, action: String, resourceType: String, resourceId: Long): void
+    }
+
+    class PlaylistStatsService {
+        +updatePlaylistAfterMusicDeletion(playlistId: Long): void
+        +recalculatePlaylistStats(playlistId: Long): void
+        +updateAllAffectedPlaylists(musicId: Long): List<Long>
+        +getPlaylistImpactAnalysis(musicId: Long): List<PlaylistImpactDto>
+    }
+
+    class UserActivityService {
+        +updateUserStatsAfterMusicDeletion(userId: Long): void
+        +notifyAffectedUsers(musicId: Long, reason: String): void
+        +getUserImpactAnalysis(musicId: Long): List<UserImpactDto>
+        +removeFromUserHistory(musicId: Long): void
+    }
+}
+
+package "Repository Layer" {
+    interface MusicRepository {
+        +findAllByDeletedFalse(pageable: Pageable): Page<Music>
+        +findByDeletedFalseAndTitleContainingIgnoreCase(title: String, pageable: Pageable): Page<Music>
+        +findByIdAndDeletedFalse(id: Long): Optional<Music>
+        +findReportedMusics(minReportCount: Integer, pageable: Pageable): Page<Music>
+        +findDangerousMusics(dangerLevel: String, pageable: Pageable): Page<Music>
+        +softDeleteById(id: Long, deletedBy: Long, reason: String): void
+        +hardDeleteById(id: Long): void
+        +bulkSoftDelete(ids: List<Long>, deletedBy: Long, reason: String): void
+        +findDeletedMusics(pageable: Pageable): Page<Music>
+        +restoreDeletedMusic(id: Long, restoredBy: Long): void
+        +updateMusicStats(id: Long): void
+    }
+
+    interface PlaylistMusicRepository {
+        +findByMusicId(musicId: Long): List<PlaylistMusic>
+        +deleteAllByMusicId(musicId: Long): void
+        +countByMusicId(musicId: Long): Integer
+        +findPlaylistIdsByMusicId(musicId: Long): List<Long>
+        +bulkDeleteByMusicIds(musicIds: List<Long>): void
+        +getPlaylistImpactByMusicId(musicId: Long): List<PlaylistImpactProjection>
+    }
+
+    interface UserFavoriteMusicRepository {
+        +findByMusicId(musicId: Long): List<UserFavoriteMusic>
+        +deleteAllByMusicId(musicId: Long): void
+        +countByMusicId(musicId: Long): Integer
+        +findUserIdsByMusicId(musicId: Long): List<Long>
+        +bulkDeleteByMusicIds(musicIds: List<Long>): void
+    }
+
+    interface MusicBackupRepository {
+        +save(musicBackup: MusicBackup): MusicBackup
+        +findByMusicIdOrderByCreatedAtDesc(musicId: Long): List<MusicBackup>
+        +findByAdminIdAndCreatedAtAfter(adminId: Long, date: LocalDateTime): List<MusicBackup>
+        +deleteOldBackups(cutoffDate: LocalDateTime): void
+        +findActiveBackups(): List<MusicBackup>
+    }
+
+    interface AdminAuditLogRepository {
+        +save(adminAuditLog: AdminAuditLog): AdminAuditLog
+        +findByAdminIdAndActionTypeOrderByCreatedAtDesc(adminId: Long, actionType: String): List<AdminAuditLog>
+        +findMusicDeletionLogs(): List<AdminAuditLog>
+        +findByResourceTypeAndResourceId(resourceType: String, resourceId: Long): List<AdminAuditLog>
+        +deleteOldLogs(cutoffDate: LocalDateTime): void
+    }
+
+    interface PlaylistRepository {
+        +findPlaylistsContainingMusic(musicId: Long): List<Playlist>
+        +updatePlaylistStatsAfterMusicDeletion(playlistId: Long): void
+        +decrementMusicCount(playlistId: Long): void
+        +recalculateTotalDuration(playlistId: Long): void
+    }
+}
+
+package "Entity Layer" {
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -playCount: Long
+        -reportCount: Integer
+        -dangerLevel: String
+        -deleted: Boolean
+        -deletedAt: LocalDateTime
+        -deletedBy: Long
+        -deletionReason: String
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +isDeleted(): Boolean
+        +getReportCount(): Integer
+        +getDangerLevel(): String
+        +markAsDeleted(deletedBy: Long, reason: String): void
+        +canBeDeletedBy(adminId: Long): boolean
+        +isDangerous(): boolean
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+        +belongsToMusic(musicId: Long): boolean
+    }
+
+    class UserFavoriteMusic {
+        -id: Long
+        -userId: Long
+        -musicId: Long
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getUserId(): Long
+        +getMusicId(): Long
+        +getAddedAt(): LocalDateTime
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +isAdmin(): boolean
+        +isActive(): boolean
+    }
+
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -userId: Long
+        -musicCount: Integer
+        -totalDuration: Integer
+        -deleted: Boolean
+        +getId(): Long
+        +getName(): String
+        +getUserId(): Long
+        +getMusicCount(): Integer
+        +decrementMusicCount(): void
+        +updateDuration(durationChange: Integer): void
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -color: String
+        -imageUrl: String
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +isActive(): boolean
+    }
+
+    class MusicBackup {
+        -id: Long
+        -musicId: Long
+        -adminId: Long
+        -backupPath: String
+        -metadataBackupPath: String
+        -originalMusicPath: String
+        -originalCoverPath: String
+        -backupSize: Long
+        -verified: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getMusicId(): Long
+        +getAdminId(): Long
+        +getBackupPath(): String
+        +isVerified(): Boolean
+        +getBackupSize(): Long
+    }
+
+    class AdminAuditLog {
+        -id: Long
+        -adminId: Long
+        -actionType: String
+        -resourceType: String
+        -resourceId: Long
+        -actionDetails: String
+        -ipAddress: String
+        -userAgent: String
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getAdminId(): Long
+        +getActionType(): String
+        +getResourceType(): String
+        +getResourceId(): Long
+        +getActionDetails(): String
+    }
+}
+
+package "DTO Layer" {
+    class AdminMusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +category: CategoryDto
+        +uploader: UserDto
+        +playCount: Long
+        +reportCount: Integer
+        +dangerLevel: String
+        +isPublic: Boolean
+        +deleted: Boolean
+        +deletedAt: LocalDateTime
+        +deletedBy: Long
+        +deletionReason: String
+        +createdAt: LocalDateTime
+        +durationFormatted: String
+        +uploadDateFormatted: String
+        +canDelete: Boolean
+        +isDangerous: Boolean
+    }
+
+    class AdminDeleteMusicRequestDto {
+        +musicId: Long
+        +deletionReason: String
+        +createBackup: Boolean
+        +notifyUsers: Boolean
+        +confirmDeletion: Boolean
+    }
+
+    class BulkDeleteMusicRequestDto {
+        +musicIds: List<Long>
+        +deletionReason: String
+        +createBackups: Boolean
+        +notifyUsers: Boolean
+        +confirmDeletion: Boolean
+    }
+
+    class BulkDeleteResultDto {
+        +successCount: Integer
+        +failedCount: Integer
+        +failedMusicIds: List<Long>
+        +errors: List<String>
+        +backupsCreated: Integer
+        +usersNotified: Integer
+        +playlistsAffected: Integer
+        +message: String
+    }
+
+    class DeletionImpactDto {
+        +musicId: Long
+        +musicTitle: String
+        +affectedPlaylistCount: Integer
+        +affectedUserCount: Integer
+        +totalPlayCount: Long
+        +estimatedDataLoss: Long
+        +playlistImpacts: List<PlaylistImpactDto>
+        +userImpacts: List<UserImpactDto>
+        +severity: String
+        +recommendations: List<String>
+    }
+
+    class PlaylistImpactDto {
+        +playlistId: Long
+        +playlistName: String
+        +ownerName: String
+        +musicPosition: Integer
+        +totalMusics: Integer
+        +impactPercentage: Double
+        +isPublic: Boolean
+    }
+
+    class UserImpactDto {
+        +userId: Long
+        +username: String
+        +displayName: String
+        +isFavorite: Boolean
+        +playCount: Long
+        +lastPlayedAt: LocalDateTime
+        +impactLevel: String
+    }
+
+    class BackupResultDto {
+        +backupId: Long
+        +musicId: Long
+        +backupPath: String
+        +backupSize: Long
+        +verified: Boolean
+        +createdAt: LocalDateTime
+        +message: String
+    }
+
+    class DeletionErrorDto {
+        +musicId: Long
+        +musicTitle: String
+        +errorCode: String
+        +errorMessage: String
+        +retryable: Boolean
+    }
+
+    class DeletedMusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +deletedAt: LocalDateTime
+        +deletedBy: Long
+        +deletionReason: String
+        +backupAvailable: Boolean
+        +canRestore: Boolean
+    }
+
+    class AdminAuditLogDto {
+        +id: Long
+        +adminName: String
+        +actionType: String
+        +resourceType: String
+        +resourceName: String
+        +actionDetails: String
+        +createdAt: LocalDateTime
+        +formattedCreatedAt: String
+    }
+
+    class DateRangeDto {
+        +startDate: LocalDate
+        +endDate: LocalDate
+        +isValid: Boolean
+    }
+
+    class SortOptionDto {
+        +value: String
+        +label: String
+        +isDefault: Boolean
+    }
+
+    class FilterOptionDto {
+        +value: String
+        +label: String
+        +count: Integer
+    }
+
+    class FileInfoDto {
+        +fileName: String
+        +fileSize: Long
+        +fileType: String
+        +exists: Boolean
+        +lastModified: LocalDateTime
+    }
+
+    class AdminDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +email: String
+        +role: String
+        +permissions: List<String>
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class AdminMusicMapper {
+        +toAdminDto(music: Music, category: Category, uploader: User): AdminMusicDto
+        +toAdminDtoList(musics: List<Music>): List<AdminMusicDto>
+        +setAdminSpecificFlags(dto: AdminMusicDto, adminId: Long): void
+        +formatDuration(duration: Integer): String
+        +formatUploadDate(createdAt: LocalDateTime): String
+        +getDangerLevelColor(dangerLevel: String): String
+    }
+
+    class DeletionImpactMapper {
+        +toDto(musicId: Long, playlistImpacts: List<PlaylistImpact>, userImpacts: List<UserImpact>): DeletionImpactDto
+        +toPlaylistImpactDto(playlistImpact: PlaylistImpact): PlaylistImpactDto
+        +toUserImpactDto(userImpact: UserImpact): UserImpactDto
+        +calculateSeverity(impact: DeletionImpactDto): String
+        +generateRecommendations(impact: DeletionImpactDto): List<String>
+    }
+
+    class AdminAuditLogMapper {
+        +toDto(adminAuditLog: AdminAuditLog, admin: User): AdminAuditLogDto
+        +toDtoList(auditLogs: List<AdminAuditLog>): List<AdminAuditLogDto>
+        +formatActionDetails(details: String): String
+        +formatCreatedAt(createdAt: LocalDateTime): String
+    }
+
+    class BackupResultMapper {
+        +toDto(musicBackup: MusicBackup): BackupResultDto
+        +toDtoList(musicBackups: List<MusicBackup>): List<BackupResultDto>
+    }
+}
+
+' Relationships
+AdminMusicListComponent --> AdminMusicCardComponent : contains
+AdminMusicListComponent --> DeleteMusicModalComponent : opens
+AdminMusicListComponent --> BulkDeleteProgressComponent : contains
+AdminMusicListComponent --> AdminMusicFiltersComponent : contains
+
+DeleteMusicModalComponent --> DeletionImpactComponent : contains
+DeleteMusicModalComponent --> MusicBackupComponent : contains
+
+AdminMusicListComponent --> AdminMusicController : calls
+
+AdminMusicController --> AdminMusicService : uses
+
+AdminMusicService --> MusicRepository : uses
+AdminMusicService --> PlaylistMusicRepository : uses
+AdminMusicService --> UserFavoriteMusicRepository : uses
+AdminMusicService --> AdminValidationService : uses
+AdminMusicService --> MusicDeletionService : uses
+AdminMusicService --> MusicBackupService : uses
+AdminMusicService --> AdminAuditService : uses
+
+MusicDeletionService --> FileStorageService : uses
+MusicDeletionService --> PlaylistStatsService : uses
+MusicDeletionService --> UserActivityService : uses
+
+MusicBackupService --> FileStorageService : uses
+MusicBackupService --> MusicBackupRepository : uses
+
+AdminAuditService --> AdminAuditLogRepository : uses
+PlaylistStatsService --> PlaylistRepository : uses
+UserActivityService --> UserFavoriteMusicRepository : uses
+
+MusicRepository --> Music : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+UserFavoriteMusicRepository --> UserFavoriteMusic : manages
+MusicBackupRepository --> MusicBackup : manages
+AdminAuditLogRepository --> AdminAuditLog : manages
+PlaylistRepository --> Playlist : manages
+
+Music --> Category : belongs to
+Music --> User : uploaded by
+PlaylistMusic --> Music : references
+PlaylistMusic --> Playlist : belongs to
+UserFavoriteMusic --> Music : references
+UserFavoriteMusic --> User : belongs to
+MusicBackup --> Music : backs up
+AdminAuditLog --> User : performed by
+
+AdminMusicMapper --> AdminMusicDto : creates
+DeletionImpactMapper --> DeletionImpactDto : creates
+AdminAuditLogMapper --> AdminAuditLogDto : creates
+BackupResultMapper --> BackupResultDto : creates
+
+@enduml

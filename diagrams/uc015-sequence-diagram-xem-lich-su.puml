@@ -1,0 +1,130 @@
+@startuml UC015-Sequence-Diagram-Xem-Lich-Su
+!theme plain
+
+title Biểu đồ tuần tự - UC015: Xem lịch sử nghe nhạc
+
+actor User
+participant "Angular\nClient" as Client
+participant "UserMusic\nController" as Controller
+participant "UserMusic\nService" as Service
+participant "History\nRepository" as HistoryRepo
+participant "User\nRepository" as UserRepo
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "Lịch sử nghe"
+activate Client
+
+Client -> Client: Check authentication
+alt User authenticated
+    Client -> Controller: GET /api/user/music/history?page=0&size=20
+    activate Controller
+
+    Controller -> Controller: Extract userId from JWT token
+    Controller -> Controller: Create Pageable object
+
+    Controller -> Service: getUserListeningHistory(userId, pageable)
+    activate Service
+
+    ' Verify user exists
+    Service -> UserRepo: existsById(userId)
+    activate UserRepo
+    UserRepo -> DB: SELECT COUNT(*) FROM users WHERE id = ?
+    DB --> UserRepo: exists = true
+    UserRepo --> Service: true
+    deactivate UserRepo
+
+    ' Get history with pagination
+    Service -> HistoryRepo: findByUserIdOrderByPlayedAtDesc(userId, pageable)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT h.*, m.*, u.*\nFROM history h\nJOIN music m ON h.music_id = m.id\nJOIN users u ON h.user_id = u.id\nWHERE h.user_id = ?\nORDER BY h.played_at DESC\nLIMIT 20 OFFSET 0
+    DB --> HistoryRepo: Page<History> with music data
+    HistoryRepo --> Service: Page<History>
+    deactivate HistoryRepo
+
+    Service --> Controller: Page<History>
+    deactivate Service
+
+    Controller -> Controller: Convert to Page<HistoryDto>
+    Controller --> Client: 200 OK\nPage<HistoryDto>
+    deactivate Controller
+
+    Client -> Client: Display history list with pagination
+    Client -> Client: Show music info, play time, date
+    Client --> User: History list displayed
+
+    ' User requests statistics
+    User -> Client: Click "Thống kê"
+    Client -> Controller: GET /api/user/music/history/statistics
+    activate Controller
+
+    Controller -> Service: getHistoryStatistics(userId)
+    activate Service
+
+    ' Get total songs count
+    Service -> HistoryRepo: countByUserId(userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT COUNT(DISTINCT music_id) FROM history WHERE user_id = ?
+    DB --> HistoryRepo: count = 150
+    HistoryRepo --> Service: 150
+    deactivate HistoryRepo
+
+    ' Get total play time
+    Service -> HistoryRepo: getTotalPlayTimeByUserId(userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT SUM(play_duration) FROM history WHERE user_id = ?
+    DB --> HistoryRepo: totalTime = 180000 seconds
+    HistoryRepo --> Service: 180000
+    deactivate HistoryRepo
+
+    ' Get top played songs
+    Service -> HistoryRepo: findTopPlayedMusicByUserId(userId, 10)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT m.*, SUM(h.play_count) as total_plays\nFROM history h\nJOIN music m ON h.music_id = m.id\nWHERE h.user_id = ?\nGROUP BY m.id\nORDER BY total_plays DESC\nLIMIT 10
+    DB --> HistoryRepo: List of top music with play counts
+    HistoryRepo --> Service: List<Object[]>
+    deactivate HistoryRepo
+
+    Service -> Service: Build HistoryStatsDto
+    Service --> Controller: HistoryStatsDto
+    deactivate Service
+
+    Controller --> Client: 200 OK\nHistoryStatsDto
+    deactivate Controller
+
+    Client -> Client: Display statistics modal
+    Client --> User: "Bạn đã nghe 150 bài hát, tổng thời gian 50 giờ"
+
+    ' User wants to clear history
+    User -> Client: Click "Xóa lịch sử"
+    Client -> Client: Show confirmation dialog
+    User -> Client: Confirm deletion
+
+    Client -> Controller: DELETE /api/user/music/history
+    activate Controller
+
+    Controller -> Service: clearUserHistory(userId)
+    activate Service
+
+    Service -> HistoryRepo: deleteByUserId(userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: DELETE FROM history WHERE user_id = ?
+    DB --> HistoryRepo: rows deleted
+    HistoryRepo --> Service: void
+    deactivate HistoryRepo
+
+    Service --> Controller: void
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"message": "Đã xóa lịch sử thành công"}
+    deactivate Controller
+
+    Client -> Client: Clear history list
+    Client --> User: "Đã xóa toàn bộ lịch sử nghe nhạc"
+
+else User not authenticated
+    Client --> User: Redirect to login page
+end
+
+deactivate Client
+
+@enduml

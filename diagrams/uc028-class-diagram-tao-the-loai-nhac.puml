@@ -1,0 +1,234 @@
+@startuml UC028-Class-Diagram-Tao-The-Loai-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC028: Tạo thể loại nhạc mới (Admin)
+
+class AdminCategoryController {
+    + getAllCategories(page: int, size: int, search: String): ResponseEntity<Page<CategoryDto>>
+    + getCategoryById(id: Long): ResponseEntity<CategoryDto>
+    + createCategory(request: CreateCategoryRequest): ResponseEntity<CategoryDto>
+    + updateCategory(id: Long, request: UpdateCategoryRequest): ResponseEntity<CategoryDto>
+    + deleteCategory(id: Long): ResponseEntity<ApiResponse>
+    + uploadCategoryImage(id: Long, file: MultipartFile): ResponseEntity<ApiResponse>
+    + deleteCategoryImage(id: Long): ResponseEntity<ApiResponse>
+    + validateCategoryName(name: String): ResponseEntity<Boolean>
+    + getCategoryStatistics(id: Long): ResponseEntity<CategoryStatsDto>
+    + toggleCategoryStatus(id: Long): ResponseEntity<ApiResponse>
+}
+
+class AdminCategoryService {
+    + getAllCategories(pageable: Pageable, search: String): Page<Category>
+    + getCategoryById(id: Long): Category
+    + createCategory(request: CreateCategoryRequest): Category
+    + updateCategory(id: Long, request: UpdateCategoryRequest): Category
+    + deleteCategory(id: Long): void
+    + uploadCategoryImage(id: Long, file: MultipartFile): String
+    + deleteCategoryImage(id: Long): void
+    + validateCategoryNameUniqueness(name: String, currentId: Long): boolean
+    + getCategoryStatistics(id: Long): CategoryStatsDto
+    + toggleCategoryStatus(id: Long): boolean
+    + validateCategoryDeletion(id: Long): void
+}
+
+class Category {
+    - Long id
+    - String name
+    - String description
+    - String imageUrl
+    - String colorCode
+    - boolean isActive
+    - int displayOrder
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - User createdBy
+    - User updatedBy
+    - Set<Music> musicList
+    + getId(): Long
+    + getName(): String
+    + getDescription(): String
+    + getImageUrl(): String
+    + getColorCode(): String
+    + isActive(): boolean
+    + getDisplayOrder(): int
+}
+
+class CategoryRepository {
+    + save(category: Category): Category
+    + findById(id: Long): Optional<Category>
+    + findAll(pageable: Pageable): Page<Category>
+    + findByIsActiveTrue(pageable: Pageable): Page<Category>
+    + findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Category>
+    + existsByNameIgnoreCase(name: String): boolean
+    + existsByNameIgnoreCaseAndIdNot(name: String, id: Long): boolean
+    + findByIsActiveTrueOrderByDisplayOrderAsc(): List<Category>
+    + findMaxDisplayOrder(): Optional<Integer>
+    + countByIsActiveTrue(): Long
+    + countMusicByCategoryId(categoryId: Long): Long
+    + deleteById(id: Long): void
+}
+
+class MusicRepository {
+    + countByCategoryId(categoryId: Long): Long
+    + findByCategoryId(categoryId: Long): List<Music>
+    + updateCategoryToDefault(oldCategoryId: Long, defaultCategoryId: Long): void
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+}
+
+class FileStorageService {
+    + storeCategoryImage(file: MultipartFile, categoryId: Long): String
+    + deleteCategoryImage(fileName: String): void
+    + validateImageFile(file: MultipartFile): void
+    + generateUniqueFileName(originalFileName: String): String
+    + resizeImage(file: MultipartFile, width: int, height: int): byte[]
+}
+
+class ColorGeneratorService {
+    + generateRandomColor(): String
+    + generateColorPalette(baseColor: String): List<String>
+    + validateColorCode(colorCode: String): boolean
+    + getContrastingTextColor(backgroundColor: String): String
+}
+
+class CreateCategoryRequest {
+    + String name
+    + String description
+    + String colorCode
+    + int displayOrder
+}
+
+class UpdateCategoryRequest {
+    + String name
+    + String description
+    + String colorCode
+    + int displayOrder
+    + boolean isActive
+}
+
+class CategoryDto {
+    + Long id
+    + String name
+    + String description
+    + String imageUrl
+    + String colorCode
+    + boolean isActive
+    + int displayOrder
+    + LocalDateTime createdAt
+    + LocalDateTime updatedAt
+    + String createdByUsername
+    + String updatedByUsername
+    + int musicCount
+    + boolean canDelete
+    + boolean canEdit
+}
+
+class CategoryStatsDto {
+    + Long categoryId
+    + String categoryName
+    + int totalMusic
+    + int activeMusic
+    + int totalPlaylists
+    + int totalViews
+    + int totalDownloads
+    + LocalDateTime lastMusicAdded
+    + List<String> topArtists
+    + Map<String, Integer> musicByMonth
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - Category category
+    - boolean isActive
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - UserRole role
+}
+
+class CategoryMapper {
+    + toDto(category: Category): CategoryDto
+    + toDtoList(categories: List<Category>): List<CategoryDto>
+    + toEntity(request: CreateCategoryRequest): Category
+    + updateEntityFromRequest(category: Category, request: UpdateCategoryRequest): Category
+    + toStatsDto(category: Category, stats: CategoryStatistics): CategoryStatsDto
+}
+
+class CategoryValidationService {
+    + validateCategoryName(name: String): List<String>
+    + validateCategoryDescription(description: String): List<String>
+    + validateColorCode(colorCode: String): boolean
+    + validateDisplayOrder(order: int): boolean
+    + validateCategoryNameUniqueness(name: String, currentId: Long): void
+    + validateCategoryDeletion(categoryId: Long): void
+    + validateCategoryExists(categoryId: Long): Category
+}
+
+class CategoryStatistics {
+    + int musicCount
+    + int playlistCount
+    + int viewCount
+    + int downloadCount
+    + LocalDateTime lastActivity
+}
+
+' Relationships
+AdminCategoryController --> AdminCategoryService : uses
+AdminCategoryController --> CreateCategoryRequest : receives
+AdminCategoryController --> UpdateCategoryRequest : receives
+AdminCategoryController --> CategoryDto : returns
+AdminCategoryController --> CategoryStatsDto : returns
+
+AdminCategoryService --> CategoryRepository : uses
+AdminCategoryService --> MusicRepository : uses
+AdminCategoryService --> UserRepository : uses
+AdminCategoryService --> FileStorageService : uses
+AdminCategoryService --> ColorGeneratorService : uses
+AdminCategoryService --> CategoryMapper : uses
+AdminCategoryService --> CategoryValidationService : uses
+
+CategoryRepository --> Category : manages
+Category --> Music : contains
+Category --> User : created by
+Music --> Category : belongs to
+
+CategoryMapper --> Category : maps
+CategoryMapper --> CategoryDto : creates
+CategoryValidationService --> Category : validates
+
+note right of AdminCategoryService
+  Business rules:
+  - Only ADMIN can create categories
+  - Category name must be unique
+  - Default color if not provided
+  - Auto-generate display order
+  - Validate before deletion
+  - Image optimization
+end note
+
+note bottom of Category
+  Category constraints:
+  - Name: 1-100 characters, unique
+  - Description: max 500 characters
+  - Color: valid hex code
+  - Display order: positive integer
+  - Image: max 5MB, JPG/PNG
+  - Soft delete capability
+end note
+
+note left of CategoryValidationService
+  Validation rules:
+  - Name uniqueness check
+  - Color code format validation
+  - Description length limits
+  - Display order validation
+  - Deletion impact analysis
+end note
+
+@enduml

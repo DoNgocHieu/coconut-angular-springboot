@@ -1,0 +1,113 @@
+@startuml UC020-Upload-Nhac-Admin
+!theme plain
+title UC020 - Upload Nhạc Mới (Admin)
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Admin - Upload Nhạc Mới" {
+    frame "Page Header" as header {
+        rectangle "🎵 Quản Lý Nhạc" as page_title
+        rectangle "👨‍💼 Admin Panel" as admin_badge #lightgreen
+        rectangle "↩️ Back to Music List" as back_btn
+    }
+
+    frame "File Upload Section" as upload_section {
+        rectangle "🎵 Audio File Upload *" as audio_upload #lightgreen
+        rectangle "📁 Drag & Drop MP3/FLAC/WAV" as drag_audio
+        rectangle "🖱️ Browse Audio Files" as browse_audio
+        rectangle "✅ Max Size: 50MB" as audio_limit
+        rectangle "📊 Upload Progress: 75%" as upload_progress #yellow
+    }
+
+    frame "Song Metadata Form" as metadata {
+        rectangle "🎵 Tên Bài Hát *" as song_title #lightgreen
+        rectangle "👤 Nghệ Sĩ *" as artist_name #lightgreen
+        rectangle "💿 Album" as album_name
+        rectangle "🏷️ Thể Loại *" as genre_select #lightgreen
+        rectangle "📅 Năm Phát Hành" as release_year
+        rectangle "📝 Mô Tả" as song_description
+    }
+
+    frame "Cover Image Upload" as cover_section {
+        rectangle "🖼️ Ảnh Bìa" as cover_upload
+        rectangle "📁 Upload JPG/PNG" as cover_drag
+        rectangle "👁️ Preview 300x300" as cover_preview #lightyellow
+        rectangle "✂️ Auto Crop & Resize" as auto_resize
+    }
+
+    frame "Category & Tags" as categorization {
+        rectangle "🆕 New Music" as new_music_tag
+        rectangle "🔥 Trending" as trending_tag
+        rectangle "📈 Top View" as top_view_tag
+        rectangle "🎼 VN LoFi" as vn_lofi_tag
+        rectangle "⭐ Featured" as featured_tag
+    }
+
+    frame "Audio Processing" as processing {
+        rectangle "🔊 Audio Quality Check" as quality_check
+        rectangle "⏱️ Duration: Auto Detect" as duration_detect
+        rectangle "🎛️ Bitrate: 320kbps" as bitrate_info
+        rectangle "🔉 Volume Normalization" as normalize
+        rectangle "🎵 Waveform Generation" as waveform
+    }
+
+    frame "Validation & Errors" as validation {
+        rectangle "✅ All Fields Valid" as all_valid #lightgreen
+        rectangle "❌ Missing Required Fields" as missing_fields #lightcoral
+        rectangle "❌ Invalid Audio Format" as invalid_audio #lightcoral
+        rectangle "❌ Duplicate Song Detected" as duplicate_song #orange
+        rectangle "⚠️ Large File Warning" as large_file #yellow
+    }
+
+    frame "Action Buttons" as actions {
+        rectangle "💾 Save as Draft" as save_draft
+        rectangle "👁️ Preview" as preview_btn
+        rectangle "🚀 Publish Song" as publish_btn #lightgreen
+        rectangle "🚫 Cancel" as cancel_btn
+    }
+
+    frame "Success State" as success {
+        rectangle "🎉 Upload Successful!" as success_msg #lightgreen
+        rectangle "🎵 Song: 'New Song Title'" as uploaded_song
+        rectangle "🔗 Song ID: #12345" as song_id
+        rectangle "👀 View Song" as view_song
+        rectangle "➕ Upload Another" as upload_another
+    }
+}
+
+' Flow connections
+audio_upload --> drag_audio
+drag_audio --> upload_progress
+upload_progress --> quality_check
+
+song_title --> artist_name
+artist_name --> genre_select
+genre_select --> cover_upload
+
+cover_upload --> cover_preview
+cover_preview --> auto_resize
+
+quality_check --> duration_detect
+duration_detect --> waveform
+
+all_valid --> publish_btn
+missing_fields --> song_title : "Fix Errors"
+invalid_audio --> audio_upload : "Re-upload"
+
+publish_btn --> success_msg
+success_msg --> view_song
+success_msg --> upload_another
+
+preview_btn ..> "Preview Player" : "Test Playback"
+save_draft ..> "Saved to Drafts" : "Save Progress"
+
+footer UC020 - Upload Nhạc: Admin interface upload và publish nhạc mới
+@enduml

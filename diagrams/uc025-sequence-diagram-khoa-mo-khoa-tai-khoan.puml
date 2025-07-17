@@ -1,0 +1,327 @@
+@startuml UC025-Sequence-Diagram-Khoa-Mo-Khoa-Tai-Khoan
+!theme plain
+
+title Biểu đồ trình tự - UC025: Khóa/mở khóa tài khoản (Admin)
+
+actor Admin
+participant "Angular\nAdmin Panel" as Client
+participant "AdminUser\nController" as Controller
+participant "AdminUser\nService" as Service
+participant "User\nValidationService" as ValidationService
+participant "User\nRepository" as UserRepo
+participant "UserBanHistory\nRepository" as BanHistoryRepo
+participant "UserSession\nService" as SessionService
+participant "Email\nNotificationService" as EmailService
+participant "User\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+Admin -> Client: Navigate to "Quản lý người dùng" > Click "Khóa tài khoản" on user
+activate Client
+
+' Load user details
+Client -> Controller: GET /api/admin/users/123
+activate Controller
+
+Controller -> Controller: Verify admin role from JWT
+
+Controller -> Service: getUserForManagement(userId=123)
+activate Service
+
+Service -> ValidationService: validateUserExists(userId)
+activate ValidationService
+ValidationService -> UserRepo: findById(userId)
+activate UserRepo
+UserRepo -> DB: SELECT u.*, banned_by.username as banned_by_name, locked_by.username as locked_by_name\nFROM users u\nLEFT JOIN users banned_by ON u.banned_by = banned_by.id\nLEFT JOIN users locked_by ON u.locked_by = locked_by.id\nWHERE u.id = ?
+DB --> UserRepo: User entity with ban/lock info
+UserRepo --> ValidationService: Optional<User>
+deactivate UserRepo
+ValidationService --> Service: User entity
+deactivate ValidationService
+
+Service -> Mapper: toDetailDto(user)
+activate Mapper
+Mapper -> Mapper: Convert User to UserDetailDto\nwith ban/lock status details
+Mapper --> Service: UserDetailDto
+deactivate Mapper
+
+Service --> Controller: UserDetailDto
+deactivate Service
+
+Controller --> Client: 200 OK\nUserDetailDto
+deactivate Controller
+
+Client -> Client: Display user info with current status
+Client -> Client: Show ban/lock action buttons based on current status
+Client --> Admin: User details with action options displayed
+
+' Admin wants to ban user
+Admin -> Client: Click "Cấm tài khoản"
+Client -> Client: Open ban dialog
+Admin -> Client: Fill ban form (reason, duration, type)
+Admin -> Client: Select "Vi phạm quy định cộng đồng", duration=7 days, type=TEMPORARY
+Admin -> Client: Check "Gửi thông báo email"
+Admin -> Client: Click "Cấm tài khoản"
+
+Client -> Controller: POST /api/admin/users/123/ban\n{banType: "TEMPORARY", reason: "Vi phạm quy định cộng đồng", durationDays: 7, sendNotification: true, invalidateSessions: true}
+activate Controller
+
+Controller -> Controller: Extract adminId from JWT token
+Controller -> Controller: Validate request data
+
+Controller -> Service: banUser(userId=123, adminId, request)
+activate Service
+
+' Validate ban permission
+Service -> ValidationService: validateBanPermission(targetUser, adminUser)
+activate ValidationService
+
+Service -> UserRepo: findById(adminId)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users WHERE id = ?
+DB --> UserRepo: Admin user entity
+UserRepo --> Service: Admin user
+deactivate UserRepo
+
+ValidationService -> ValidationService: Check admin.role has permission to ban targetUser.role
+ValidationService -> ValidationService: Check targetUser.id != adminUser.id
+alt Can ban user
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Check if user is already banned
+    Service -> BanHistoryRepo: findByUserIdAndIsActiveTrue(userId)
+    activate BanHistoryRepo
+    BanHistoryRepo -> DB: SELECT * FROM user_ban_history\nWHERE user_id = ? AND is_active = true AND unbanned_at IS NULL
+    DB --> BanHistoryRepo: Optional empty (no active ban)
+    BanHistoryRepo --> Service: Optional.empty()
+    deactivate BanHistoryRepo
+
+    alt User not currently banned
+        ' Calculate ban expiry
+        Service -> Service: calculateBanExpiry(TEMPORARY, 7 days)
+        Service -> Service: bannedUntil = now() + 7 days
+
+        ' Update user status
+        Service -> Service: user.setStatus(BANNED)
+        Service -> Service: user.setBannedAt(now())
+        Service -> Service: user.setBannedUntil(bannedUntil)
+        Service -> Service: user.setBanReason(reason)
+        Service -> Service: user.setBannedBy(admin)
+
+        Service -> UserRepo: save(user)
+        activate UserRepo
+        UserRepo -> DB: UPDATE users SET\nstatus = 'BANNED',\nbanned_at = NOW(),\nbanned_until = ?,\nban_reason = ?,\nbanned_by = ?,\nupdated_at = NOW()\nWHERE id = 123
+        DB --> UserRepo: Updated user
+        UserRepo --> Service: User
+        deactivate UserRepo
+
+        ' Create ban history record
+        Service -> Service: Create new UserBanHistory(user, admin, banType, reason, bannedAt, bannedUntil)
+        Service -> BanHistoryRepo: save(banHistory)
+        activate BanHistoryRepo
+        BanHistoryRepo -> DB: INSERT INTO user_ban_history\n(user_id, banned_by, ban_type, reason, banned_at, banned_until, is_active)\nVALUES (123, adminId, 'TEMPORARY', 'Vi phạm quy định cộng đồng', NOW(), ?, true)
+        DB --> BanHistoryRepo: Ban history saved
+        BanHistoryRepo --> Service: UserBanHistory
+        deactivate BanHistoryRepo
+
+        ' Invalidate user sessions if requested
+        alt invalidateSessions = true
+            Service -> SessionService: invalidateAllUserSessions(userId)
+            activate SessionService
+            SessionService -> SessionService: Force logout from all devices
+            SessionService -> SessionService: Invalidate JWT tokens
+            SessionService --> Service: void
+            deactivate SessionService
+        end
+
+        ' Send email notification if requested
+        alt sendNotification = true
+            Service -> EmailService: sendBanNotification(user, banHistory)
+            activate EmailService
+            EmailService -> EmailService: Prepare ban notification email
+            EmailService -> EmailService: Send email to user.email
+            EmailService --> Service: void
+            deactivate EmailService
+        end
+
+        Service --> Controller: void (success)
+        deactivate Service
+
+        Controller --> Client: 200 OK\n{"message": "Đã cấm tài khoản thành công"}
+        deactivate Controller
+
+        Client -> Client: Update user status display
+        Client -> Client: Show success notification
+        Client -> Client: Update action buttons (show "Bỏ cấm" button)
+        Client --> Admin: "Đã cấm tài khoản trong 7 ngày"
+
+    else User already banned
+        Service --> Controller: throw UserAlreadyBannedException
+        Controller --> Client: 409 Conflict\n{"error": "Tài khoản đã bị cấm"}
+        Client --> Admin: Show error message
+    end
+
+else Cannot ban user
+    ValidationService --> Service: throw InsufficientPermissionException
+    Service --> Controller: throw ForbiddenException
+    Controller --> Client: 403 Forbidden\n{"error": "Không có quyền cấm tài khoản này"}
+    Client --> Admin: Show permission error
+end
+
+' Admin wants to unban user
+Admin -> Client: Click "Bỏ cấm tài khoản"
+Client -> Client: Open unban dialog
+Admin -> Client: Enter unban reason: "Đã xem xét lại và quyết định bỏ cấm"
+Admin -> Client: Check "Gửi thông báo email"
+Admin -> Client: Click "Bỏ cấm"
+
+Client -> Controller: POST /api/admin/users/123/unban\n{reason: "Đã xem xét lại và quyết định bỏ cấm", sendNotification: true}
+activate Controller
+
+Controller -> Service: unbanUser(userId=123, adminId, request)
+activate Service
+
+' Find active ban
+Service -> BanHistoryRepo: findByUserIdAndIsActiveTrue(userId)
+activate BanHistoryRepo
+BanHistoryRepo -> DB: SELECT * FROM user_ban_history\nWHERE user_id = ? AND is_active = true AND unbanned_at IS NULL
+DB --> BanHistoryRepo: Active ban record
+BanHistoryRepo --> Service: UserBanHistory
+deactivate BanHistoryRepo
+
+alt Active ban found
+    ' Update user status
+    Service -> Service: user.setStatus(ACTIVE)
+    Service -> Service: user.setBannedAt(null)
+    Service -> Service: user.setBannedUntil(null)
+    Service -> Service: user.setBanReason(null)
+    Service -> Service: user.setBannedBy(null)
+
+    Service -> UserRepo: save(user)
+    activate UserRepo
+    UserRepo -> DB: UPDATE users SET\nstatus = 'ACTIVE',\nbanned_at = NULL,\nbanned_until = NULL,\nban_reason = NULL,\nbanned_by = NULL,\nupdated_at = NOW()\nWHERE id = 123
+    DB --> UserRepo: Updated user
+    UserRepo --> Service: User
+    deactivate UserRepo
+
+    ' Update ban history
+    Service -> Service: banHistory.setUnbannedAt(now())
+    Service -> Service: banHistory.setUnbannedBy(admin)
+    Service -> Service: banHistory.setUnbanReason(reason)
+    Service -> Service: banHistory.setActive(false)
+
+    Service -> BanHistoryRepo: save(banHistory)
+    activate BanHistoryRepo
+    BanHistoryRepo -> DB: UPDATE user_ban_history SET\nunbanned_at = NOW(),\nunbanned_by = ?,\nunban_reason = ?,\nis_active = false\nWHERE id = ?
+    DB --> BanHistoryRepo: Updated ban history
+    BanHistoryRepo --> Service: UserBanHistory
+    deactivate BanHistoryRepo
+
+    ' Send unban notification if requested
+    alt sendNotification = true
+        Service -> EmailService: sendUnbanNotification(user, banHistory)
+        activate EmailService
+        EmailService -> EmailService: Prepare unban notification email
+        EmailService -> EmailService: Send email to user.email
+        EmailService --> Service: void
+        deactivate EmailService
+    end
+
+    Service --> Controller: void (success)
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"message": "Đã bỏ cấm tài khoản thành công"}
+    deactivate Controller
+
+    Client -> Client: Update user status display
+    Client -> Client: Show success notification
+    Client -> Client: Update action buttons (show "Cấm" button)
+    Client --> Admin: "Đã bỏ cấm tài khoản thành công"
+
+else No active ban found
+    Service --> Controller: throw UserNotBannedException
+    Controller --> Client: 400 Bad Request\n{"error": "Tài khoản không bị cấm"}
+    Client --> Admin: Show error message
+end
+
+' Admin wants to lock user temporarily
+Admin -> Client: Click "Khóa tạm thời"
+Client -> Client: Open lock dialog
+Admin -> Client: Select lock reason: "SUSPICIOUS_ACTIVITY"
+Admin -> Client: Enter custom reason: "Hoạt động đáng ngờ từ nhiều IP"
+Admin -> Client: Set duration: 24 hours
+Admin -> Client: Click "Khóa tài khoản"
+
+Client -> Controller: POST /api/admin/users/123/lock\n{lockReason: "SUSPICIOUS_ACTIVITY", customReason: "...", lockDurationHours: 24, sendNotification: true, invalidateSessions: true}
+activate Controller
+
+Controller -> Service: lockUser(userId=123, adminId, request)
+activate Service
+
+' Update user status
+Service -> Service: user.setStatus(LOCKED)
+Service -> Service: user.setLockedAt(now())
+Service -> Service: user.setLockedUntil(now() + 24 hours)
+Service -> Service: user.setLockReason(customReason)
+Service -> Service: user.setLockedBy(admin)
+
+Service -> UserRepo: save(user)
+activate UserRepo
+UserRepo -> DB: UPDATE users SET\nstatus = 'LOCKED',\nlocked_at = NOW(),\nlocked_until = ?,\nlock_reason = ?,\nlocked_by = ?,\nupdated_at = NOW()\nWHERE id = 123
+DB --> UserRepo: Updated user
+UserRepo --> Service: User
+deactivate UserRepo
+
+' Invalidate sessions and send notification
+Service -> SessionService: invalidateAllUserSessions(userId)
+activate SessionService
+SessionService --> Service: void
+deactivate SessionService
+
+Service -> EmailService: sendLockNotification(user, lockReason)
+activate EmailService
+EmailService --> Service: void
+deactivate EmailService
+
+Service --> Controller: void (success)
+deactivate Service
+
+Controller --> Client: 200 OK\n{"message": "Đã khóa tài khoản trong 24 giờ"}
+deactivate Controller
+
+Client -> Client: Update user status display
+Client --> Admin: "Đã khóa tài khoản trong 24 giờ"
+
+' Admin wants to view ban history
+Admin -> Client: Click "Xem lịch sử cấm"
+
+Client -> Controller: GET /api/admin/users/123/ban-history
+activate Controller
+
+Controller -> Service: getUserBanHistory(userId=123)
+activate Service
+
+Service -> BanHistoryRepo: findByUserIdOrderByBannedAtDesc(userId)
+activate BanHistoryRepo
+BanHistoryRepo -> DB: SELECT bh.*, banned_by.username as banned_by_name, unbanned_by.username as unbanned_by_name\nFROM user_ban_history bh\nJOIN users banned_by ON bh.banned_by = banned_by.id\nLEFT JOIN users unbanned_by ON bh.unbanned_by = unbanned_by.id\nWHERE bh.user_id = ?\nORDER BY bh.banned_at DESC
+DB --> BanHistoryRepo: List<UserBanHistory> with admin info
+BanHistoryRepo --> Service: List<UserBanHistory>
+deactivate BanHistoryRepo
+
+Service -> Mapper: toBanHistoryDtoList(histories)
+activate Mapper
+Mapper --> Service: List<UserBanHistoryDto>
+deactivate Mapper
+
+Service --> Controller: List<UserBanHistoryDto>
+deactivate Service
+
+Controller --> Client: 200 OK\nList<UserBanHistoryDto>
+deactivate Controller
+
+Client -> Client: Display ban history timeline
+Client --> Admin: "Lịch sử: 3 lần bị cấm, 2 lần được bỏ cấm"
+
+deactivate Client
+
+@enduml

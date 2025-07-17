@@ -1,0 +1,9 @@
+@startuml UC019-Playlist-Cong-Khai
+!theme plain
+
+actor User
+usecase "Xem playlist công khai" as UC019
+
+User --> UC019
+
+@enduml

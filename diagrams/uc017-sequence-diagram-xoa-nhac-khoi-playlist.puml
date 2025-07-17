@@ -1,0 +1,344 @@
+@startuml UC017-Sequence-Diagram-Xoa-Nhac-Khoi-Playlist
+!theme plain
+
+title Biểu đồ tuần tự - UC017: Xóa nhạc khỏi playlist
+
+actor User as "Người dùng"
+participant Browser as "Browser"
+participant PlaylistDetailComponent as "PlaylistDetail\nComponent"
+participant MusicItemComponent as "MusicItem\nComponent"
+participant RemoveConfirmModal as "RemoveConfirm\nModal"
+participant BulkActionsComponent as "BulkActions\nComponent"
+participant PlaylistService as "PlaylistService\n(Frontend)"
+participant PlaylistController as "PlaylistController"
+participant PlaylistService_BE as "PlaylistService\n(Backend)"
+participant PlaylistValidationService as "Playlist\nValidationService"
+participant PlaylistMusicRepository as "PlaylistMusic\nRepository"
+participant PlaylistRepository as "Playlist\nRepository"
+participant PlaylistStatsService as "PlaylistStats\nService"
+participant UndoService as "UndoService"
+participant UndoSnackbar as "UndoSnackbar\nComponent"
+participant Database as "Database"
+
+== Truy cập trang chi tiết playlist ==
+
+User -> Browser: Truy cập playlist detail page
+Browser -> PlaylistDetailComponent: ngOnInit()
+PlaylistDetailComponent -> PlaylistService: getPlaylistDetail(playlistId)
+PlaylistService -> PlaylistController: GET /api/playlists/{id}
+PlaylistController -> PlaylistService_BE: getPlaylistDetail(playlistId, userId)
+PlaylistService_BE -> PlaylistValidationService: validatePlaylistExists(playlistId)
+PlaylistValidationService -> PlaylistRepository: findByIdAndDeletedFalse(playlistId)
+PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND deleted = false
+Database --> PlaylistRepository: Playlist data
+PlaylistRepository --> PlaylistValidationService: Playlist entity
+PlaylistValidationService --> PlaylistService_BE: Validation passed
+
+PlaylistService_BE -> PlaylistMusicRepository: findByPlaylistIdOrderByOrderIndex(playlistId)
+PlaylistMusicRepository -> Database: SELECT * FROM playlist_musics WHERE playlist_id = ? ORDER BY order_index
+Database --> PlaylistMusicRepository: List<PlaylistMusic>
+PlaylistMusicRepository --> PlaylistService_BE: Playlist musics
+
+PlaylistService_BE -> PlaylistService_BE: buildPlaylistDetailDto(playlist, musics, userId)
+PlaylistService_BE --> PlaylistController: PlaylistDetailDto
+PlaylistController --> PlaylistService: PlaylistDetailDto
+PlaylistService --> PlaylistDetailComponent: Playlist detail loaded
+PlaylistDetailComponent -> PlaylistDetailComponent: Initialize music list and check permissions
+
+== Chế độ xóa đơn lẻ ==
+
+alt Xóa một bài hát
+    User -> MusicItemComponent: Click nút "Remove" trên bài hát
+    MusicItemComponent -> MusicItemComponent: Kiểm tra quyền xóa (isOwner)
+
+    alt Có quyền xóa
+        MusicItemComponent -> PlaylistDetailComponent: removeSingleMusic(musicId)
+        PlaylistDetailComponent -> RemoveConfirmModal: open(musicToRemove)
+        RemoveConfirmModal -> RemoveConfirmModal: Show confirmation dialog
+        RemoveConfirmModal --> User: Hiển thị modal xác nhận
+
+        User -> RemoveConfirmModal: Click "Xác nhận xóa"
+        RemoveConfirmModal -> RemoveConfirmModal: isRemoving = true
+        RemoveConfirmModal -> PlaylistDetailComponent: confirmRemove()
+
+        PlaylistDetailComponent -> PlaylistService: removeMusicFromPlaylist(playlistId, musicId)
+        PlaylistService -> PlaylistController: DELETE /api/playlists/{playlistId}/musics/{musicId}
+        PlaylistController -> PlaylistService_BE: removeMusicFromPlaylist(playlistId, musicId, userId)
+
+        PlaylistService_BE -> PlaylistValidationService: validatePlaylistOwnership(playlistId, userId)
+        PlaylistValidationService -> PlaylistRepository: findByIdAndUserIdAndDeletedFalse(playlistId, userId)
+        PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND user_id = ? AND deleted = false
+        Database --> PlaylistRepository: Playlist data
+        PlaylistRepository --> PlaylistValidationService: Ownership confirmed
+        PlaylistValidationService --> PlaylistService_BE: Validation passed
+
+        PlaylistService_BE -> PlaylistValidationService: validateMusicInPlaylist(playlistId, musicId)
+        PlaylistValidationService -> PlaylistMusicRepository: existsByPlaylistIdAndMusicId(playlistId, musicId)
+        PlaylistMusicRepository -> Database: SELECT COUNT(*) FROM playlist_musics WHERE playlist_id = ? AND music_id = ?
+        Database --> PlaylistMusicRepository: Count result
+        PlaylistMusicRepository --> PlaylistValidationService: Music exists in playlist
+        PlaylistValidationService --> PlaylistService_BE: Music validation passed
+
+        PlaylistService_BE -> PlaylistMusicRepository: findByPlaylistIdAndMusicId(playlistId, musicId)
+        PlaylistMusicRepository -> Database: SELECT * FROM playlist_musics WHERE playlist_id = ? AND music_id = ?
+        Database --> PlaylistMusicRepository: PlaylistMusic entity
+        PlaylistMusicRepository --> PlaylistService_BE: PlaylistMusic to remove
+
+        PlaylistService_BE -> UndoService: createUndoAction(playlistId, [playlistMusic], userId)
+        UndoService -> UndoService: Serialize undo data
+        UndoService -> Database: INSERT INTO undo_actions (user_id, action_type, playlist_id, undo_data, expiry_time)
+        Database --> UndoService: UndoAction saved
+        UndoService --> PlaylistService_BE: UndoActionDto
+
+        PlaylistService_BE -> PlaylistMusicRepository: deleteByPlaylistIdAndMusicId(playlistId, musicId)
+        PlaylistMusicRepository -> Database: DELETE FROM playlist_musics WHERE playlist_id = ? AND music_id = ?
+        Database --> PlaylistMusicRepository: Music removed
+        PlaylistMusicRepository --> PlaylistService_BE: Deletion completed
+
+        PlaylistService_BE -> PlaylistService_BE: reorderAfterRemoval(playlistId, removedPosition)
+        PlaylistService_BE -> PlaylistMusicRepository: reorderAfterPosition(playlistId, removedPosition)
+        PlaylistMusicRepository -> Database: UPDATE playlist_musics SET order_index = order_index - 1 WHERE playlist_id = ? AND order_index > ?
+        Database --> PlaylistMusicRepository: Positions updated
+        PlaylistMusicRepository --> PlaylistService_BE: Reordering completed
+
+        PlaylistService_BE -> PlaylistStatsService: updatePlaylistAfterRemoval(playlistId, removedDuration)
+        PlaylistStatsService -> PlaylistRepository: decrementMusicCount(playlistId, 1)
+        PlaylistRepository -> Database: UPDATE playlists SET music_count = music_count - 1, total_duration = total_duration - ? WHERE id = ?
+        Database --> PlaylistRepository: Stats updated
+        PlaylistRepository --> PlaylistStatsService: Update completed
+        PlaylistStatsService --> PlaylistService_BE: Stats updated
+
+        PlaylistService_BE --> PlaylistController: Removal successful
+        PlaylistController --> PlaylistService: Success response
+        PlaylistService --> PlaylistDetailComponent: Music removed successfully
+
+        PlaylistDetailComponent -> PlaylistDetailComponent: updateLocalState()
+        PlaylistDetailComponent -> PlaylistDetailComponent: Remove music from local array
+        PlaylistDetailComponent -> PlaylistDetailComponent: Update music positions
+        PlaylistDetailComponent -> PlaylistDetailComponent: Update playlist stats
+
+        PlaylistDetailComponent -> UndoSnackbar: showUndoOption(undoActionDto)
+        UndoSnackbar -> UndoSnackbar: Start countdown timer
+        UndoSnackbar --> User: Hiển thị thông báo "Đã xóa" với tùy chọn hoàn tác
+
+        RemoveConfirmModal -> RemoveConfirmModal: close()
+        RemoveConfirmModal --> PlaylistDetailComponent: Modal closed
+
+    else Không có quyền xóa
+        MusicItemComponent --> User: Hiển thị thông báo lỗi "Không có quyền xóa"
+    end
+end
+
+== Chế độ xóa hàng loạt ==
+
+alt Xóa nhiều bài hát
+    User -> PlaylistDetailComponent: Click "Chỉnh sửa playlist"
+    PlaylistDetailComponent -> PlaylistDetailComponent: toggleEditMode()
+    PlaylistDetailComponent -> PlaylistDetailComponent: isEditing = true
+    PlaylistDetailComponent -> BulkActionsComponent: setVisible(true)
+    BulkActionsComponent --> User: Hiển thị bulk actions bar
+
+    User -> MusicItemComponent: Click checkbox trên nhiều bài hát
+    loop Chọn từng bài hát
+        MusicItemComponent -> PlaylistDetailComponent: selectMusic(musicId)
+        PlaylistDetailComponent -> PlaylistDetailComponent: Add to selectedMusicIds
+        PlaylistDetailComponent -> BulkActionsComponent: updateSelectedCount(selectedMusicIds.length)
+        BulkActionsComponent -> BulkActionsComponent: Update selected count display
+    end
+
+    User -> BulkActionsComponent: Click "Xóa đã chọn"
+    BulkActionsComponent -> PlaylistDetailComponent: removeSelectedMusics()
+
+    PlaylistDetailComponent -> PlaylistDetailComponent: Validate selection not empty
+
+    alt Có bài hát được chọn
+        PlaylistDetailComponent -> RemoveConfirmModal: open(selectedMusics)
+        RemoveConfirmModal -> RemoveConfirmModal: isMultipleRemoval = true
+        RemoveConfirmModal -> RemoveConfirmModal: Show bulk removal confirmation
+        RemoveConfirmModal --> User: Hiển thị modal xác nhận xóa nhiều bài
+
+        User -> RemoveConfirmModal: Click "Xác nhận xóa tất cả"
+        RemoveConfirmModal -> RemoveConfirmModal: isRemoving = true
+        RemoveConfirmModal -> PlaylistDetailComponent: confirmBulkRemove()
+
+        PlaylistDetailComponent -> PlaylistService: removeMusicsBulk(playlistId, selectedMusicIds)
+        PlaylistService -> PlaylistController: DELETE /api/playlists/{playlistId}/musics/bulk
+        PlaylistController -> PlaylistService_BE: removeMusicsBulk(playlistId, musicIds, userId)
+
+        PlaylistService_BE -> PlaylistValidationService: validatePlaylistOwnership(playlistId, userId)
+        PlaylistValidationService --> PlaylistService_BE: Ownership validated
+
+        PlaylistService_BE -> PlaylistValidationService: validateBulkRemoveRequest(request)
+        PlaylistValidationService -> PlaylistValidationService: Check musicIds not empty
+        PlaylistValidationService -> PlaylistValidationService: Check reasonable batch size
+        PlaylistValidationService --> PlaylistService_BE: Bulk request validated
+
+        PlaylistService_BE -> PlaylistMusicRepository: findByPlaylistIdAndMusicIdIn(playlistId, musicIds)
+        PlaylistMusicRepository -> Database: SELECT * FROM playlist_musics WHERE playlist_id = ? AND music_id IN (?)
+        Database --> PlaylistMusicRepository: List<PlaylistMusic> to remove
+        PlaylistMusicRepository --> PlaylistService_BE: Musics to remove
+
+        PlaylistService_BE -> UndoService: createUndoAction(playlistId, musicsToRemove, userId)
+        UndoService -> UndoService: Serialize bulk undo data
+        UndoService -> Database: INSERT INTO undo_actions
+        Database --> UndoService: Bulk undo action saved
+        UndoService --> PlaylistService_BE: BulkUndoActionDto
+
+        PlaylistService_BE -> PlaylistMusicRepository: deleteByPlaylistIdAndMusicIdIn(playlistId, musicIds)
+        PlaylistMusicRepository -> Database: DELETE FROM playlist_musics WHERE playlist_id = ? AND music_id IN (?)
+        Database --> PlaylistMusicRepository: Bulk deletion completed
+        PlaylistMusicRepository --> PlaylistService_BE: {removedCount} musics removed
+
+        PlaylistService_BE -> PlaylistService_BE: reorderAfterBulkRemoval(playlistId, removedPositions)
+        PlaylistService_BE -> PlaylistMusicRepository: reorderAfterPositions(playlistId, removedPositions)
+        PlaylistMusicRepository -> Database: Complex reordering query
+        Database --> PlaylistMusicRepository: All positions updated
+        PlaylistMusicRepository --> PlaylistService_BE: Bulk reordering completed
+
+        PlaylistService_BE -> PlaylistStatsService: recalculatePlaylistStats(playlistId)
+        PlaylistStatsService -> PlaylistMusicRepository: countByPlaylistId(playlistId)
+        PlaylistMusicRepository -> Database: SELECT COUNT(*) FROM playlist_musics WHERE playlist_id = ?
+        Database --> PlaylistMusicRepository: New music count
+        PlaylistMusicRepository --> PlaylistStatsService: Current music count
+
+        PlaylistStatsService -> PlaylistMusicRepository: sumDurationByPlaylistId(playlistId)
+        PlaylistMusicRepository -> Database: SELECT SUM(m.duration) FROM playlist_musics pm JOIN musics m ON pm.music_id = m.id WHERE pm.playlist_id = ?
+        Database --> PlaylistMusicRepository: New total duration
+        PlaylistMusicRepository --> PlaylistStatsService: Current total duration
+
+        PlaylistStatsService -> PlaylistRepository: updatePlaylistStats(playlistId, newCount, newDuration)
+        PlaylistRepository -> Database: UPDATE playlists SET music_count = ?, total_duration = ? WHERE id = ?
+        Database --> PlaylistRepository: Stats updated
+        PlaylistRepository --> PlaylistStatsService: Update completed
+        PlaylistStatsService --> PlaylistService_BE: Stats recalculated
+
+        PlaylistService_BE -> PlaylistService_BE: buildBulkRemoveResult()
+        PlaylistService_BE --> PlaylistController: BulkRemoveResultDto
+        PlaylistController --> PlaylistService: Bulk removal result
+        PlaylistService --> PlaylistDetailComponent: Bulk removal successful
+
+        PlaylistDetailComponent -> PlaylistDetailComponent: updateAfterBulkRemoval(result)
+        PlaylistDetailComponent -> PlaylistDetailComponent: Remove selected musics from local array
+        PlaylistDetailComponent -> PlaylistDetailComponent: Clear selection
+        PlaylistDetailComponent -> PlaylistDetailComponent: Update all positions
+        PlaylistDetailComponent -> PlaylistDetailComponent: Update playlist stats
+        PlaylistDetailComponent -> BulkActionsComponent: clearSelection()
+        BulkActionsComponent -> BulkActionsComponent: Reset selection state
+
+        PlaylistDetailComponent -> UndoSnackbar: showBulkUndoOption(result.undoId, result.removedCount)
+        UndoSnackbar -> UndoSnackbar: Start countdown for bulk undo
+        UndoSnackbar --> User: Hiển thị "Đã xóa {count} bài hát" với tùy chọn hoàn tác
+
+        RemoveConfirmModal -> RemoveConfirmModal: close()
+
+    else Không có bài hát nào được chọn
+        PlaylistDetailComponent --> User: Hiển thị thông báo "Vui lòng chọn ít nhất một bài hát"
+    end
+end
+
+== Chức năng hoàn tác (Undo) ==
+
+alt Người dùng chọn hoàn tác
+    User -> UndoSnackbar: Click "Hoàn tác"
+    UndoSnackbar -> PlaylistDetailComponent: executeUndo(undoId)
+
+    PlaylistDetailComponent -> PlaylistService: undoRemoveMusic(playlistId, undoId)
+    PlaylistService -> PlaylistController: POST /api/playlists/{playlistId}/undo
+    PlaylistController -> PlaylistService_BE: undoRemoveMusic(playlistId, undoData, userId)
+
+    PlaylistService_BE -> UndoService: canUndo(undoId, userId)
+    UndoService -> Database: SELECT * FROM undo_actions WHERE id = ? AND user_id = ? AND used = false AND expiry_time > NOW()
+    Database --> UndoService: UndoAction if valid
+    UndoService --> PlaylistService_BE: Undo validation result
+
+    alt Có thể hoàn tác
+        PlaylistService_BE -> UndoService: getUndoData(undoId)
+        UndoService -> UndoService: Deserialize undo data
+        UndoService --> PlaylistService_BE: UndoDataDto with original musics and positions
+
+        loop Khôi phục từng bài hát
+            PlaylistService_BE -> PlaylistMusicRepository: save(restoredPlaylistMusic)
+            PlaylistMusicRepository -> Database: INSERT INTO playlist_musics (playlist_id, music_id, order_index, added_at)
+            Database --> PlaylistMusicRepository: Music restored to playlist
+            PlaylistMusicRepository --> PlaylistService_BE: Restoration completed
+        end
+
+        PlaylistService_BE -> PlaylistMusicRepository: reorderAfterRestore(playlistId)
+        PlaylistMusicRepository -> Database: UPDATE all order_index values
+        Database --> PlaylistMusicRepository: Positions restored
+        PlaylistMusicRepository --> PlaylistService_BE: Order restored
+
+        PlaylistService_BE -> PlaylistStatsService: recalculatePlaylistStats(playlistId)
+        PlaylistStatsService --> PlaylistService_BE: Stats updated after restore
+
+        PlaylistService_BE -> UndoService: markUndoAsUsed(undoId)
+        UndoService -> Database: UPDATE undo_actions SET used = true WHERE id = ?
+        Database --> UndoService: Undo marked as used
+        UndoService --> PlaylistService_BE: Undo action consumed
+
+        PlaylistService_BE --> PlaylistController: Undo successful
+        PlaylistController --> PlaylistService: Restoration completed
+        PlaylistService --> PlaylistDetailComponent: Musics restored successfully
+
+        PlaylistDetailComponent -> PlaylistDetailComponent: reloadPlaylistDetail()
+        PlaylistDetailComponent -> PlaylistService: getPlaylistDetail(playlistId)
+        PlaylistService --> PlaylistDetailComponent: Updated playlist data
+        PlaylistDetailComponent -> PlaylistDetailComponent: Update UI with restored musics
+
+        UndoSnackbar -> UndoSnackbar: hide()
+        UndoSnackbar --> User: Ẩn thông báo hoàn tác
+        PlaylistDetailComponent --> User: Hiển thị thông báo "Đã hoàn tác thành công"
+
+    else Không thể hoàn tác (hết hạn hoặc đã sử dụng)
+        PlaylistService_BE --> PlaylistController: Undo failed - expired or used
+        PlaylistController --> PlaylistService: Error response
+        PlaylistService --> PlaylistDetailComponent: Undo failed
+        PlaylistDetailComponent --> User: Hiển thị lỗi "Không thể hoàn tác, thao tác đã hết hạn"
+        UndoSnackbar -> UndoSnackbar: hide()
+    end
+
+else Hết thời gian hoàn tác
+    UndoSnackbar -> UndoSnackbar: countdownExpired()
+    UndoSnackbar -> UndoSnackbar: hide()
+    UndoSnackbar --> User: Ẩn tùy chọn hoàn tác
+end
+
+== Xử lý lỗi ==
+
+alt Lỗi xác thực quyền sở hữu
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistOwnership fails
+    PlaylistValidationService --> PlaylistService_BE: throw UnauthorizedException
+    PlaylistService_BE --> PlaylistController: 403 Forbidden
+    PlaylistController --> PlaylistService: Error response
+    PlaylistService --> PlaylistDetailComponent: Access denied
+    PlaylistDetailComponent --> User: "Bạn không có quyền chỉnh sửa playlist này"
+end
+
+alt Lỗi bài hát không tồn tại trong playlist
+    PlaylistValidationService -> PlaylistValidationService: validateMusicInPlaylist fails
+    PlaylistValidationService --> PlaylistService_BE: throw NotFoundException
+    PlaylistService_BE --> PlaylistController: 404 Not Found
+    PlaylistController --> PlaylistService: Error response
+    PlaylistService --> PlaylistDetailComponent: Music not found
+    PlaylistDetailComponent --> User: "Bài hát không tồn tại trong playlist"
+end
+
+alt Lỗi playlist trống
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistNotEmpty fails
+    PlaylistValidationService --> PlaylistService_BE: throw BadRequestException
+    PlaylistService_BE --> PlaylistController: 400 Bad Request
+    PlaylistController --> PlaylistService: Error response
+    PlaylistService --> PlaylistDetailComponent: Playlist empty
+    PlaylistDetailComponent --> User: "Playlist đã trống, không thể xóa thêm"
+end
+
+alt Lỗi kết nối database
+    Database --> PlaylistMusicRepository: Connection error
+    PlaylistMusicRepository --> PlaylistService_BE: DatabaseException
+    PlaylistService_BE --> PlaylistController: 500 Internal Server Error
+    PlaylistController --> PlaylistService: Server error
+    PlaylistService --> PlaylistDetailComponent: Server error
+    PlaylistDetailComponent --> User: "Có lỗi xảy ra, vui lòng thử lại sau"
+end
+
+@enduml

@@ -1,0 +1,283 @@
+@startuml UC021-Sequence-Diagram-Chinh-Sua-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC021: Chỉnh sửa thông tin nhạc (Admin)
+
+actor Admin
+participant "Angular\nAdmin Panel" as Client
+participant "AdminMusic\nController" as Controller
+participant "AdminMusic\nService" as Service
+participant "Music\nValidationService" as ValidationService
+participant "Music\nRepository" as MusicRepo
+participant "Category\nRepository" as CategoryRepo
+participant "MusicEditHistory\nRepository" as HistoryRepo
+participant "File\nStorageService" as FileService
+participant "Music\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+Admin -> Client: Navigate to "Quản lý nhạc" > Click "Chỉnh sửa" on music item
+activate Client
+
+' Load music details for editing
+Client -> Controller: GET /api/admin/music/123/edit
+activate Controller
+
+Controller -> Controller: Verify admin role from JWT
+
+Controller -> Service: getMusicForEdit(musicId=123)
+activate Service
+
+Service -> ValidationService: validateMusicExists(musicId)
+activate ValidationService
+ValidationService -> MusicRepo: findByIdAndIsActiveTrue(musicId)
+activate MusicRepo
+MusicRepo -> DB: SELECT m.*, c.*, u.*\nFROM music m\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.uploaded_by = u.id\nWHERE m.id = ? AND m.is_active = true
+DB --> MusicRepo: Music entity with category and uploader
+MusicRepo --> ValidationService: Optional<Music>
+deactivate MusicRepo
+ValidationService --> Service: Music entity
+deactivate ValidationService
+
+Service -> Mapper: toDetailDto(music)
+activate Mapper
+Mapper -> Mapper: Convert Music to MusicDetailDto\nwith category, playlists, tags info
+Mapper --> Service: MusicDetailDto
+deactivate Mapper
+
+Service --> Controller: MusicDetailDto
+deactivate Service
+
+Controller --> Client: 200 OK\nMusicDetailDto
+deactivate Controller
+
+Client -> Client: Display edit form with current music data
+Client -> Client: Load categories for dropdown
+Client --> Admin: Edit form displayed with music details
+
+' Admin updates music information
+Admin -> Client: Edit fields (title, artist, category, lyrics, etc.)
+Admin -> Client: Add edit reason: "Cập nhật thông tin từ nhà sản xuất"
+Admin -> Client: Click "Cập nhật thông tin"
+
+Client -> Client: Validate form data
+alt Form valid
+    Client -> Controller: PUT /api/admin/music/123\n{title: "New Title", artist: "Updated Artist", categoryId: 5, editReason: "..."}
+    activate Controller
+
+    Controller -> Controller: Extract adminId from JWT token
+    Controller -> Controller: Validate request data
+
+    Controller -> Service: updateMusicInfo(musicId=123, request)
+    activate Service
+
+    ' Get current music for comparison
+    Service -> MusicRepo: findById(musicId)
+    activate MusicRepo
+    MusicRepo -> DB: SELECT * FROM music WHERE id = ?
+    DB --> MusicRepo: Current music entity
+    MusicRepo --> Service: Music
+    deactivate MusicRepo
+
+    ' Validate title uniqueness if changed
+    alt Title changed
+        Service -> ValidationService: validateTitleUniqueness(newTitle, newArtist, musicId)
+        activate ValidationService
+        ValidationService -> MusicRepo: existsByTitleAndArtistAndIdNot(title, artist, musicId)
+        activate MusicRepo
+        MusicRepo -> DB: SELECT COUNT(*) FROM music\nWHERE title = ? AND artist = ? AND id != ? AND is_active = true
+        DB --> MusicRepo: exists = false
+        MusicRepo --> ValidationService: false
+        deactivate MusicRepo
+
+        alt Title unique
+            ValidationService --> Service: void (success)
+            deactivate ValidationService
+        else Title exists
+            ValidationService --> Service: throw MusicTitleExistsException
+            Service --> Controller: throw ConflictException
+            Controller --> Client: 409 Conflict\n{"error": "Bài hát với tên và nghệ sĩ này đã tồn tại"}
+            Client --> Admin: Show error message
+        end
+    end
+
+    ' Validate category if changed
+    alt Category changed
+        Service -> ValidationService: validateCategoryExists(categoryId)
+        activate ValidationService
+        ValidationService -> CategoryRepo: findById(categoryId)
+        activate CategoryRepo
+        CategoryRepo -> DB: SELECT * FROM categories WHERE id = ? AND is_active = true
+        DB --> CategoryRepo: Category entity
+        CategoryRepo --> ValidationService: Optional<Category>
+        deactivate CategoryRepo
+        ValidationService --> Service: Category entity
+        deactivate ValidationService
+    end
+
+    ' Track changes for audit
+    Service -> Service: Compare old vs new values
+    Service -> Service: Create change map:\n{"title": {"old": "Old Title", "new": "New Title"},\n"artist": {"old": "Old Artist", "new": "Updated Artist"},\n"category": {"old": "Pop", "new": "Rock"}}
+
+    ' Update music entity
+    Service -> Mapper: updateEntityFromRequest(music, request)
+    activate Mapper
+    Mapper -> Mapper: Update music fields from request
+    Mapper -> Mapper: Set updatedAt = now()
+    Mapper --> Service: Updated music
+    deactivate Mapper
+
+    ' Save music changes
+    Service -> MusicRepo: save(music)
+    activate MusicRepo
+    MusicRepo -> DB: UPDATE music SET\ntitle = ?, artist = ?, album = ?, genre = ?,\ncategory_id = ?, lyrics = ?, release_date = ?,\nis_active = ?, is_featured = ?, updated_at = NOW()\nWHERE id = ?
+    DB --> MusicRepo: Updated music entity
+    MusicRepo --> Service: Music
+    deactivate MusicRepo
+
+    ' Record edit history
+    Service -> Service: recordMusicEdit(musicId, adminId, changeMap)
+    Service -> Service: Create MusicEditHistory entries for each changed field
+
+    Service -> HistoryRepo: saveAll(editHistories)
+    activate HistoryRepo
+    HistoryRepo -> DB: INSERT INTO music_edit_history\n(music_id, edited_by, field_changed, old_value, new_value, edited_at, edit_reason)\nVALUES\n(123, adminId, 'title', 'Old Title', 'New Title', NOW(), 'Cập nhật thông tin từ nhà sản xuất'),\n(123, adminId, 'artist', 'Old Artist', 'Updated Artist', NOW(), 'Cập nhật thông tin từ nhà sản xuất'),\n(123, adminId, 'category', 'Pop', 'Rock', NOW(), 'Cập nhật thông tin từ nhà sản xuất')
+    DB --> HistoryRepo: 3 history records saved
+    HistoryRepo --> Service: List<MusicEditHistory>
+    deactivate HistoryRepo
+
+    Service -> Mapper: toDetailDto(music)
+    activate Mapper
+    Mapper --> Service: MusicDetailDto
+    deactivate Mapper
+
+    Service --> Controller: MusicDetailDto
+    deactivate Service
+
+    Controller --> Client: 200 OK\nUpdated MusicDetailDto
+    deactivate Controller
+
+    Client -> Client: Update form with new data
+    Client -> Client: Show success notification
+    Client --> Admin: "Đã cập nhật thông tin nhạc thành công"
+
+else Form invalid
+    Client --> Admin: Show form validation errors
+end
+
+' Admin wants to update music cover image
+Admin -> Client: Click "Thay đổi ảnh bìa"
+Client -> Client: Open file picker
+Admin -> Client: Select new cover image
+Client -> Client: Preview selected image
+
+Admin -> Client: Click "Cập nhật ảnh bìa"
+
+Client -> Controller: POST /api/admin/music/123/cover\n(multipart/form-data with image file)
+activate Controller
+
+Controller -> Service: updateMusicCover(musicId=123, file)
+activate Service
+
+' Validate image file
+Service -> ValidationService: validateImageFile(file)
+activate ValidationService
+ValidationService -> FileService: validateImageFile(file)
+activate FileService
+FileService -> FileService: Check file size (max 5MB)
+FileService -> FileService: Check format (JPG/PNG/GIF)
+alt File valid
+    FileService --> ValidationService: void (success)
+    deactivate FileService
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Get current music for old cover cleanup
+    Service -> MusicRepo: findById(musicId)
+    activate MusicRepo
+    MusicRepo --> Service: Music with current cover
+    deactivate MusicRepo
+
+    ' Delete old cover if exists
+    alt Current cover exists
+        Service -> FileService: deleteMusicCover(oldCoverPath)
+        activate FileService
+        FileService --> Service: void
+        deactivate FileService
+    end
+
+    ' Store new cover
+    Service -> FileService: storeMusicCover(file, musicId)
+    activate FileService
+    FileService -> FileService: Generate unique filename
+    FileService -> FileService: Save file to uploads/music-covers/
+    FileService --> Service: New cover file path
+    deactivate FileService
+
+    ' Update music cover path
+    Service -> Service: music.setCoverImagePath(newCoverPath)
+    Service -> MusicRepo: save(music)
+    activate MusicRepo
+    MusicRepo -> DB: UPDATE music SET cover_image_path = ?, updated_at = NOW() WHERE id = ?
+    DB --> MusicRepo: Updated music
+    MusicRepo --> Service: Music
+    deactivate MusicRepo
+
+    ' Record cover change in history
+    Service -> Service: Create cover change history entry
+    Service -> HistoryRepo: save(coverChangeHistory)
+    activate HistoryRepo
+    HistoryRepo -> DB: INSERT INTO music_edit_history\n(music_id, edited_by, field_changed, old_value, new_value, edited_at, edit_reason)\nVALUES (?, ?, 'cover_image', ?, ?, NOW(), 'Cập nhật ảnh bìa')
+    DB --> HistoryRepo: History record saved
+    HistoryRepo --> Service: MusicEditHistory
+    deactivate HistoryRepo
+
+    Service --> Controller: New cover image URL
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"coverUrl": "/uploads/music-covers/123_newcover.jpg"}
+    deactivate Controller
+
+    Client -> Client: Update cover image display
+    Client --> Admin: "Đã cập nhật ảnh bìa thành công"
+
+else File invalid
+    FileService --> ValidationService: throw InvalidFileException
+    ValidationService --> Service: throw ValidationException
+    Service --> Controller: throw BadRequestException
+    Controller --> Client: 400 Bad Request\n{"error": "File ảnh không hợp lệ"}
+    Client --> Admin: Show file error message
+end
+
+' Admin wants to view edit history
+Admin -> Client: Click "Xem lịch sử chỉnh sửa"
+
+Client -> Controller: GET /api/admin/music/123/edit-history
+activate Controller
+
+Controller -> Service: getMusicEditHistory(musicId=123)
+activate Service
+
+Service -> HistoryRepo: findByMusicIdOrderByEditedAtDesc(musicId)
+activate HistoryRepo
+HistoryRepo -> DB: SELECT meh.*, u.username\nFROM music_edit_history meh\nJOIN users u ON meh.edited_by = u.id\nWHERE meh.music_id = ?\nORDER BY meh.edited_at DESC\nLIMIT 50
+DB --> HistoryRepo: List<MusicEditHistory> with admin info
+HistoryRepo --> Service: List<MusicEditHistory>
+deactivate HistoryRepo
+
+Service -> Mapper: toEditHistoryDtoList(histories)
+activate Mapper
+Mapper --> Service: List<MusicEditHistoryDto>
+deactivate Mapper
+
+Service --> Controller: List<MusicEditHistoryDto>
+deactivate Service
+
+Controller --> Client: 200 OK\nList<MusicEditHistoryDto>
+deactivate Controller
+
+Client -> Client: Display edit history timeline
+Client --> Admin: "Lịch sử: 15 lần chỉnh sửa bởi 3 admin khác nhau"
+
+deactivate Client
+
+@enduml

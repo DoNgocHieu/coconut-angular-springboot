@@ -1,0 +1,266 @@
+@startuml UC016-Sequence-Diagram-Them-Nhac-Vao-Playlist
+!theme plain
+
+title Biểu đồ trình tự - UC016: Thêm nhạc vào playlist
+
+actor User
+participant "Angular\nClient" as Client
+participant "PlaylistMusic\nController" as Controller
+participant "PlaylistMusic\nService" as Service
+participant "Playlist\nValidationService" as ValidationService
+participant "PlaylistMusic\nRepository" as PlaylistMusicRepo
+participant "Playlist\nRepository" as PlaylistRepo
+participant "Music\nRepository" as MusicRepo
+participant "PlaylistMusic\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+User -> Client: Click "Thêm vào playlist" on music item
+activate Client
+
+' Load user's playlists
+Client -> Controller: GET /api/playlists/user/summary
+activate Controller
+
+Controller -> Controller: Extract userId from JWT token
+
+Controller -> Service: getUserOwnedPlaylists(userId)
+activate Service
+
+Service -> PlaylistRepo: findByUserIdOrderByCreatedAtDesc(userId)
+activate PlaylistRepo
+PlaylistRepo -> DB: SELECT p.*, COUNT(pm.id) as music_count\nFROM playlists p\nLEFT JOIN playlist_music pm ON p.id = pm.playlist_id\nWHERE p.user_id = ? AND p.deleted_at IS NULL\nGROUP BY p.id\nORDER BY p.created_at DESC
+DB --> PlaylistRepo: List<Playlist> with music counts
+PlaylistRepo --> Service: List<Playlist>
+deactivate PlaylistRepo
+
+Service -> Mapper: toPlaylistSummaryDtoList(playlists)
+activate Mapper
+Mapper -> Mapper: Convert each Playlist to PlaylistSummaryDto
+Mapper --> Service: List<PlaylistSummaryDto>
+deactivate Mapper
+
+Service --> Controller: List<PlaylistSummaryDto>
+deactivate Service
+
+Controller --> Client: 200 OK\nList<PlaylistSummaryDto>
+deactivate Controller
+
+Client -> Client: Show "Add to Playlist" modal with playlist list
+Client --> User: Modal displayed with user's playlists
+
+' User selects a playlist to add music
+User -> Client: Select "My Favorite Songs" playlist
+User -> Client: Click "Thêm vào playlist"
+
+Client -> Controller: POST /api/playlist-music/add\n{playlistId: 123, musicId: 456}
+activate Controller
+
+Controller -> Controller: Extract userId from JWT token
+Controller -> Controller: Validate request data
+
+Controller -> Service: addMusicToPlaylist(userId, playlistId=123, musicId=456)
+activate Service
+
+' Validate playlist ownership
+Service -> ValidationService: validatePlaylistExists(playlistId)
+activate ValidationService
+ValidationService -> PlaylistRepo: findById(playlistId)
+activate PlaylistRepo
+PlaylistRepo -> DB: SELECT * FROM playlists WHERE id = ? AND deleted_at IS NULL
+DB --> PlaylistRepo: Playlist entity
+PlaylistRepo --> ValidationService: Optional<Playlist>
+deactivate PlaylistRepo
+ValidationService --> Service: Playlist entity
+deactivate ValidationService
+
+Service -> ValidationService: validatePlaylistOwnership(playlist, userId)
+activate ValidationService
+ValidationService -> ValidationService: Check playlist.user.id == userId
+alt User owns playlist
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Validate music exists
+    Service -> ValidationService: validateMusicExists(musicId)
+    activate ValidationService
+    ValidationService -> MusicRepo: existsById(musicId)
+    activate MusicRepo
+    MusicRepo -> DB: SELECT COUNT(*) FROM music WHERE id = ?
+    DB --> MusicRepo: exists = true
+    MusicRepo --> ValidationService: true
+    deactivate MusicRepo
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Check if music already in playlist
+    Service -> ValidationService: validateMusicNotInPlaylist(playlistId, musicId)
+    activate ValidationService
+    ValidationService -> PlaylistMusicRepo: existsByPlaylistIdAndMusicId(playlistId, musicId)
+    activate PlaylistMusicRepo
+    PlaylistMusicRepo -> DB: SELECT COUNT(*) FROM playlist_music WHERE playlist_id = ? AND music_id = ?
+    DB --> PlaylistMusicRepo: exists = false
+    PlaylistMusicRepo --> ValidationService: false
+    deactivate PlaylistMusicRepo
+
+    alt Music not in playlist
+        ValidationService --> Service: void (success)
+        deactivate ValidationService
+
+        ' Check playlist music count limit
+        Service -> PlaylistMusicRepo: countByPlaylistId(playlistId)
+        activate PlaylistMusicRepo
+        PlaylistMusicRepo -> DB: SELECT COUNT(*) FROM playlist_music WHERE playlist_id = ?
+        DB --> PlaylistMusicRepo: count = 250
+        PlaylistMusicRepo --> Service: 250
+        deactivate PlaylistMusicRepo
+
+        alt count < 1000
+            ' Get next order index
+            Service -> Service: getNextOrderIndex(playlistId)
+            Service -> PlaylistMusicRepo: findMaxOrderIndexByPlaylistId(playlistId)
+            activate PlaylistMusicRepo
+            PlaylistMusicRepo -> DB: SELECT MAX(order_index) FROM playlist_music WHERE playlist_id = ?
+            DB --> PlaylistMusicRepo: maxIndex = 250
+            PlaylistMusicRepo --> Service: Optional<Integer>
+            deactivate PlaylistMusicRepo
+
+            Service -> Service: nextOrderIndex = maxIndex + 1 = 251
+
+            ' Create PlaylistMusic entity
+            Service -> Service: Create new PlaylistMusic(playlist, music, user, orderIndex, now())
+
+            ' Save to database
+            Service -> PlaylistMusicRepo: save(playlistMusic)
+            activate PlaylistMusicRepo
+            PlaylistMusicRepo -> DB: INSERT INTO playlist_music\n(playlist_id, music_id, added_by, order_index, added_at)\nVALUES (?, ?, ?, ?, ?)
+            DB --> PlaylistMusicRepo: PlaylistMusic saved
+            PlaylistMusicRepo --> Service: PlaylistMusic entity
+            deactivate PlaylistMusicRepo
+
+            Service --> Controller: void (success)
+            deactivate Service
+
+            Controller --> Client: 200 OK\n{"message": "Đã thêm bài hát vào playlist"}
+            deactivate Controller
+
+            Client -> Client: Close modal
+            Client -> Client: Show success notification
+            Client -> Client: Update playlist music count if viewing
+            Client --> User: "Đã thêm bài hát vào 'My Favorite Songs'"
+
+        else count >= 1000
+            Service --> Controller: throw PlaylistMusicLimitExceededException
+            Controller --> Client: 400 Bad Request\n{"error": "Playlist đã đạt giới hạn 1000 bài hát"}
+            Client --> User: Show error message
+        end
+
+    else Music already in playlist
+        ValidationService --> Service: throw MusicAlreadyInPlaylistException
+        Service --> Controller: throw ConflictException
+        Controller --> Client: 409 Conflict\n{"error": "Bài hát đã có trong playlist"}
+        Client --> User: Show error message
+    end
+
+else User doesn't own playlist
+    ValidationService --> Service: throw UnauthorizedPlaylistAccessException
+    Service --> Controller: throw ForbiddenException
+    Controller --> Client: 403 Forbidden\n{"error": "Bạn không có quyền chỉnh sửa playlist này"}
+    Client --> User: Show error message
+end
+
+' User wants to add multiple songs at once
+User -> Client: Select multiple songs using checkboxes
+User -> Client: Click "Thêm vào playlist" (batch action)
+Client -> Client: Show playlist selection modal
+
+User -> Client: Select playlist and confirm
+
+Client -> Controller: POST /api/playlist-music/add-multiple\n{playlistId: 123, musicIds: [456, 789, 101]}
+activate Controller
+
+Controller -> Service: addMultipleMusicToPlaylist(userId, playlistId, musicIds)
+activate Service
+
+' Validate all music exist
+Service -> MusicRepo: existsByIdIn(musicIds)
+activate MusicRepo
+MusicRepo -> DB: SELECT COUNT(*) FROM music WHERE id IN (456, 789, 101)
+DB --> MusicRepo: count = 3 (all exist)
+MusicRepo --> Service: true
+deactivate MusicRepo
+
+' Check for duplicates in playlist
+Service -> PlaylistMusicRepo: findByPlaylistIdAndMusicIdIn(playlistId, musicIds)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: SELECT * FROM playlist_music\nWHERE playlist_id = ? AND music_id IN (456, 789, 101)
+DB --> PlaylistMusicRepo: List<PlaylistMusic> (existing ones)
+PlaylistMusicRepo --> Service: List<PlaylistMusic>
+deactivate PlaylistMusicRepo
+
+Service -> Service: Filter out existing musicIds\nnewMusicIds = [456, 789] (101 already exists)
+
+alt Has new music to add
+    ' Get starting order index
+    Service -> Service: getNextOrderIndex(playlistId)
+    Service -> Service: Create list of PlaylistMusic entities\nwith incremental order indexes
+
+    ' Batch save
+    Service -> PlaylistMusicRepo: saveAll(playlistMusicList)
+    activate PlaylistMusicRepo
+    PlaylistMusicRepo -> DB: INSERT INTO playlist_music\n(playlist_id, music_id, added_by, order_index, added_at)\nVALUES\n(123, 456, userId, 252, NOW()),\n(123, 789, userId, 253, NOW())
+    DB --> PlaylistMusicRepo: 2 records inserted
+    PlaylistMusicRepo --> Service: List<PlaylistMusic>
+    deactivate PlaylistMusicRepo
+
+    Service --> Controller: void (success)
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"message": "Đã thêm 2 bài hát vào playlist (1 bài đã tồn tại)"}
+    deactivate Controller
+
+    Client -> Client: Update UI
+    Client --> User: "Đã thêm 2/3 bài hát (1 bài đã có sẵn)"
+
+else All music already in playlist
+    Service --> Controller: return message about duplicates
+    Controller --> Client: 200 OK\n{"message": "Tất cả bài hát đã có trong playlist"}
+    Client --> User: Show duplicate message
+end
+
+' User wants to create new playlist and add music
+User -> Client: Click "Tạo playlist mới" in add-to-playlist modal
+Client -> Client: Show create playlist form
+
+User -> Client: Fill playlist details and confirm
+
+Client -> Controller: POST /api/playlist-music/create-and-add\n{name: "New Playlist", description: "...", isPublic: false, musicIds: [456]}
+activate Controller
+
+Controller -> Service: createPlaylistAndAddMusic(userId, request)
+activate Service
+
+' Create playlist first (similar to UC012)
+Service -> Service: Create new Playlist with user details
+Service -> PlaylistRepo: save(playlist)
+activate PlaylistRepo
+PlaylistRepo -> DB: INSERT INTO playlists (name, description, user_id, is_public, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+DB --> PlaylistRepo: Playlist created with ID
+PlaylistRepo --> Service: Playlist entity
+deactivate PlaylistRepo
+
+' Add music to new playlist
+Service -> Service: addMultipleMusicToPlaylist(userId, newPlaylistId, musicIds)
+
+Service --> Controller: Playlist entity
+deactivate Service
+
+Controller --> Client: 201 Created\nPlaylistDto
+deactivate Controller
+
+Client -> Client: Close modal
+Client -> Client: Add new playlist to local list
+Client --> User: "Đã tạo playlist mới và thêm bài hát"
+
+deactivate Client
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC017-Xoa-Nhac-Khoi-Playlist
+!theme plain
+
+actor User
+usecase "Xóa nhạc khỏi playlist" as UC017
+
+User --> UC017
+
+@enduml

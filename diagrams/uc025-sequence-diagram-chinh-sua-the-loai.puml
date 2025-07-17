@@ -1,0 +1,451 @@
+@startuml UC025-Sequence-Diagram-Chinh-Sua-The-Loai
+!theme plain
+
+title Biểu đồ tuần tự - UC025: Chỉnh sửa thể loại
+
+actor Admin as "Admin"
+participant Browser as "Browser"
+participant CategoryManagementComponent as "CategoryManagement\nComponent"
+participant CategoryEditModalComponent as "CategoryEditModal\nComponent"
+participant CategoryHierarchyComponent as "CategoryHierarchy\nComponent"
+participant CategoryDeleteConfirmComponent as "CategoryDeleteConfirm\nComponent"
+participant CategoryImportModalComponent as "CategoryImportModal\nComponent"
+participant CategoryService as "CategoryService\n(Frontend)"
+participant CategoryValidationService as "CategoryValidation\nService (Frontend)"
+participant CategoryIconService as "CategoryIcon\nService (Frontend)"
+participant CategoryController as "Category\nController"
+participant CategoryIconController as "CategoryIcon\nController"
+participant CategoryService_BE as "Category\nService"
+participant CategoryValidationService_BE as "CategoryValidation\nService"
+participant CategoryIconService_BE as "CategoryIcon\nService"
+participant CategoryImportService as "CategoryImport\nService"
+participant AdminAuditService as "AdminAudit\nService"
+participant CategoryRepository as "Category\nRepository"
+participant MusicRepository as "Music\nRepository"
+participant FileStorageService as "FileStorage\nService"
+participant Database as "Database"
+
+== Truy cập trang quản lý thể loại ==
+
+Admin -> Browser: Truy cập trang "Category Management"
+Browser -> CategoryManagementComponent: ngOnInit()
+CategoryManagementComponent -> CategoryService: getAllCategories(page, filters)
+CategoryService -> CategoryController: GET /api/admin/categories?page={page}&filters={filters}
+CategoryController -> CategoryService_BE: getAllCategories(pageable, filters)
+
+CategoryService_BE -> CategoryRepository: findAllByActiveTrue(pageable)
+CategoryRepository -> Database: SELECT c.*, parent.name as parent_name, (SELECT COUNT(*) FROM musics m WHERE m.category_id = c.id AND m.deleted = false) as music_count FROM categories c LEFT JOIN categories parent ON c.parent_id = parent.id WHERE c.active = true ORDER BY c.sort_order, c.name
+Database --> CategoryRepository: Page<Category> with music counts
+CategoryRepository --> CategoryService_BE: All categories with statistics
+
+CategoryService_BE -> CategoryService_BE: buildCategoryDtos(categories)
+CategoryService_BE --> CategoryController: Page<CategoryDto>
+CategoryController --> CategoryService: Categories loaded
+CategoryService --> CategoryManagementComponent: Categories with statistics
+
+CategoryManagementComponent -> CategoryService: getCategoryHierarchy()
+CategoryService -> CategoryController: GET /api/admin/categories/hierarchy
+CategoryController -> CategoryService_BE: getCategoryHierarchy()
+
+CategoryService_BE -> CategoryRepository: findCategoryHierarchy()
+CategoryRepository -> Database: SELECT c.*, COUNT(children.id) as child_count FROM categories c LEFT JOIN categories children ON c.id = children.parent_id WHERE c.active = true GROUP BY c.id ORDER BY c.level, c.sort_order
+Database --> CategoryRepository: Category hierarchy data
+CategoryRepository --> CategoryService_BE: Hierarchical category data
+
+CategoryService_BE -> CategoryService_BE: buildCategoryTree(categories)
+CategoryService_BE --> CategoryController: List<CategoryNodeDto>
+CategoryController --> CategoryService: Category hierarchy loaded
+CategoryService --> CategoryManagementComponent: Category tree structure
+
+CategoryManagementComponent -> CategoryHierarchyComponent: initialize(categoryTree)
+CategoryHierarchyComponent -> CategoryHierarchyComponent: buildTreeStructure()
+CategoryHierarchyComponent --> CategoryManagementComponent: Hierarchy component ready
+
+CategoryManagementComponent --> Admin: Hiển thị danh sách thể loại với hierarchy
+
+== Chỉnh sửa thể loại ==
+
+Admin -> CategoryManagementComponent: Click "Edit" trên category card
+CategoryManagementComponent -> CategoryEditModalComponent: open(category, "edit")
+CategoryEditModalComponent -> CategoryEditModalComponent: ngOnInit()
+CategoryEditModalComponent -> CategoryEditModalComponent: initializeForm()
+
+CategoryEditModalComponent -> CategoryService: getCategoryById(categoryId)
+CategoryService -> CategoryController: GET /api/admin/categories/{categoryId}
+CategoryController -> CategoryService_BE: getCategoryById(categoryId)
+
+CategoryService_BE -> CategoryValidationService_BE: validateCategoryExists(categoryId)
+CategoryValidationService_BE -> CategoryRepository: findById(categoryId)
+CategoryRepository -> Database: SELECT * FROM categories WHERE id = ? AND active = true
+Database --> CategoryRepository: Category details
+CategoryRepository --> CategoryValidationService_BE: Category entity
+CategoryValidationService_BE --> CategoryService_BE: Category exists validation passed
+
+CategoryService_BE -> CategoryService_BE: buildCategoryDto(category)
+CategoryService_BE --> CategoryController: CategoryDto
+CategoryController --> CategoryService: Category details loaded
+CategoryService --> CategoryEditModalComponent: Category data received
+
+CategoryEditModalComponent -> CategoryService: getAllCategories(0, {parentCandidates: true})
+CategoryService --> CategoryEditModalComponent: Potential parent categories
+
+CategoryEditModalComponent -> CategoryEditModalComponent: populateForm(category)
+CategoryEditModalComponent --> Admin: Hiển thị modal chỉnh sửa với dữ liệu hiện tại
+
+Admin -> CategoryEditModalComponent: Thay đổi category name
+CategoryEditModalComponent -> CategoryEditModalComponent: onNameChange()
+CategoryEditModalComponent -> CategoryValidationService: validateCategoryName(newName, categoryId)
+CategoryValidationService -> CategoryController: GET /api/admin/categories/validate-name?name={name}&excludeId={categoryId}
+CategoryController -> CategoryValidationService_BE: validateCategoryName(name, excludeId)
+
+CategoryValidationService_BE -> CategoryRepository: findByNameIgnoreCase(name)
+CategoryRepository -> Database: SELECT * FROM categories WHERE LOWER(name) = LOWER(?) AND id != ? AND active = true
+Database --> CategoryRepository: Name conflict check
+CategoryRepository --> CategoryValidationService_BE: Name availability result
+
+CategoryValidationService_BE -> CategoryValidationService_BE: buildValidationResult(nameAvailable)
+CategoryValidationService_BE --> CategoryController: ValidationResult
+CategoryController --> CategoryValidationService: Name validation result
+CategoryValidationService --> CategoryEditModalComponent: Name validation received
+CategoryEditModalComponent -> CategoryEditModalComponent: updateValidationState()
+
+Admin -> CategoryEditModalComponent: Thay đổi parent category
+CategoryEditModalComponent -> CategoryEditModalComponent: onParentCategoryChange()
+CategoryEditModalComponent -> CategoryValidationService: validateCategoryHierarchy(categoryId, newParentId)
+CategoryValidationService -> CategoryController: GET /api/admin/categories/validate-hierarchy?categoryId={categoryId}&parentId={newParentId}
+CategoryController -> CategoryValidationService_BE: validateCategoryHierarchy(categoryId, parentId)
+
+CategoryValidationService_BE -> CategoryValidationService_BE: checkCircularReference(categoryId, parentId)
+CategoryValidationService_BE -> CategoryRepository: findDescendants(categoryId)
+CategoryRepository -> Database: WITH RECURSIVE category_tree AS (SELECT id, parent_id FROM categories WHERE id = ? UNION ALL SELECT c.id, c.parent_id FROM categories c JOIN category_tree ct ON c.parent_id = ct.id) SELECT id FROM category_tree
+Database --> CategoryRepository: All descendant categories
+CategoryRepository --> CategoryValidationService_BE: Descendant list
+
+CategoryValidationService_BE -> CategoryValidationService_BE: checkIfParentInDescendants(parentId, descendants)
+CategoryValidationService_BE --> CategoryController: Hierarchy validation result
+CategoryController --> CategoryValidationService: Hierarchy validation received
+CategoryValidationService --> CategoryEditModalComponent: Hierarchy validation result
+
+Admin -> CategoryEditModalComponent: Upload new icon
+CategoryEditModalComponent -> CategoryIconService: uploadCategoryIcon(iconFile)
+CategoryIconService -> CategoryIconController: POST /api/admin/categories/icons/upload
+CategoryIconController -> CategoryIconService_BE: uploadCategoryIcon(file, categoryId)
+
+CategoryIconService_BE -> CategoryIconService_BE: validateIconFile(file)
+CategoryIconService_BE -> CategoryIconService_BE: processIcon(file)
+CategoryIconService_BE -> FileStorageService: saveFile(processedIcon, "category-icons")
+FileStorageService -> FileStorageService: generateUniqueFileName()
+FileStorageService -> FileStorageService: saveToStorage(file, path)
+FileStorageService --> CategoryIconService_BE: Icon URLs (original, small, large)
+
+CategoryIconService_BE -> CategoryIconService_BE: generateIconVariants(originalFile)
+CategoryIconService_BE -> FileStorageService: saveFile(smallIcon, "category-icons/small")
+CategoryIconService_BE -> FileStorageService: saveFile(largeIcon, "category-icons/large")
+
+CategoryIconService_BE -> CategoryIconService_BE: buildIconUploadResult(urls)
+CategoryIconService_BE --> CategoryIconController: IconUploadResultDto
+CategoryIconController --> CategoryIconService: Icon upload completed
+CategoryIconService --> CategoryEditModalComponent: Icon URLs received
+
+CategoryEditModalComponent -> CategoryEditModalComponent: updateIconPreview(iconUrls)
+
+Admin -> CategoryEditModalComponent: Click "Save Changes"
+CategoryEditModalComponent -> CategoryEditModalComponent: validateCategoryData()
+CategoryEditModalComponent -> CategoryService: updateCategory(categoryId, updateRequest)
+CategoryService -> CategoryController: PUT /api/admin/categories/{categoryId}
+CategoryController -> CategoryService_BE: updateCategory(categoryId, request, adminId)
+
+CategoryService_BE -> CategoryValidationService_BE: validateUpdateCategoryRequest(categoryId, request)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateCategoryExists(categoryId)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateCategoryName(request.name, categoryId)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateCategoryHierarchy(categoryId, request.parentId)
+CategoryValidationService_BE --> CategoryService_BE: Update validation passed
+
+note over CategoryService_BE, AdminAuditService: Log category update before making changes
+
+CategoryService_BE -> CategoryRepository: findById(categoryId)
+CategoryRepository --> CategoryService_BE: Current category data
+
+CategoryService_BE -> AdminAuditService: logCategoryUpdate(categoryId, adminId, changes)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (admin_id, action_type, resource_type, resource_id, action_details, created_at)
+Database --> AdminAuditService: Update logged
+AdminAuditService --> CategoryService_BE: Audit log created
+
+CategoryService_BE -> CategoryRepository: save(updatedCategory)
+CategoryRepository -> Database: UPDATE categories SET name = ?, description = ?, parent_id = ?, icon_url = ?, color_code = ?, active = ?, featured = ?, sort_order = ?, updated_at = NOW(), updated_by = ? WHERE id = ?
+Database --> CategoryRepository: Category updated
+CategoryRepository --> CategoryService_BE: Update completed
+
+CategoryService_BE -> CategoryService_BE: updateMusicCountIfNeeded(categoryId, oldParentId, newParentId)
+CategoryService_BE -> CategoryRepository: updateMusicCountRecursive(categoryId)
+
+CategoryService_BE -> CategoryService_BE: buildCategoryDto(updatedCategory)
+CategoryService_BE --> CategoryController: CategoryDto
+CategoryController --> CategoryService: Category updated successfully
+CategoryService --> CategoryManagementComponent: Category update completed
+
+CategoryManagementComponent -> CategoryManagementComponent: updateCategoryInList(updatedCategory)
+CategoryManagementComponent -> CategoryManagementComponent: showSuccessMessage("Thể loại đã được cập nhật thành công")
+
+CategoryEditModalComponent -> CategoryEditModalComponent: close()
+CategoryEditModalComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent --> Admin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Tạo thể loại mới ==
+
+Admin -> CategoryManagementComponent: Click "Create New Category"
+CategoryManagementComponent -> CategoryEditModalComponent: open(null, "create")
+CategoryEditModalComponent -> CategoryEditModalComponent: ngOnInit()
+CategoryEditModalComponent -> CategoryEditModalComponent: initializeEmptyForm()
+
+CategoryEditModalComponent -> CategoryService: getAllCategories(0, {parentCandidates: true})
+CategoryService --> CategoryEditModalComponent: Potential parent categories
+
+CategoryEditModalComponent --> Admin: Hiển thị modal tạo mới thể loại
+
+Admin -> CategoryEditModalComponent: Nhập category name, description, etc.
+CategoryEditModalComponent -> CategoryEditModalComponent: onFormChange()
+CategoryEditModalComponent -> CategoryValidationService: validateCategoryName(name)
+' Similar validation flow as edit mode
+
+Admin -> CategoryEditModalComponent: Click "Create Category"
+CategoryEditModalComponent -> CategoryEditModalComponent: validateCategoryData()
+CategoryEditModalComponent -> CategoryService: createCategory(createRequest)
+CategoryService -> CategoryController: POST /api/admin/categories
+CategoryController -> CategoryService_BE: createCategory(request, adminId)
+
+CategoryService_BE -> CategoryValidationService_BE: validateCreateCategoryRequest(request)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateCategoryName(request.name)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateParentCategory(request.parentId)
+CategoryValidationService_BE --> CategoryService_BE: Create validation passed
+
+CategoryService_BE -> CategoryRepository: save(newCategory)
+CategoryRepository -> Database: INSERT INTO categories (name, description, parent_id, icon_url, color_code, active, featured, sort_order, created_at, created_by)
+Database --> CategoryRepository: New category created
+CategoryRepository --> CategoryService_BE: Category entity
+
+CategoryService_BE -> AdminAuditService: logCategoryCreation(categoryId, adminId, categoryData)
+AdminAuditService --> CategoryService_BE: Creation logged
+
+CategoryService_BE -> CategoryService_BE: buildCategoryDto(newCategory)
+CategoryService_BE --> CategoryController: CategoryDto
+CategoryController --> CategoryService: Category created successfully
+CategoryService --> CategoryManagementComponent: Category creation completed
+
+CategoryManagementComponent -> CategoryManagementComponent: addCategoryToList(newCategory)
+CategoryManagementComponent -> CategoryManagementComponent: showSuccessMessage("Thể loại mới đã được tạo thành công")
+
+CategoryEditModalComponent -> CategoryEditModalComponent: close()
+CategoryEditModalComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent --> Admin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Xóa thể loại ==
+
+Admin -> CategoryManagementComponent: Click "Delete" trên category card
+CategoryManagementComponent -> CategoryDeleteConfirmComponent: open(category)
+CategoryDeleteConfirmComponent -> CategoryDeleteConfirmComponent: ngOnInit()
+CategoryDeleteConfirmComponent -> CategoryDeleteConfirmComponent: loadAffectedData()
+
+CategoryDeleteConfirmComponent -> CategoryValidationService: checkCategoryDeletion(categoryId)
+CategoryValidationService -> CategoryController: GET /api/admin/categories/{categoryId}/deletion-check
+CategoryController -> CategoryValidationService_BE: checkCategoryDeletion(categoryId)
+
+CategoryValidationService_BE -> CategoryRepository: findByParentId(categoryId)
+CategoryRepository -> Database: SELECT * FROM categories WHERE parent_id = ? AND active = true
+Database --> CategoryRepository: Child categories
+CategoryRepository --> CategoryValidationService_BE: Child categories list
+
+CategoryValidationService_BE -> MusicRepository: countByCategoryId(categoryId)
+MusicRepository -> Database: SELECT COUNT(*) FROM musics WHERE category_id = ? AND deleted = false
+Database --> MusicRepository: Affected music count
+MusicRepository --> CategoryValidationService_BE: Music count
+
+CategoryValidationService_BE -> CategoryValidationService_BE: buildDeletionValidationResult(childCategories, musicCount)
+CategoryValidationService_BE --> CategoryController: DeletionValidationResult
+CategoryController --> CategoryValidationService: Deletion validation result
+CategoryValidationService --> CategoryDeleteConfirmComponent: Deletion impact received
+
+CategoryDeleteConfirmComponent --> Admin: Hiển thị modal xác nhận xóa với impact analysis
+
+Admin -> CategoryDeleteConfirmComponent: Chọn deletion option (reassign/delete children/delete musics)
+Admin -> CategoryDeleteConfirmComponent: Chọn reassignment category nếu cần
+Admin -> CategoryDeleteConfirmComponent: Nhập lý do xóa
+Admin -> CategoryDeleteConfirmComponent: Click "Confirm Delete"
+
+CategoryDeleteConfirmComponent -> CategoryService: deleteCategory(categoryId, deleteOptions)
+CategoryService -> CategoryController: DELETE /api/admin/categories/{categoryId}
+CategoryController -> CategoryService_BE: deleteCategory(categoryId, options, adminId)
+
+CategoryService_BE -> CategoryValidationService_BE: validateCategoryDeletion(categoryId)
+CategoryValidationService_BE --> CategoryService_BE: Deletion validation passed
+
+note over CategoryService_BE, AdminAuditService: Log category deletion before making changes
+
+CategoryService_BE -> AdminAuditService: logCategoryDeletion(categoryId, adminId, deletionOptions)
+AdminAuditService -> Database: INSERT INTO admin_audit_logs (category deletion record)
+Database --> AdminAuditService: Deletion logged
+AdminAuditService --> CategoryService_BE: Audit log created
+
+alt Reassign musics to another category
+    CategoryService_BE -> MusicRepository: updateCategoryForMusics(categoryId, options.reassignCategoryId)
+    MusicRepository -> Database: UPDATE musics SET category_id = ? WHERE category_id = ? AND deleted = false
+    Database --> MusicRepository: Musics reassigned
+    MusicRepository --> CategoryService_BE: Music reassignment completed
+else Delete musics with category
+    CategoryService_BE -> MusicRepository: findByCategoryId(categoryId)
+    MusicRepository --> CategoryService_BE: Musics to delete
+    CategoryService_BE -> CategoryService_BE: softDeleteMusics(musics)
+end
+
+alt Reassign child categories
+    CategoryService_BE -> CategoryRepository: updateParentId(categoryId, options.reassignCategoryId)
+    CategoryRepository -> Database: UPDATE categories SET parent_id = ? WHERE parent_id = ?
+    Database --> CategoryRepository: Child categories reassigned
+    CategoryRepository --> CategoryService_BE: Children reassignment completed
+else Delete child categories recursively
+    CategoryService_BE -> CategoryService_BE: deleteChildCategoriesRecursively(categoryId)
+end
+
+CategoryService_BE -> CategoryRepository: deleteById(categoryId)
+CategoryRepository -> Database: UPDATE categories SET active = false, deleted_at = NOW(), deleted_by = ? WHERE id = ?
+Database --> CategoryRepository: Category soft deleted
+CategoryRepository --> CategoryService_BE: Category deletion completed
+
+CategoryService_BE --> CategoryController: Deletion successful
+CategoryController --> CategoryService: Category deleted successfully
+CategoryService --> CategoryManagementComponent: Category deletion completed
+
+CategoryManagementComponent -> CategoryManagementComponent: removeCategoryFromList(categoryId)
+CategoryManagementComponent -> CategoryManagementComponent: showSuccessMessage("Thể loại đã được xóa thành công")
+
+CategoryDeleteConfirmComponent -> CategoryDeleteConfirmComponent: close()
+CategoryDeleteConfirmComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent --> Admin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Di chuyển thể loại trong hierarchy ==
+
+Admin -> CategoryHierarchyComponent: Drag and drop category to new parent
+CategoryHierarchyComponent -> CategoryHierarchyComponent: onNodeDrop(event)
+CategoryHierarchyComponent -> CategoryValidationService: validateCategoryHierarchy(categoryId, newParentId)
+' Similar validation flow as edit mode
+
+CategoryHierarchyComponent -> CategoryService: moveCategoryToParent(categoryId, newParentId)
+CategoryService -> CategoryController: PUT /api/admin/categories/{categoryId}/move?newParentId={newParentId}
+CategoryController -> CategoryService_BE: moveCategoryToParent(categoryId, newParentId, adminId)
+
+CategoryService_BE -> CategoryValidationService_BE: validateCategoryHierarchy(categoryId, newParentId)
+CategoryValidationService_BE --> CategoryService_BE: Move validation passed
+
+CategoryService_BE -> CategoryRepository: findById(categoryId)
+CategoryRepository --> CategoryService_BE: Category to move
+
+CategoryService_BE -> AdminAuditService: logCategoryMove(categoryId, adminId, oldParentId, newParentId)
+AdminAuditService --> CategoryService_BE: Move logged
+
+CategoryService_BE -> CategoryRepository: updateParentId(categoryId, newParentId)
+CategoryRepository -> Database: UPDATE categories SET parent_id = ?, updated_at = NOW(), updated_by = ? WHERE id = ?
+Database --> CategoryRepository: Category moved
+CategoryRepository --> CategoryService_BE: Move completed
+
+CategoryService_BE -> CategoryRepository: updateMusicCountRecursive(categoryId)
+CategoryService_BE -> CategoryRepository: updateMusicCountRecursive(newParentId)
+
+CategoryService_BE --> CategoryController: Move successful
+CategoryController --> CategoryService: Category moved successfully
+CategoryService --> CategoryHierarchyComponent: Category move completed
+
+CategoryHierarchyComponent -> CategoryHierarchyComponent: updateTreeStructure()
+CategoryHierarchyComponent --> Admin: Hierarchy updated visually
+
+== Import thể loại từ file ==
+
+Admin -> CategoryManagementComponent: Click "Import Categories"
+CategoryManagementComponent -> CategoryImportModalComponent: open()
+CategoryImportModalComponent -> CategoryImportModalComponent: ngOnInit()
+
+CategoryImportModalComponent --> Admin: Hiển thị modal import
+
+Admin -> CategoryImportModalComponent: Select Excel/CSV file
+CategoryImportModalComponent -> CategoryImportModalComponent: onFileSelect(file)
+CategoryImportModalComponent -> CategoryService: previewCategoryImport(file)
+CategoryService -> CategoryController: POST /api/admin/categories/import/preview
+CategoryController -> CategoryImportService: previewCategoryImport(file)
+
+CategoryImportService -> CategoryImportService: parseImportFile(file)
+CategoryImportService -> CategoryImportService: validateImportData(parsedData)
+CategoryImportService -> CategoryImportService: checkDuplicateNames(parsedData)
+CategoryImportService -> CategoryImportService: checkParentReferences(parsedData)
+
+CategoryImportService -> CategoryImportService: buildImportPreview(validatedData)
+CategoryImportService --> CategoryController: List<CategoryImportPreviewDto>
+CategoryController --> CategoryService: Import preview generated
+CategoryService --> CategoryImportModalComponent: Import preview received
+
+CategoryImportModalComponent -> CategoryImportModalComponent: displayImportPreview(preview)
+CategoryImportModalComponent --> Admin: Hiển thị preview với warnings và errors
+
+Admin -> CategoryImportModalComponent: Configure import options
+Admin -> CategoryImportModalComponent: Click "Start Import"
+CategoryImportModalComponent -> CategoryService: importCategories(file, options)
+CategoryService -> CategoryController: POST /api/admin/categories/import
+CategoryController -> CategoryImportService: executeImport(file, options, adminId)
+
+CategoryImportService -> CategoryImportService: parseAndValidateFile(file)
+CategoryImportService -> CategoryImportService: processImportData(data, options)
+
+loop Import each category
+    CategoryImportService -> CategoryValidationService_BE: validateCreateCategoryRequest(categoryData)
+    CategoryValidationService_BE --> CategoryImportService: Validation result
+
+    alt Category is valid
+        CategoryImportService -> CategoryRepository: save(newCategory)
+        CategoryRepository --> CategoryImportService: Category created
+        CategoryImportService -> CategoryImportService: successCount++
+    else Category has errors
+        CategoryImportService -> CategoryImportService: failedCount++
+        CategoryImportService -> CategoryImportService: Add to error list
+    end
+end
+
+CategoryImportService -> AdminAuditService: logCategoryImport(successCount, adminId, options)
+AdminAuditService --> CategoryImportService: Import logged
+
+CategoryImportService -> CategoryImportService: buildImportResult()
+CategoryImportService --> CategoryController: ImportResultDto
+CategoryController --> CategoryService: Import completed
+CategoryService --> CategoryImportModalComponent: Import result received
+
+CategoryImportModalComponent -> CategoryImportModalComponent: displayImportResults(results)
+CategoryImportModalComponent --> Admin: Hiển thị kết quả import
+
+CategoryImportModalComponent -> CategoryImportModalComponent: close()
+CategoryImportModalComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent -> CategoryManagementComponent: refreshCategoryList()
+CategoryManagementComponent --> Admin: Danh sách thể loại đã được cập nhật
+
+== Xử lý lỗi ==
+
+note over Admin, Database: Các trường hợp lỗi có thể xảy ra trong quá trình quản lý thể loại
+
+note over CategoryValidationService_BE: Lỗi tên thể loại trùng lặp
+note over Admin: "Tên thể loại đã tồn tại"
+
+note over CategoryValidationService_BE: Lỗi circular reference trong hierarchy
+note over Admin: "Không thể đặt thể loại làm con của chính nó hoặc con cháu của nó"
+
+note over CategoryValidationService_BE: Lỗi thể loại không tồn tại
+note over Admin: "Thể loại được chọn không tồn tại"
+
+note over CategoryIconService_BE: Lỗi upload icon
+note over Admin: "Không thể upload icon, vui lòng thử file khác"
+
+note over CategoryImportService: Lỗi import file
+note over Admin: "File import không đúng định dạng hoặc có lỗi dữ liệu"
+
+note over CategoryValidationService_BE: Lỗi xóa thể loại có ràng buộc
+note over Admin: "Không thể xóa thể loại có chứa nhạc hoặc thể loại con"
+
+note over Database: Lỗi database constraint
+note over Admin: "Không thể thực hiện thao tác do ràng buộc dữ liệu"
+
+@enduml

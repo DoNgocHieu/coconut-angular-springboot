@@ -1,0 +1,41 @@
+@startuml Backend_Architecture_Detailed
+!theme plain
+title Hình 4.1.5: Kiến trúc mã nguồn Back-end
+
+skinparam rectangle {
+    BackgroundColor #F8F8F8
+    BorderColor #333333
+    FontSize 12
+    FontName Arial
+}
+
+skinparam database {
+    BackgroundColor #E8F5E8
+    BorderColor #2E7D32
+}
+
+' Angular
+rectangle Angular as angular #FF5722
+
+' Nginx
+rectangle NGINX as nginx #4CAF50
+note bottom of nginx : Chuyển tiếp API Request
+
+' Spring Boot Container
+rectangle "Spring Boot" as springboot #FFF3E0 {
+    rectangle Controller as controller #FFE0B2
+    rectangle Service as service #FFCC02
+    rectangle Repository as repository #81C784
+}
+
+' MySQL Database (corrected from SQL Server)
+database "MySQL\nServer" as mysql #E3F2FD
+
+' Main flow connections
+angular -right-> nginx : HTTP
+nginx -down-> controller
+controller -down-> service
+service -down-> repository
+repository -right-> mysql : "JDBC/Hibernate"
+
+@enduml

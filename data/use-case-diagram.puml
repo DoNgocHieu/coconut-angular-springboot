@@ -1,0 +1,85 @@
+@startuml CoconutMusicUseCaseDiagram
+!theme plain
+title Biểu đồ Use Case - Hệ thống Coconut Music
+
+left to right direction
+
+actor "User\n(Người dùng)" as User
+actor "Admin\n(Quản trị viên)" as Admin
+
+rectangle "Hệ thống Coconut Music" {
+
+  ' User Use Cases
+  usecase "Đăng ký" as UC1
+  usecase "Đăng nhập" as UC2
+  usecase "Đăng xuất" as UC3
+  usecase "Nghe nhạc" as UC4
+  usecase "Tìm kiếm bài hát" as UC5
+  usecase "Tạo playlist" as UC6
+  usecase "Quản lý playlist" as UC7
+  usecase "Thêm yêu thích" as UC8
+  usecase "Xem lịch sử" as UC9
+  usecase "Cập nhật profile" as UC10
+
+  ' Admin Use Cases
+  usecase "Quản lý nhạc" as UC11
+  usecase "Upload nhạc" as UC12
+  usecase "Xóa nhạc" as UC13
+  usecase "Quản lý người dùng" as UC14
+  usecase "Xem thống kê" as UC15
+  usecase "Quản lý thể loại" as UC16
+  usecase "Quản lý nghệ sĩ" as UC17
+  usecase "Phân quyền" as UC18
+
+  ' System Use Cases
+  usecase "Xác thực đăng nhập" as SYS1
+  usecase "Gửi email xác thực" as SYS2
+  usecase "Lưu lịch sử nghe" as SYS3
+}
+
+' User connections
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC9
+User --> UC10
+
+' Admin connections (kế thừa tất cả quyền của User)
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC7
+Admin --> UC8
+Admin --> UC9
+Admin --> UC10
+
+' Admin exclusive connections
+Admin --> UC11
+Admin --> UC12
+Admin --> UC13
+Admin --> UC14
+Admin --> UC15
+Admin --> UC16
+Admin --> UC17
+Admin --> UC18
+
+' Include/Extend relationships
+UC2 ..> SYS1 : <<include>>
+UC1 ..> SYS2 : <<include>>
+UC4 ..> SYS3 : <<include>>
+UC12 .> UC11 : <<extend>>
+UC13 .> UC11 : <<extend>>
+
+note right of Admin : Admin có tất cả\nquyền của User +\nquyền quản trị
+
+note left of User : Người dùng chính\ncủa hệ thống
+
+@enduml

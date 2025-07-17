@@ -1,0 +1,221 @@
+@startuml UC013-Sequence-Diagram-Quan-Ly-Yeu-Thich
+!theme plain
+
+title Biểu đồ trình tự - UC013: Quản lý danh sách yêu thích
+
+actor User
+participant "Angular\nClient" as Client
+participant "Favorite\nController" as Controller
+participant "Favorite\nService" as Service
+participant "Favorite\nValidationService" as ValidationService
+participant "Favorite\nRepository" as FavRepo
+participant "Music\nRepository" as MusicRepo
+participant "Favorite\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "Danh sách yêu thích"
+activate Client
+
+' Load favorites list
+Client -> Controller: GET /api/favorites?page=0&size=20&sortBy=addedAt&direction=desc
+activate Controller
+
+Controller -> Controller: Extract userId from JWT token
+Controller -> Controller: Create Pageable with sort parameters
+
+Controller -> Service: getUserFavoriteMusic(userId, pageable)
+activate Service
+
+Service -> FavRepo: findByUserIdAndIsActiveTrueOrderByAddedAtDesc(userId, pageable)
+activate FavRepo
+FavRepo -> DB: SELECT f.*, m.*, c.*\nFROM favorites f\nJOIN music m ON f.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nWHERE f.user_id = ? AND f.is_active = true\nORDER BY f.added_at DESC\nLIMIT 20 OFFSET 0
+DB --> FavRepo: Page<Favorite> with music data
+FavRepo --> Service: Page<Favorite>
+deactivate FavRepo
+
+Service -> Mapper: toPageDto(favoritePage)
+activate Mapper
+Mapper -> Mapper: Convert each Favorite to FavoriteMusicDto
+Mapper --> Service: Page<FavoriteMusicDto>
+deactivate Mapper
+
+Service --> Controller: Page<FavoriteMusicDto>
+deactivate Service
+
+Controller --> Client: 200 OK\nPage<FavoriteMusicDto>
+deactivate Controller
+
+Client -> Client: Display favorites grid with music info
+Client --> User: Favorites list displayed with sort/filter options
+
+' User wants to search in favorites
+User -> Client: Enter search query "love songs"
+User -> Client: Click search
+
+Client -> Controller: GET /api/favorites/search?query=love songs&page=0&size=20
+activate Controller
+
+Controller -> Service: searchFavoritesWithFilters(userId, query, pageable)
+activate Service
+
+Service -> FavRepo: findByUserIdAndMusicTitleContainingIgnoreCaseAndIsActiveTrue(userId, query, pageable)
+activate FavRepo
+FavRepo -> DB: SELECT f.*, m.*, c.*\nFROM favorites f\nJOIN music m ON f.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nWHERE f.user_id = ? AND f.is_active = true\nAND (LOWER(m.title) LIKE LOWER('%love songs%')\nOR LOWER(m.artist) LIKE LOWER('%love songs%'))\nORDER BY f.added_at DESC
+DB --> FavRepo: Page<Favorite> with search results
+FavRepo --> Service: Page<Favorite>
+deactivate FavRepo
+
+Service -> Mapper: toPageDto(favoritePage)
+activate Mapper
+Mapper --> Service: Page<FavoriteMusicDto>
+deactivate Mapper
+
+Service --> Controller: Page<FavoriteMusicDto>
+deactivate Service
+
+Controller --> Client: 200 OK\nFiltered Page<FavoriteMusicDto>
+deactivate Controller
+
+Client -> Client: Update favorites list with search results
+Client --> User: "Tìm thấy 15 bài hát yêu thích"
+
+' User wants to remove single favorite
+User -> Client: Click "Xóa" button on specific song
+Client -> Client: Show confirmation dialog
+User -> Client: Confirm removal
+
+Client -> Controller: DELETE /api/favorites/music/123
+activate Controller
+
+Controller -> Controller: Extract userId from JWT token
+
+Controller -> Service: removeMusicFromFavorites(userId, musicId=123)
+activate Service
+
+' Validate music exists in favorites
+Service -> FavRepo: findByUserIdAndMusicId(userId, musicId)
+activate FavRepo
+FavRepo -> DB: SELECT * FROM favorites WHERE user_id = ? AND music_id = ? AND is_active = true
+DB --> FavRepo: Favorite entity
+FavRepo --> Service: Optional<Favorite>
+deactivate FavRepo
+
+alt Favorite exists
+    ' Soft delete the favorite
+    Service -> Service: favorite.setActive(false)
+    Service -> FavRepo: save(favorite)
+    activate FavRepo
+    FavRepo -> DB: UPDATE favorites SET is_active = false, updated_at = NOW() WHERE id = ?
+    DB --> FavRepo: Updated favorite
+    FavRepo --> Service: Favorite
+    deactivate FavRepo
+
+    Service --> Controller: void (success)
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"message": "Đã xóa khỏi danh sách yêu thích"}
+    deactivate Controller
+
+    Client -> Client: Remove song from favorites list
+    Client -> Client: Update heart icon state
+    Client --> User: "Đã xóa bài hát khỏi yêu thích"
+
+else Favorite not found
+    Service --> Controller: throw FavoriteNotFoundException
+    Controller --> Client: 404 Not Found\n{"error": "Bài hát không có trong danh sách yêu thích"}
+    Client --> User: Show error message
+end
+
+' User wants to remove multiple favorites
+User -> Client: Select multiple songs using checkboxes
+User -> Client: Click "Xóa đã chọn"
+Client -> Client: Show confirmation dialog for batch delete
+
+User -> Client: Confirm batch removal
+
+Client -> Controller: DELETE /api/favorites/bulk\n{musicIds: [123, 456, 789]}
+activate Controller
+
+Controller -> Service: removeMultipleMusicFromFavorites(userId, musicIds)
+activate Service
+
+' Validate all music exist in favorites
+Service -> FavRepo: findByUserIdAndMusicIdIn(userId, musicIds)
+activate FavRepo
+FavRepo -> DB: SELECT * FROM favorites\nWHERE user_id = ? AND music_id IN (123, 456, 789)\nAND is_active = true
+DB --> FavRepo: List<Favorite>
+FavRepo --> Service: List<Favorite>
+deactivate FavRepo
+
+Service -> Service: Check if all requested favorites exist
+alt All favorites exist
+    ' Batch soft delete
+    Service -> FavRepo: deleteByUserIdAndMusicIdIn(userId, musicIds)
+    activate FavRepo
+    FavRepo -> DB: UPDATE favorites SET is_active = false, updated_at = NOW()\nWHERE user_id = ? AND music_id IN (123, 456, 789)
+    DB --> FavRepo: 3 rows updated
+    FavRepo --> Service: void
+    deactivate FavRepo
+
+    Service --> Controller: void (success)
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"message": "Đã xóa 3 bài hát khỏi danh sách yêu thích"}
+    deactivate Controller
+
+    Client -> Client: Remove selected songs from list
+    Client -> Client: Clear selection checkboxes
+    Client --> User: "Đã xóa 3 bài hát đã chọn"
+
+else Some favorites not found
+    Service --> Controller: throw PartialFavoriteNotFoundException
+    Controller --> Client: 400 Bad Request\n{"error": "Một số bài hát không có trong danh sách yêu thích"}
+    Client --> User: Show error message
+end
+
+' User requests favorites statistics
+User -> Client: Click "Thống kê yêu thích"
+
+Client -> Controller: GET /api/favorites/statistics
+activate Controller
+
+Controller -> Service: getFavoriteStatistics(userId)
+activate Service
+
+' Get total favorites count
+Service -> FavRepo: countByUserIdAndIsActiveTrue(userId)
+activate FavRepo
+FavRepo -> DB: SELECT COUNT(*) FROM favorites WHERE user_id = ? AND is_active = true
+DB --> FavRepo: count = 250
+FavRepo --> Service: 250
+deactivate FavRepo
+
+' Get favorites by category stats
+Service -> FavRepo: getFavoriteStatsByCategory(userId)
+activate FavRepo
+FavRepo -> DB: SELECT c.name, COUNT(*) as count\nFROM favorites f\nJOIN music m ON f.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nWHERE f.user_id = ? AND f.is_active = true\nGROUP BY c.id, c.name\nORDER BY count DESC
+DB --> FavRepo: Category statistics
+FavRepo --> Service: List<CategoryStatsDto>
+deactivate FavRepo
+
+' Get oldest and newest favorites
+Service -> FavRepo: findOldestAndNewestFavorites(userId)
+activate FavRepo
+FavRepo -> DB: SELECT MIN(added_at) as oldest, MAX(added_at) as newest\nFROM favorites\nWHERE user_id = ? AND is_active = true
+DB --> FavRepo: Date range
+FavRepo --> Service: Date range
+deactivate FavRepo
+
+Service -> Service: Build FavoriteStatsDto
+Service --> Controller: FavoriteStatsDto
+deactivate Service
+
+Controller --> Client: 200 OK\nFavoriteStatsDto
+deactivate Controller
+
+Client -> Client: Display statistics modal
+Client --> User: "Bạn có 250 bài hát yêu thích\nNhiều nhất: Nhạc trẻ (85 bài)\nCũ nhất: 6 tháng trước"
+
+deactivate Client
+
+@enduml

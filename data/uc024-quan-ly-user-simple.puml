@@ -1,0 +1,9 @@
+@startuml UC024-Quan-Ly-User
+!theme plain
+
+actor Admin
+usecase "Xem danh sách người dùng" as UC024
+
+Admin --> UC024
+
+@enduml

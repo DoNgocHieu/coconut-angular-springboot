@@ -1,0 +1,130 @@
+@startuml UC024-Quan-Ly-User-Admin
+!theme plain
+title UC024 - Xem Danh Sách Người Dùng (Admin)
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Admin - Quản Lý Người Dùng" {
+    frame "Page Header" as header {
+        rectangle "👥 Quản Lý Người Dùng" as page_title
+        rectangle "👨‍💼 Admin Panel" as admin_badge #lightgreen
+        rectangle "📊 Total Users: 1,247" as user_count
+    }
+
+    frame "Search & Filters" as search_section {
+        rectangle "🔍 Search Users..." as search_box
+        rectangle "🎯 Filter by Status ▼" as status_filter
+        rectangle "📅 Registration Date ▼" as date_filter
+        rectangle "🏷️ Filter by Role ▼" as role_filter
+        rectangle "🔄 Reset Filters" as reset_filters
+    }
+
+    frame "Filter Options" as filter_options {
+        rectangle "✅ Active Users" as active_filter
+        rectangle "🔒 Blocked Users" as blocked_filter
+        rectangle "⚠️ Unverified Users" as unverified_filter
+        rectangle "👨‍💼 Admin Users" as admin_filter
+        rectangle "📅 Last 30 days" as recent_filter
+    }
+
+    frame "User List Table" as user_table {
+        rectangle "User Table Header" as table_header {
+            rectangle "☑️ Select All" as select_all
+            rectangle "👤 User Info ▲" as sort_user
+            rectangle "📧 Email ▼" as sort_email
+            rectangle "📅 Joined Date" as sort_date
+            rectangle "🔄 Status" as sort_status
+            rectangle "⚙️ Actions" as actions_col
+        }
+
+        rectangle "User Row 1" as user1 {
+            rectangle "☑️" as check1
+            rectangle "👤 John Doe" as name1
+            rectangle "📧 john@email.com" as email1
+            rectangle "📅 2024-01-15" as date1
+            rectangle "✅ Active" as status1 #lightgreen
+            rectangle "👁️ View | 🔒 Block | ⚙️ Edit" as actions1
+        }
+
+        rectangle "User Row 2" as user2 {
+            rectangle "☑️" as check2
+            rectangle "👤 Jane Smith" as name2
+            rectangle "📧 jane@email.com" as email2
+            rectangle "📅 2024-02-20" as date2
+            rectangle "🔒 Blocked" as status2 #lightcoral
+            rectangle "👁️ View | 🔓 Unblock | ⚙️ Edit" as actions2
+        }
+
+        rectangle "User Row 3" as user3 {
+            rectangle "☑️" as check3
+            rectangle "👤 Admin User" as name3
+            rectangle "📧 admin@music.com" as email3
+            rectangle "📅 2023-12-01" as date3
+            rectangle "👨‍💼 Admin" as status3 #lightyellow
+            rectangle "👁️ View | 🛡️ Manage Role" as actions3
+        }
+
+        rectangle "... More Users ..." as more_users
+    }
+
+    frame "Bulk Actions" as bulk_actions {
+        rectangle "📧 Send Email to Selected" as bulk_email
+        rectangle "🔒 Block Selected Users" as bulk_block
+        rectangle "🔓 Unblock Selected Users" as bulk_unblock
+        rectangle "📤 Export Selected" as bulk_export
+        rectangle "🗑️ Delete Selected" as bulk_delete #lightcoral
+    }
+
+    frame "Pagination & Info" as pagination {
+        rectangle "📄 Showing 1-20 of 1,247" as showing_info
+        rectangle "⬅️ Previous" as prev_page
+        rectangle "1 2 [3] 4 5 ... 63" as page_numbers #lightgreen
+        rectangle "➡️ Next" as next_page
+        rectangle "📋 20 per page ▼" as per_page_select
+    }
+
+    frame "Quick Stats" as stats {
+        rectangle "📊 User Statistics" as stats_title
+        rectangle "✅ Active: 1,156 (93%)" as active_stat #lightgreen
+        rectangle "🔒 Blocked: 45 (4%)" as blocked_stat #lightcoral
+        rectangle "⚠️ Unverified: 46 (3%)" as unverified_stat #yellow
+        rectangle "👨‍💼 Admins: 8" as admin_stat #lightyellow
+    }
+
+    frame "Action Modals" as modals {
+        rectangle "👁️ User Detail Modal" as detail_modal
+        rectangle "🔒 Block User Confirmation" as block_modal
+        rectangle "⚙️ Edit User Role" as role_modal
+        rectangle "📧 Send Email Form" as email_modal
+    }
+}
+
+' Flow connections
+search_box --> user_table : "Filter Results"
+status_filter --> filter_options
+filter_options --> user_table
+
+select_all --> bulk_actions
+check1 --> bulk_actions
+check2 --> bulk_actions
+
+actions1 --> detail_modal : "View Details"
+actions1 --> block_modal : "Block User"
+actions2 --> role_modal : "Change Role"
+
+bulk_block --> block_modal : "Confirm Block"
+bulk_email --> email_modal : "Compose Email"
+
+page_numbers --> user_table : "Load Page"
+per_page_select --> user_table : "Change Page Size"
+
+footer UC024 - Quản Lý User: Admin interface để xem và quản lý tất cả users
+@enduml

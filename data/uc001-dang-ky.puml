@@ -1,0 +1,9 @@
+@startuml UC001-Dang-Ky
+!theme plain
+
+actor User
+usecase "Đăng ký" as UC001
+
+User --> UC001
+
+@enduml

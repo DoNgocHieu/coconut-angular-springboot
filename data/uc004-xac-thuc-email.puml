@@ -1,0 +1,9 @@
+@startuml UC004-Xac-Thuc-Email
+!theme plain
+
+actor User
+usecase "Xác thực email" as UC004
+
+User --> UC004
+
+@enduml

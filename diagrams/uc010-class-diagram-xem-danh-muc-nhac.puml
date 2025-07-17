@@ -1,0 +1,421 @@
+@startuml UC010-Class-Diagram-Xem-Danh-Muc-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC010: Xem danh mục nhạc
+
+package "Frontend Layer" {
+    class CategoryExploreComponent {
+        +categories: CategoryDto[]
+        +selectedCategory: CategoryDto
+        +musics: MusicDto[]
+        +isLoading: boolean
+        +currentPage: number
+        +totalPages: number
+        +pageSize: number
+        +sortBy: string
+        +sortDirection: string
+        +filters: CategoryFiltersDto
+        +ngOnInit(): void
+        +loadCategories(): void
+        +selectCategory(categoryId: number): void
+        +loadMusicsByCategory(): void
+        +applySorting(sortBy: string): void
+        +applyFilters(): void
+        +clearFilters(): void
+        +loadNextPage(): void
+        +playMusic(musicId: number): void
+        +addToFavorites(musicId: number): void
+        +addToPlaylist(musicId: number): void
+    }
+
+    class CategoryCardComponent {
+        +category: CategoryDto
+        +musicCount: number
+        +isSelected: boolean
+        +onCategoryClick(): void
+        +onCategoryHover(): void
+    }
+
+    class MusicListComponent {
+        +musics: MusicDto[]
+        +displayMode: string
+        +canEdit: boolean
+        +currentPlayingId: number
+        +onPlayMusic(musicId: number): void
+        +onMusicClick(musicId: number): void
+        +onFavoriteToggle(musicId: number): void
+        +onAddToPlaylist(musicId: number): void
+        +onMusicOptions(musicId: number): void
+    }
+
+    class CategoryFiltersComponent {
+        +filters: CategoryFiltersDto
+        +artistOptions: string[]
+        +yearOptions: number[]
+        +durationRanges: DurationRangeDto[]
+        +onFiltersChange(): void
+        +resetFilters(): void
+        +loadFilterOptions(): void
+    }
+
+    class CategorySortComponent {
+        +sortBy: string
+        +sortDirection: string
+        +sortOptions: SortOptionDto[]
+        +onSortChange(): void
+        +toggleSortDirection(): void
+    }
+
+    class CategoryStatsComponent {
+        +category: CategoryDto
+        +totalMusics: number
+        +totalDuration: number
+        +topArtists: ArtistStatsDto[]
+        +popularityTrend: ChartDataDto
+        +loadCategoryStats(): void
+    }
+}
+
+package "Backend Controller Layer" {
+    class CategoryController {
+        -categoryService: CategoryService
+        +getAllCategories(): ResponseEntity<List<CategoryDto>>
+        +getCategoryById(categoryId: Long): ResponseEntity<CategoryDto>
+        +getCategoryStats(categoryId: Long): ResponseEntity<CategoryStatsDto>
+        +getMusicsByCategory(categoryId: Long, pageable: Pageable, filters: CategoryFiltersDto): ResponseEntity<Page<MusicDto>>
+        +getPopularCategories(limit: int): ResponseEntity<List<CategoryDto>>
+        +searchCategories(keyword: String): ResponseEntity<List<CategoryDto>>
+    }
+
+    class MusicController {
+        -musicService: MusicService
+        +getMusicsByCategory(categoryId: Long, sortBy: String, direction: String, pageable: Pageable): ResponseEntity<Page<MusicDto>>
+        +getMusicsByFilters(filters: CategoryFiltersDto, pageable: Pageable): ResponseEntity<Page<MusicDto>>
+        +getFilterOptions(categoryId: Long): ResponseEntity<FilterOptionsDto>
+    }
+}
+
+package "Service Layer" {
+    class CategoryService {
+        -categoryRepository: CategoryRepository
+        -categoryMapper: CategoryMapper
+        -categoryValidationService: CategoryValidationService
+        +getAllActiveCategories(): List<CategoryDto>
+        +getCategoryById(categoryId: Long): CategoryDto
+        +getCategoryWithStats(categoryId: Long): CategoryDto
+        +getPopularCategories(limit: int): List<CategoryDto>
+        +searchCategories(keyword: String): List<CategoryDto>
+        +getCategoryStatistics(categoryId: Long): CategoryStatsDto
+        +updateCategoryMusicCount(categoryId: Long): void
+        +getCategoriesWithMusicCount(): List<CategoryDto>
+    }
+
+    class MusicService {
+        -musicRepository: MusicRepository
+        -musicMapper: MusicMapper
+        -musicValidationService: MusicValidationService
+        +getMusicsByCategory(categoryId: Long, pageable: Pageable): Page<MusicDto>
+        +getMusicsByCategoryWithFilters(categoryId: Long, filters: CategoryFiltersDto, pageable: Pageable): Page<MusicDto>
+        +getMusicsByCategorySorted(categoryId: Long, sortBy: String, direction: String, pageable: Pageable): Page<MusicDto>
+        +getFilterOptions(categoryId: Long): FilterOptionsDto
+        +countMusicsByCategory(categoryId: Long): long
+        +getTopArtistsByCategory(categoryId: Long, limit: int): List<ArtistStatsDto>
+        +getCategoryDurationStats(categoryId: Long): DurationStatsDto
+    }
+
+    class CategoryValidationService {
+        +validateCategoryExists(categoryId: Long): void
+        +validateCategoryActive(categoryId: Long): void
+        +validateFilters(filters: CategoryFiltersDto): List<String>
+        +validateSortParams(sortBy: String, direction: String): void
+        +validatePaginationParams(page: int, size: int): void
+    }
+
+    class MusicValidationService {
+        +validateMusicExists(musicId: Long): void
+        +validateMusicPublic(musicId: Long): void
+        +validateFiltersFormat(filters: CategoryFiltersDto): List<String>
+        +validateSortByField(sortBy: String): boolean
+    }
+}
+
+package "Repository Layer" {
+    interface CategoryRepository {
+        +findAllByActiveTrue(): List<Category>
+        +findByIdAndActiveTrue(id: Long): Optional<Category>
+        +findPopularCategories(pageable: Pageable): Page<Category>
+        +findByNameContainingIgnoreCase(keyword: String): List<Category>
+        +updateMusicCount(categoryId: Long, count: Long): void
+        +findCategoriesWithMusicCount(): List<Category>
+    }
+
+    interface MusicRepository {
+        +findByCategoryIdAndDeletedFalseAndIsPublicTrue(categoryId: Long, pageable: Pageable): Page<Music>
+        +findByCategoryIdWithFilters(categoryId: Long, filters: CategoryFiltersDto, pageable: Pageable): Page<Music>
+        +countByCategoryIdAndDeletedFalseAndIsPublicTrue(categoryId: Long): long
+        +findDistinctArtistsByCategoryId(categoryId: Long): List<String>
+        +findYearRangeByCategoryId(categoryId: Long): List<Integer>
+        +findDurationStatsByCategoryId(categoryId: Long): DurationStatsDto
+        +findTopArtistsByCategoryId(categoryId: Long, pageable: Pageable): Page<Object[]>
+        +findMusicsByCategoryAndArtist(categoryId: Long, artist: String, pageable: Pageable): Page<Music>
+        +findMusicsByCategoryAndYear(categoryId: Long, year: Integer, pageable: Pageable): Page<Music>
+        +findMusicsByCategoryAndDuration(categoryId: Long, minDuration: Integer, maxDuration: Integer, pageable: Pageable): Page<Music>
+    }
+}
+
+package "Entity Layer" {
+    class Category {
+        -id: Long
+        -name: String
+        -description: String
+        -color: String
+        -imageUrl: String
+        -displayOrder: Integer
+        -musicCount: Long
+        -active: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getDescription(): String
+        +getColor(): String
+        +getImageUrl(): String
+        +getDisplayOrder(): Integer
+        +getMusicCount(): Long
+        +isActive(): Boolean
+        +incrementMusicCount(): void
+        +decrementMusicCount(): void
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -viewCount: Long
+        -favoriteCount: Long
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getAlbum(): String
+        +getDuration(): Integer
+        +getCoverImageUrl(): String
+        +getViewCount(): Long
+        +getFavoriteCount(): Long
+        +getCategoryId(): Long
+        +getUserId(): Long
+        +isPublic(): Boolean
+        +isDeleted(): Boolean
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+        +getRole(): UserRole
+        +isActive(): Boolean
+    }
+}
+
+package "DTO Layer" {
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +description: String
+        +color: String
+        +imageUrl: String
+        +displayOrder: Integer
+        +musicCount: Long
+        +isActive: Boolean
+        +createdAt: LocalDateTime
+        +canEdit: Boolean
+        +popularityScore: Double
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +viewCount: Long
+        +favoriteCount: Long
+        +category: CategoryDto
+        +uploader: UserDto
+        +isFavorite: Boolean
+        +isInPlaylist: Boolean
+        +uploadedAt: LocalDateTime
+        +durationFormatted: String
+    }
+
+    class CategoryFiltersDto {
+        +categoryId: Long
+        +artists: List<String>
+        +yearFrom: Integer
+        +yearTo: Integer
+        +durationFrom: Integer
+        +durationTo: Integer
+        +minViewCount: Long
+        +minFavoriteCount: Long
+        +searchKeyword: String
+        +isPublicOnly: Boolean
+    }
+
+    class CategoryStatsDto {
+        +categoryId: Long
+        +totalMusics: Long
+        +totalDuration: Long
+        +averageDuration: Double
+        +totalViews: Long
+        +totalFavorites: Long
+        +topArtists: List<ArtistStatsDto>
+        +popularityTrend: List<ChartDataDto>
+        +recentAdditions: List<MusicDto>
+        +mostPopular: List<MusicDto>
+    }
+
+    class ArtistStatsDto {
+        +artistName: String
+        +musicCount: Long
+        +totalViews: Long
+        +totalFavorites: Long
+        +averageRating: Double
+    }
+
+    class FilterOptionsDto {
+        +availableArtists: List<String>
+        +yearRange: YearRangeDto
+        +durationRange: DurationRangeDto
+        +viewCountRange: ViewCountRangeDto
+        +favoriteCountRange: FavoriteCountRangeDto
+    }
+
+    class SortOptionDto {
+        +value: String
+        +label: String
+        +direction: String
+        +isDefault: Boolean
+    }
+
+    class DurationRangeDto {
+        +minDuration: Integer
+        +maxDuration: Integer
+        +label: String
+    }
+
+    class YearRangeDto {
+        +fromYear: Integer
+        +toYear: Integer
+    }
+
+    class ViewCountRangeDto {
+        +minViews: Long
+        +maxViews: Long
+    }
+
+    class FavoriteCountRangeDto {
+        +minFavorites: Long
+        +maxFavorites: Long
+    }
+
+    class ChartDataDto {
+        +label: String
+        +value: Number
+        +date: LocalDate
+        +color: String
+    }
+
+    class DurationStatsDto {
+        +totalDuration: Long
+        +averageDuration: Double
+        +minDuration: Integer
+        +maxDuration: Integer
+        +durationDistribution: Map<String, Long>
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class CategoryMapper {
+        +toDto(category: Category): CategoryDto
+        +toDtoWithStats(category: Category, stats: CategoryStatsDto): CategoryDto
+        +toDtoList(categories: List<Category>): List<CategoryDto>
+        +setUserSpecificFlags(dto: CategoryDto, userId: Long): void
+    }
+
+    class MusicMapper {
+        +toDto(music: Music): MusicDto
+        +toDtoWithCategory(music: Music, category: Category): MusicDto
+        +toDtoList(musics: List<Music>): List<MusicDto>
+        +setUserSpecificFlags(dto: MusicDto, userId: Long): void
+        +formatDuration(duration: Integer): String
+    }
+
+    class FilterMapper {
+        +toFilterOptionsDto(artists: List<String>, years: List<Integer>, durations: DurationStatsDto): FilterOptionsDto
+        +toArtistStatsDto(artistData: Object[]): ArtistStatsDto
+        +toChartDataDto(chartData: Object[]): ChartDataDto
+    }
+}
+
+' Relationships
+CategoryExploreComponent --> CategoryCardComponent : contains
+CategoryExploreComponent --> MusicListComponent : contains
+CategoryExploreComponent --> CategoryFiltersComponent : contains
+CategoryExploreComponent --> CategorySortComponent : contains
+CategoryExploreComponent --> CategoryStatsComponent : contains
+
+CategoryExploreComponent --> CategoryController : calls
+CategoryExploreComponent --> MusicController : calls
+
+CategoryController --> CategoryService : uses
+MusicController --> MusicService : uses
+
+CategoryService --> CategoryRepository : uses
+CategoryService --> CategoryMapper : uses
+CategoryService --> CategoryValidationService : uses
+
+MusicService --> MusicRepository : uses
+MusicService --> MusicMapper : uses
+MusicService --> MusicValidationService : uses
+MusicService --> FilterMapper : uses
+
+CategoryRepository --> Category : manages
+MusicRepository --> Music : manages
+
+Category --> Music : contains
+Music --> Category : belongs to
+Music --> User : uploaded by
+
+CategoryMapper --> CategoryDto : creates
+MusicMapper --> MusicDto : creates
+FilterMapper --> FilterOptionsDto : creates
+FilterMapper --> ArtistStatsDto : creates
+
+@enduml

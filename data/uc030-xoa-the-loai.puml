@@ -1,0 +1,9 @@
+@startuml UC030-Xoa-The-Loai
+!theme plain
+
+actor Admin
+usecase "Xóa thể loại" as UC030
+
+Admin --> UC030
+
+@enduml

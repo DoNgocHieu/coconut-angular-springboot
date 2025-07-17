@@ -1,0 +1,132 @@
+@startuml UC032-Thong-Ke-Admin
+!theme plain
+title UC032 - Xem Thống Kê Tổng Quan (Admin)
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Admin - Dashboard Thống Kê" {
+    frame "Dashboard Header" as header {
+        rectangle "📊 Dashboard Tổng Quan" as page_title
+        rectangle "👨‍💼 Admin Panel" as admin_badge #lightgreen
+        rectangle "🔄 Last Updated: 5 min ago" as last_updated
+        rectangle "📅 Date Range: Last 30 Days ▼" as date_range
+    }
+
+    frame "Key Performance Indicators" as kpi_cards {
+        rectangle "KPI Card 1" as kpi1 {
+            rectangle "👥 Total Users" as users_title
+            rectangle "1,247" as users_count #lightgreen
+            rectangle "📈 +12% vs last month" as users_growth #lightgreen
+        }
+
+        rectangle "KPI Card 2" as kpi2 {
+            rectangle "🎵 Total Songs" as songs_title
+            rectangle "8,956" as songs_count #lightblue
+            rectangle "📈 +156 this month" as songs_growth #lightgreen
+        }
+
+        rectangle "KPI Card 3" as kpi3 {
+            rectangle "▶️ Total Plays" as plays_title
+            rectangle "2.3M" as plays_count #lightyellow
+            rectangle "📈 +18% vs last month" as plays_growth #lightgreen
+        }
+
+        rectangle "KPI Card 4" as kpi4 {
+            rectangle "💾 Storage Used" as storage_title
+            rectangle "245 GB" as storage_count #lightcoral
+            rectangle "⚠️ 82% of 300GB" as storage_warning #orange
+        }
+    }
+
+    frame "Charts Section" as charts {
+        rectangle "User Activity Chart" as activity_chart {
+            rectangle "📈 Daily Active Users (Last 30 Days)" as activity_title
+            rectangle "Line Chart: User Activity Trend" as activity_graph #lightblue
+            rectangle "📊 Peak: 456 users (March 15)" as activity_peak
+        }
+
+        rectangle "Listening Trends Chart" as listening_chart {
+            rectangle "🎵 Song Plays by Category" as listening_title
+            rectangle "Bar Chart: Plays by Genre" as listening_graph #lightgreen
+            rectangle "🥇 Top: VN LoFi (35%)" as top_genre
+        }
+    }
+
+    frame "Top Lists" as top_lists {
+        rectangle "Top Songs This Month" as top_songs {
+            rectangle "🥇 1. Song Title A - 45K plays" as song1
+            rectangle "🥈 2. Song Title B - 38K plays" as song2
+            rectangle "🥉 3. Song Title C - 32K plays" as song3
+            rectangle "📋 View Full List..." as view_all_songs
+        }
+
+        rectangle "Top Artists" as top_artists {
+            rectangle "👤 1. Artist A - 156K plays" as artist1
+            rectangle "👤 2. Artist B - 134K plays" as artist2
+            rectangle "👤 3. Artist C - 98K plays" as artist3
+            rectangle "📋 View Full List..." as view_all_artists
+        }
+    }
+
+    frame "Recent Activity Feed" as activity_feed {
+        rectangle "📰 System Activity" as feed_title
+        rectangle "🆕 New user registered: john@email.com" as activity1
+        rectangle "🎵 New song uploaded: 'Song Title'" as activity2
+        rectangle "🔒 User blocked: spam@email.com" as activity3
+        rectangle "📊 Daily backup completed" as activity4
+        rectangle "⚠️ Storage 80% full warning" as activity5
+        rectangle "📋 View All Activity..." as view_all_activity
+    }
+
+    frame "System Health" as system_health {
+        rectangle "🖥️ Server Status" as server_status
+        rectangle "💚 All Systems Operational" as status_ok #lightgreen
+        rectangle "🔗 API Response Time: 120ms" as api_time
+        rectangle "💾 Database Connections: 45/100" as db_connections
+        rectangle "📡 CDN Status: Active" as cdn_status
+        rectangle "🔄 Last Backup: 2 hours ago" as last_backup
+    }
+
+    frame "Quick Actions" as quick_actions {
+        rectangle "📊 Generate Monthly Report" as generate_report
+        rectangle "📧 Send Weekly Summary" as send_summary
+        rectangle "🔄 Refresh Dashboard" as refresh_dashboard
+        rectangle "⚙️ System Settings" as system_settings
+        rectangle "📤 Export Data" as export_data
+    }
+
+    frame "Alerts & Notifications" as alerts {
+        rectangle "🚨 System Alerts" as alerts_title
+        rectangle "⚠️ Storage almost full (82%)" as storage_alert #orange
+        rectangle "📈 Unusual traffic spike detected" as traffic_alert #yellow
+        rectangle "✅ All backups completed successfully" as backup_alert #lightgreen
+        rectangle "🔔 3 new user reports to review" as reports_alert #lightblue
+    }
+}
+
+' Flow connections
+date_range --> kpi_cards : "Update Metrics"
+date_range --> charts : "Update Charts"
+
+kpi1 --> activity_chart : "Drill Down"
+kpi3 --> listening_chart : "Drill Down"
+
+view_all_songs ..> "Songs Report Page" : "UC033"
+view_all_artists ..> "Artists Analytics" : "Details"
+
+generate_report ..> "Report Generator" : "UC035"
+refresh_dashboard --> kpi_cards : "Reload Data"
+
+storage_alert --> system_settings : "Manage Storage"
+reports_alert ..> "User Reports Page" : "Review Reports"
+
+footer UC032 - Dashboard: Admin interface với metrics, charts và system health
+@enduml

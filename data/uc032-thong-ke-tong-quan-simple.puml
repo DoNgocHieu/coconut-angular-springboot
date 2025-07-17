@@ -1,0 +1,9 @@
+@startuml UC032-Thong-Ke-Tong-Quan
+!theme plain
+
+actor Admin
+usecase "Xem thống kê tổng quan" as UC032
+
+Admin --> UC032
+
+@enduml

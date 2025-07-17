@@ -1,0 +1,213 @@
+@startuml UC016-Class-Diagram-Them-Nhac-Vao-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC016: Thêm nhạc vào playlist
+
+class PlaylistMusicController {
+    + addMusicToPlaylist(request: AddMusicToPlaylistRequest): ResponseEntity<ApiResponse>
+    + addMultipleMusicToPlaylist(request: AddMultipleMusicRequest): ResponseEntity<ApiResponse>
+    + getUserPlaylists(userId: Long): ResponseEntity<List<PlaylistSummaryDto>>
+    + getPlaylistMusic(playlistId: Long, page: int, size: int): ResponseEntity<Page<PlaylistMusicDto>>
+    + removeMusicFromPlaylist(playlistId: Long, musicId: Long): ResponseEntity<ApiResponse>
+    + reorderPlaylistMusic(playlistId: Long, request: ReorderMusicRequest): ResponseEntity<ApiResponse>
+    + createPlaylistAndAddMusic(request: CreatePlaylistWithMusicRequest): ResponseEntity<PlaylistDto>
+}
+
+class PlaylistMusicService {
+    + addMusicToPlaylist(userId: Long, playlistId: Long, musicId: Long): void
+    + addMultipleMusicToPlaylist(userId: Long, playlistId: Long, musicIds: List<Long>): void
+    + getUserOwnedPlaylists(userId: Long): List<Playlist>
+    + getPlaylistWithMusic(playlistId: Long, pageable: Pageable): Page<PlaylistMusic>
+    + removeMusicFromPlaylist(userId: Long, playlistId: Long, musicId: Long): void
+    + reorderPlaylistMusic(userId: Long, playlistId: Long, musicOrders: Map<Long, Integer>): void
+    + createPlaylistAndAddMusic(userId: Long, request: CreatePlaylistWithMusicRequest): Playlist
+    + validatePlaylistOwnership(playlistId: Long, userId: Long): void
+    + validateMusicNotInPlaylist(playlistId: Long, musicId: Long): void
+    + getNextOrderIndex(playlistId: Long): int
+}
+
+class PlaylistMusic {
+    - Long id
+    - Playlist playlist
+    - Music music
+    - LocalDateTime addedAt
+    - int orderIndex
+    - User addedBy
+    + getId(): Long
+    + getPlaylist(): Playlist
+    + getMusic(): Music
+    + getOrderIndex(): int
+    + getAddedAt(): LocalDateTime
+}
+
+class PlaylistMusicRepository {
+    + save(playlistMusic: PlaylistMusic): PlaylistMusic
+    + saveAll(playlistMusic: List<PlaylistMusic>): List<PlaylistMusic>
+    + findByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): Optional<PlaylistMusic>
+    + findByPlaylistId(playlistId: Long, pageable: Pageable): Page<PlaylistMusic>
+    + findByPlaylistIdOrderByOrderIndexAsc(playlistId: Long): List<PlaylistMusic>
+    + deleteByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): void
+    + countByPlaylistId(playlistId: Long): Long
+    + existsByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): boolean
+    + findMaxOrderIndexByPlaylistId(playlistId: Long): Optional<Integer>
+    + findByPlaylistIdAndMusicIdIn(playlistId: Long, musicIds: List<Long>): List<PlaylistMusic>
+}
+
+class PlaylistRepository {
+    + findById(id: Long): Optional<Playlist>
+    + findByUserIdAndIdOrderByCreatedAtDesc(userId: Long, playlistId: Long): Optional<Playlist>
+    + findByUserIdOrderByCreatedAtDesc(userId: Long): List<Playlist>
+    + existsByIdAndUserId(id: Long, userId: Long): boolean
+}
+
+class MusicRepository {
+    + findById(id: Long): Optional<Music>
+    + findAllById(ids: List<Long>): List<Music>
+    + existsById(id: Long): boolean
+    + existsByIdIn(ids: List<Long>): boolean
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+    + existsById(id: Long): boolean
+}
+
+class AddMusicToPlaylistRequest {
+    + Long playlistId
+    + Long musicId
+}
+
+class AddMultipleMusicRequest {
+    + Long playlistId
+    + List<Long> musicIds
+}
+
+class ReorderMusicRequest {
+    + Map<Long, Integer> musicOrders
+}
+
+class CreatePlaylistWithMusicRequest {
+    + String name
+    + String description
+    + boolean isPublic
+    + List<Long> musicIds
+}
+
+class PlaylistMusicDto {
+    + Long id
+    + MusicDto music
+    + LocalDateTime addedAt
+    + int orderIndex
+    + String addedByUsername
+    + boolean canRemove
+    + boolean canReorder
+}
+
+class PlaylistSummaryDto {
+    + Long id
+    + String name
+    + String description
+    + String imageUrl
+    + boolean isPublic
+    + int musicCount
+    + boolean isOwner
+}
+
+class Playlist {
+    - Long id
+    - String name
+    - String description
+    - String imageUrl
+    - User user
+    - boolean isPublic
+    - LocalDateTime createdAt
+    - Set<PlaylistMusic> playlistMusic
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - int duration
+    - Category category
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - Set<Playlist> playlists
+}
+
+class PlaylistMusicMapper {
+    + toDto(playlistMusic: PlaylistMusic): PlaylistMusicDto
+    + toDtoList(playlistMusic: List<PlaylistMusic>): List<PlaylistMusicDto>
+    + toPlaylistSummaryDto(playlist: Playlist): PlaylistSummaryDto
+    + toPlaylistSummaryDtoList(playlists: List<Playlist>): List<PlaylistSummaryDto>
+}
+
+class PlaylistValidationService {
+    + validatePlaylistExists(playlistId: Long): void
+    + validateMusicExists(musicId: Long): void
+    + validatePlaylistOwnership(playlist: Playlist, userId: Long): void
+    + validateMusicNotInPlaylist(playlistId: Long, musicId: Long): void
+    + validatePlaylistMusicLimit(playlistId: Long, currentCount: Long): void
+    + validateOrderIndex(orderIndex: int): void
+}
+
+' Relationships
+PlaylistMusicController --> PlaylistMusicService : uses
+PlaylistMusicController --> AddMusicToPlaylistRequest : receives
+PlaylistMusicController --> AddMultipleMusicRequest : receives
+PlaylistMusicController --> ReorderMusicRequest : receives
+PlaylistMusicController --> CreatePlaylistWithMusicRequest : receives
+PlaylistMusicController --> PlaylistMusicDto : returns
+PlaylistMusicController --> PlaylistSummaryDto : returns
+
+PlaylistMusicService --> PlaylistMusicRepository : uses
+PlaylistMusicService --> PlaylistRepository : uses
+PlaylistMusicService --> MusicRepository : uses
+PlaylistMusicService --> UserRepository : uses
+PlaylistMusicService --> PlaylistMusicMapper : uses
+PlaylistMusicService --> PlaylistValidationService : uses
+
+PlaylistMusicRepository --> PlaylistMusic : manages
+PlaylistMusic --> Playlist : references
+PlaylistMusic --> Music : references
+PlaylistMusic --> User : added by
+Playlist --> User : owned by
+Playlist --> PlaylistMusic : contains
+
+PlaylistMusicMapper --> PlaylistMusic : maps
+PlaylistMusicMapper --> PlaylistMusicDto : creates
+
+note right of PlaylistMusicService
+  Business rules:
+  - User must own playlist to add music
+  - Max 1000 songs per playlist
+  - No duplicate songs in playlist
+  - Maintain order index for songs
+  - Support batch operations
+  - Auto-increment order index
+end note
+
+note bottom of PlaylistMusic
+  PlaylistMusic constraints:
+  - Composite unique key (playlist_id, music_id)
+  - Order index for song positioning
+  - Audit fields (addedAt, addedBy)
+  - Index on playlist_id, order_index
+  - Cascade delete with playlist
+end note
+
+note left of PlaylistValidationService
+  Validation rules:
+  - Playlist ownership check
+  - Music existence validation
+  - Duplicate prevention
+  - Music count limits
+  - Order index validation
+end note
+
+@enduml

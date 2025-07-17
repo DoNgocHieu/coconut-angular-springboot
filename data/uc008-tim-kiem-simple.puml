@@ -1,0 +1,9 @@
+@startuml UC008-Tim-Kiem
+!theme plain
+
+actor User
+usecase "Tìm kiếm bài hát" as UC008
+
+User --> UC008
+
+@enduml

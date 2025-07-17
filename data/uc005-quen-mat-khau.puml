@@ -1,0 +1,9 @@
+@startuml UC005-Quen-Mat-Khau
+!theme plain
+
+actor User
+usecase "Quên mật khẩu" as UC005
+
+User --> UC005
+
+@enduml

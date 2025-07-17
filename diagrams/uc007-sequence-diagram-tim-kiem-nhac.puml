@@ -1,0 +1,128 @@
+@startuml UC007-Sequence-Diagram-Tim-Kiem-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC007: Tìm kiếm nhạc
+
+actor User
+participant "SearchUI" as UI
+participant "MusicController" as Controller
+participant "MusicService" as MusicService
+participant "MusicRepository" as MusicRepo
+database "Database" as DB
+
+User -> UI: Enter search keyword
+activate UI
+
+UI -> UI: validateSearchInput(keyword)
+
+alt Keyword quá ngắn (< 2 ký tự)
+    UI --> User: "Vui lòng nhập ít nhất 2 ký tự"
+else Keyword hợp lệ
+    UI -> UI: showLoadingIndicator()
+    UI -> Controller: GET /api/music/search?keyword={keyword}&type={searchType}
+    activate Controller
+
+    Controller -> Controller: validateSearchRequest(request)
+    Controller -> MusicService: searchMusic(searchCriteria)
+    activate MusicService
+
+    MusicService -> MusicService: buildSearchCriteria(request)
+
+    alt Search type = "ALL"
+        MusicService -> MusicRepo: findByTitleOrArtistContaining(keyword)
+        activate MusicRepo
+        MusicRepo -> DB: SELECT * FROM music WHERE title ILIKE ? OR artist ILIKE ?
+        DB --> MusicRepo: List<Music>
+        MusicRepo --> MusicService: List<Music>
+        deactivate MusicRepo
+
+    else Search type = "TITLE"
+        MusicService -> MusicRepo: findByTitleContainingIgnoreCase(keyword)
+        activate MusicRepo
+        MusicRepo -> DB: SELECT * FROM music WHERE title ILIKE ?
+        DB --> MusicRepo: List<Music>
+        MusicRepo --> MusicService: List<Music>
+        deactivate MusicRepo
+
+    else Search type = "ARTIST"
+        MusicService -> MusicRepo: findByArtistContainingIgnoreCase(keyword)
+        activate MusicRepo
+        MusicRepo -> DB: SELECT * FROM music WHERE artist ILIKE ?
+        DB --> MusicRepo: List<Music>
+        MusicRepo --> MusicService: List<Music>
+        deactivate MusicRepo
+
+    else Search type = "CATEGORY"
+        MusicService -> MusicRepo: findByCategoryId(categoryId)
+        activate MusicRepo
+        MusicRepo -> DB: SELECT * FROM music WHERE category_id = ?
+        DB --> MusicRepo: List<Music>
+        MusicRepo --> MusicService: List<Music>
+        deactivate MusicRepo
+    end
+
+    MusicService -> MusicService: sortResults(musicList, sortCriteria)
+    MusicService -> MusicService: applyPagination(musicList, pageRequest)
+    MusicService -> MusicService: convertToMusicDto(musicList)
+
+    MusicService --> Controller: SearchResponse
+    deactivate MusicService
+
+    Controller --> UI: 200 OK + SearchResponse
+    deactivate Controller
+
+    UI -> UI: hideLoadingIndicator()
+
+    alt No results found
+        UI --> User: "Không tìm thấy kết quả cho '{keyword}'"
+        UI -> UI: showSuggestedMusic()
+    else Results found
+        UI -> UI: displaySearchResults(results)
+        UI -> UI: showPaginationControls(totalPages)
+        UI --> User: "Tìm thấy {totalElements} kết quả"
+    end
+
+    deactivate UI
+end
+
+== Advanced Search Flow ==
+
+User -> UI: Use advanced search filters
+activate UI
+
+UI -> UI: showAdvancedSearchForm()
+User -> UI: Select category, sort options
+UI -> Controller: GET /api/music/search (with advanced criteria)
+activate Controller
+
+Controller -> MusicService: searchMusic(advancedCriteria)
+activate MusicService
+
+' Similar flow but with more complex criteria
+MusicService -> MusicRepo: findWithAdvancedCriteria(criteria)
+activate MusicRepo
+MusicRepo -> DB: Complex query with JOIN, WHERE, ORDER BY
+DB --> MusicRepo: Filtered results
+MusicRepo --> MusicService: List<Music>
+deactivate MusicRepo
+
+MusicService --> Controller: SearchResponse
+deactivate MusicService
+
+Controller --> UI: 200 OK + SearchResponse
+deactivate Controller
+
+UI -> UI: displayAdvancedResults(results)
+UI --> User: Show filtered and sorted results
+deactivate UI
+
+note over UI, DB
+  Search optimizations:
+  1. Client-side input debouncing
+  2. Database indexes on searchable fields
+  3. Pagination for large result sets
+  4. Caching for popular searches
+  5. Search history and suggestions
+end note
+
+@enduml

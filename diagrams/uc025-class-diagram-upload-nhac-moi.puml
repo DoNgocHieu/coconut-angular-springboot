@@ -1,0 +1,106 @@
+@startuml UC025-Class-Diagram-Upload-Nhac-Moi
+!theme plain
+
+title Biểu đồ lớp - UC025: Upload nhạc mới (Admin)
+
+class AdminMusicController {
+    + uploadMusic(request: MusicCreateRequest): ResponseEntity<MusicDto>
+    + validateMusicFile(file: MultipartFile): void
+    + getMusicMetadata(file: MultipartFile): MusicMetadata
+}
+
+class AdminMusicService {
+    + uploadMusic(request: MusicCreateRequest): Music
+    + validateMusicData(request: MusicCreateRequest): void
+    + processMusicFile(file: MultipartFile): MusicFileInfo
+    + extractMetadata(file: MultipartFile): MusicMetadata
+    + generateThumbnail(audioFile: MultipartFile): String
+}
+
+class MusicFileProcessor {
+    + validateAudioFile(file: MultipartFile): boolean
+    + extractDuration(file: MultipartFile): String
+    + extractBitrate(file: MultipartFile): int
+    + extractSampleRate(file: MultipartFile): int
+    + generateWaveform(file: MultipartFile): String
+}
+
+class FileStorageService {
+    + storeMusicFile(file: MultipartFile): String
+    + storeImageFile(file: MultipartFile): String
+    + validateFileSize(file: MultipartFile): boolean
+    + generateUniqueFileName(originalName: String): String
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String album
+    - String filePath
+    - String imageUrl
+    - String duration
+    - int bitrate
+    - int sampleRate
+    - Category category
+    - LocalDateTime uploadedAt
+    - User uploadedBy
+}
+
+class MusicCreateRequest {
+    + String title
+    + String artist
+    + String album
+    + Long categoryId
+    + MultipartFile audioFile
+    + MultipartFile imageFile
+    + String description
+}
+
+class MusicMetadata {
+    + String title
+    + String artist
+    + String album
+    + String duration
+    + int bitrate
+    + int sampleRate
+    + String format
+}
+
+class CategoryRepository {
+    + findById(id: Long): Optional<Category>
+}
+
+class ArtistRepository {
+    + findByName(name: String): Optional<Artist>
+    + save(artist: Artist): Artist
+}
+
+' Relationships
+AdminMusicController --> AdminMusicService : uses
+AdminMusicService --> MusicFileProcessor : uses
+AdminMusicService --> FileStorageService : uses
+AdminMusicService --> MusicRepository : uses
+AdminMusicService --> CategoryRepository : uses
+AdminMusicService --> ArtistRepository : uses
+MusicFileProcessor --> MusicMetadata : extracts
+AdminMusicController --> MusicCreateRequest : receives
+
+note right of MusicFileProcessor
+  Audio processing features:
+  - Format validation (MP3, FLAC, WAV)
+  - Metadata extraction
+  - Duration calculation
+  - Quality validation
+  - Waveform generation
+end note
+
+note bottom of FileStorageService
+  File storage features:
+  - Virus scanning
+  - Size validation (max 50MB)
+  - Unique naming
+  - Path organization by date
+end note
+
+@enduml

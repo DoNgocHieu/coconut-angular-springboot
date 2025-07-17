@@ -1,0 +1,332 @@
+@startuml UC010-Sequence-Diagram-Xem-Danh-Muc-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC010: Xem danh mục nhạc
+
+actor User
+participant "Angular\nMusic App" as Client
+participant "Category\nController" as CategoryController
+participant "Category\nService" as CategoryService
+participant "Music\nController" as MusicController
+participant "Music\nService" as MusicService
+participant "Category\nRepository" as CategoryRepo
+participant "Music\nRepository" as MusicRepo
+participant "Category\nMapper" as CategoryMapper
+participant "Music\nMapper" as MusicMapper
+participant "Category\nValidationService" as CategoryValidation
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "Khám phá" or homepage
+activate Client
+
+Client -> Client: Initialize explore page
+Client -> Client: Show loading spinner for categories
+
+' Load all available categories
+Client -> CategoryController: GET /api/categories
+activate CategoryController
+
+CategoryController -> CategoryService: getAllActiveCategories()
+activate CategoryService
+
+CategoryService -> CategoryRepo: findAllByActiveTrue()
+activate CategoryRepo
+CategoryRepo -> DB: SELECT * FROM categories WHERE active = true ORDER BY display_order ASC
+DB --> CategoryRepo: List<Category>
+CategoryRepo --> CategoryService: List<Category>
+deactivate CategoryRepo
+
+' Get music count for each category
+CategoryService -> CategoryService: For each category, get music count
+CategoryService -> MusicRepo: countByCategoryIdAndDeletedFalseAndIsPublicTrue(categoryId)
+activate MusicRepo
+MusicRepo -> DB: SELECT COUNT(*) FROM musics WHERE category_id = ? AND deleted = false AND is_public = true
+DB --> MusicRepo: musicCount for each category
+MusicRepo --> CategoryService: Map<categoryId, musicCount>
+deactivate MusicRepo
+
+CategoryService -> CategoryMapper: toDtoList(categories, musicCounts)
+activate CategoryMapper
+CategoryMapper -> CategoryMapper: Convert each Category to CategoryDto
+CategoryMapper -> CategoryMapper: Set musicCount for each category
+CategoryMapper -> CategoryMapper: Set canEdit = false for regular users
+CategoryMapper -> CategoryMapper: Calculate popularity score based on music count
+CategoryMapper --> CategoryService: List<CategoryDto>
+deactivate CategoryMapper
+
+CategoryService --> CategoryController: List<CategoryDto>
+deactivate CategoryService
+
+CategoryController --> Client: 200 OK\nList<CategoryDto>
+deactivate CategoryController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Display category cards in grid layout
+Client -> Client: Show category names, colors, images, music counts
+Client --> User: Categories displayed: "New Music (245)", "Trending (189)", "Top View (312)", "VN LoFi (98)"
+
+' User selects a specific category
+User -> Client: Click on "VN LoFi" category card
+Client -> Client: Highlight selected category
+Client -> Client: Show loading spinner for musics
+Client -> Client: Initialize filters and sorting to default values
+
+' Load musics for selected category
+Client -> MusicController: GET /api/musics/category/4?page=0&size=20&sortBy=createdAt&direction=desc
+activate MusicController
+
+MusicController -> MusicController: Extract pagination and sorting parameters
+MusicController -> MusicController: Validate parameters
+MusicController -> MusicService: getMusicsByCategorySorted(categoryId=4, sortBy="createdAt", direction="desc", pageable)
+activate MusicService
+
+' Validate category exists
+MusicService -> CategoryValidation: validateCategoryExists(categoryId=4)
+activate CategoryValidation
+CategoryValidation -> CategoryRepo: findByIdAndActiveTrue(categoryId=4)
+activate CategoryRepo
+CategoryRepo -> DB: SELECT * FROM categories WHERE id = 4 AND active = true
+DB --> CategoryRepo: Category "VN LoFi"
+CategoryRepo --> CategoryValidation: Optional<Category>
+deactivate CategoryRepo
+CategoryValidation --> MusicService: void (validation passed)
+deactivate CategoryValidation
+
+' Get musics by category with sorting
+MusicService -> MusicRepo: findByCategoryIdAndDeletedFalseAndIsPublicTrue(categoryId=4, pageable)
+activate MusicRepo
+MusicRepo -> DB: SELECT m.*, c.name as category_name, c.color, u.username, u.display_name\nFROM musics m\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.user_id = u.id\nWHERE m.category_id = 4 AND m.deleted = false AND m.is_public = true\nORDER BY m.created_at DESC\nLIMIT 20 OFFSET 0
+DB --> MusicRepo: Page<Music> with 20 VN LoFi tracks
+MusicRepo --> MusicService: Page<Music>
+deactivate MusicRepo
+
+' Convert to DTOs with user-specific flags
+MusicService -> MusicMapper: toDtoList(musics.getContent())
+activate MusicMapper
+MusicMapper -> MusicMapper: Convert each Music to MusicDto
+MusicMapper -> MusicMapper: Set category info, uploader info
+MusicMapper -> MusicMapper: Format duration (e.g., "3:45")
+MusicMapper -> MusicMapper: Set isFavorite = false (user not authenticated)
+MusicMapper -> MusicMapper: Set isInPlaylist = false
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService -> MusicService: Create Page<MusicDto> with pagination info
+MusicService --> MusicController: Page<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nPage<MusicDto>
+deactivate MusicController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Display musics in list/grid view
+Client -> Client: Show pagination controls (Page 1 of 5)
+Client -> Client: Display sorting options and filter panel
+Client --> User: 20 VN LoFi songs displayed with play buttons and metadata
+
+' Load filter options for the selected category
+Client -> MusicController: GET /api/musics/category/4/filter-options
+activate MusicController
+
+MusicController -> MusicService: getFilterOptions(categoryId=4)
+activate MusicService
+
+' Get available artists in this category
+MusicService -> MusicRepo: findDistinctArtistsByCategoryId(categoryId=4)
+activate MusicRepo
+MusicRepo -> DB: SELECT DISTINCT artist FROM musics WHERE category_id = 4 AND deleted = false AND is_public = true ORDER BY artist
+DB --> MusicRepo: ["Đen Vâu", "Phan Ann", "Chillies", "Lofi Chill", ...]
+MusicRepo --> MusicService: List<String> artists
+deactivate MusicRepo
+
+' Get year range
+MusicService -> MusicRepo: findYearRangeByCategoryId(categoryId=4)
+activate MusicRepo
+MusicRepo -> DB: SELECT MIN(YEAR(created_at)) as min_year, MAX(YEAR(created_at)) as max_year FROM musics WHERE category_id = 4 AND deleted = false
+DB --> MusicRepo: {minYear: 2020, maxYear: 2025}
+MusicRepo --> MusicService: YearRangeDto
+deactivate MusicRepo
+
+' Get duration statistics
+MusicService -> MusicRepo: findDurationStatsByCategoryId(categoryId=4)
+activate MusicRepo
+MusicRepo -> DB: SELECT MIN(duration) as min_duration, MAX(duration) as max_duration, AVG(duration) as avg_duration FROM musics WHERE category_id = 4 AND deleted = false
+DB --> MusicRepo: {minDuration: 120, maxDuration: 480, avgDuration: 285}
+MusicRepo --> MusicService: DurationStatsDto
+deactivate MusicRepo
+
+MusicService -> MusicService: Build FilterOptionsDto with all available options
+MusicService --> MusicController: FilterOptionsDto
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nFilterOptionsDto
+deactivate MusicController
+
+Client -> Client: Populate filter dropdowns with available options
+Client -> Client: Set artist dropdown: "Tất cả", "Đen Vâu", "Phan Ann", "Chillies"...
+Client -> Client: Set year range slider: 2020 - 2025
+Client -> Client: Set duration range slider: 2:00 - 8:00
+Client --> User: Filter options loaded and ready for use
+
+' User applies filters
+User -> Client: Select artist "Đen Vâu" and year range 2023-2025
+Client -> Client: Update filter values
+Client -> Client: Show loading spinner
+
+Client -> MusicController: GET /api/musics/category/4/filtered?artists=Đen Vâu&yearFrom=2023&yearTo=2025&page=0&size=20&sortBy=viewCount&direction=desc
+activate MusicController
+
+MusicController -> MusicController: Parse filter parameters
+MusicController -> MusicService: getMusicsByCategoryWithFilters(categoryId=4, filters, pageable)
+activate MusicService
+
+' Validate filters
+MusicService -> CategoryValidation: validateFilters(filters)
+activate CategoryValidation
+CategoryValidation -> CategoryValidation: Check artist names exist
+CategoryValidation -> CategoryValidation: Check year range is valid
+CategoryValidation -> CategoryValidation: Check duration range is reasonable
+CategoryValidation --> MusicService: void (validation passed)
+deactivate CategoryValidation
+
+' Apply filters in database query
+MusicService -> MusicRepo: findByCategoryIdWithFilters(categoryId=4, filters, pageable)
+activate MusicRepo
+MusicRepo -> DB: SELECT m.*, c.name as category_name, c.color, u.username, u.display_name\nFROM musics m\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.user_id = u.id\nWHERE m.category_id = 4 AND m.deleted = false AND m.is_public = true\nAND m.artist = 'Đen Vâu'\nAND YEAR(m.created_at) BETWEEN 2023 AND 2025\nORDER BY m.view_count DESC\nLIMIT 20 OFFSET 0
+DB --> MusicRepo: Page<Music> with 8 filtered results
+MusicRepo --> MusicService: Page<Music>
+deactivate MusicRepo
+
+MusicService -> MusicMapper: toDtoList(filteredMusics.getContent())
+activate MusicMapper
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService --> MusicController: Page<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nPage<MusicDto>
+deactivate MusicController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Update music list with filtered results
+Client -> Client: Update pagination (Page 1 of 1, 8 results)
+Client -> Client: Show active filter tags: "Đen Vâu", "2023-2025"
+Client --> User: "8 bài hát của Đen Vâu trong VN LoFi (2023-2025)" displayed
+
+' User changes sorting
+User -> Client: Select "Phổ biến nhất" (sort by view count descending)
+Client -> Client: Update sorting parameters
+Client -> Client: Show loading spinner
+
+Client -> MusicController: GET /api/musics/category/4/filtered?artists=Đen Vâu&yearFrom=2023&yearTo=2025&page=0&size=20&sortBy=viewCount&direction=desc
+activate MusicController
+
+MusicController -> MusicService: getMusicsByCategoryWithFilters(categoryId=4, filters, pageable)
+activate MusicService
+
+MusicService -> MusicRepo: findByCategoryIdWithFilters(categoryId=4, filters, pageable)
+activate MusicRepo
+MusicRepo -> DB: Same query as above but ORDER BY m.view_count DESC
+DB --> MusicRepo: Page<Music> sorted by popularity
+MusicRepo --> MusicService: Page<Music>
+deactivate MusicRepo
+
+MusicService -> MusicMapper: toDtoList(sortedMusics.getContent())
+activate MusicMapper
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService --> MusicController: Page<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nPage<MusicDto>
+deactivate MusicController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Re-render music list with new sorting
+Client -> Client: Update sort indicator in UI
+Client --> User: Music list re-ordered by popularity (highest view count first)
+
+' Load next page
+User -> Client: Click "Trang tiếp theo" (pagination)
+Client -> Client: Increment current page
+Client -> Client: Show loading spinner
+
+Client -> MusicController: GET /api/musics/category/4/filtered?artists=Đen Vâu&yearFrom=2023&yearTo=2025&page=1&size=20&sortBy=viewCount&direction=desc
+activate MusicController
+
+MusicController -> MusicService: getMusicsByCategoryWithFilters(categoryId=4, filters, pageable)
+activate MusicService
+
+MusicService -> MusicRepo: findByCategoryIdWithFilters(categoryId=4, filters, pageable)
+activate MusicRepo
+MusicRepo -> DB: Same query with LIMIT 20 OFFSET 20
+DB --> MusicRepo: Page<Music> (page 2)
+MusicRepo --> MusicService: Page<Music>
+deactivate MusicRepo
+
+MusicService -> MusicMapper: toDtoList(nextPageMusics.getContent())
+activate MusicMapper
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService --> MusicController: Page<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nPage<MusicDto>
+deactivate MusicController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Update music list with page 2 content
+Client -> Client: Update pagination controls (Page 2 of 5)
+Client --> User: Next page of filtered results displayed
+
+' User plays music directly from category list
+User -> Client: Click play button on "Chill with Đen Vâu - Lofi Version"
+Client -> Client: Initialize music player
+Client -> Client: Load selected music data
+Client -> Client: Start audio playback
+Client -> Client: Update player UI with track info
+Client -> Client: Show now playing indicator on the track
+Client --> User: Music starts playing with player controls
+
+' User clears filters
+User -> Client: Click "Xóa bộ lọc" button
+Client -> Client: Reset all filter values to default
+Client -> Client: Show loading spinner
+
+Client -> MusicController: GET /api/musics/category/4?page=0&size=20&sortBy=createdAt&direction=desc
+activate MusicController
+
+MusicController -> MusicService: getMusicsByCategorySorted(categoryId=4, "createdAt", "desc", pageable)
+activate MusicService
+
+MusicService -> MusicRepo: findByCategoryIdAndDeletedFalseAndIsPublicTrue(categoryId=4, pageable)
+activate MusicRepo
+MusicRepo -> DB: SELECT * FROM musics WHERE category_id = 4 AND deleted = false AND is_public = true ORDER BY created_at DESC
+DB --> MusicRepo: Page<Music> (all VN LoFi musics)
+MusicRepo --> MusicService: Page<Music>
+deactivate MusicRepo
+
+MusicService -> MusicMapper: toDtoList(allMusics.getContent())
+activate MusicMapper
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService --> MusicController: Page<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nPage<MusicDto>
+deactivate MusicController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Display full category music list
+Client -> Client: Remove all filter tags
+Client -> Client: Reset sorting to "Mới nhất"
+Client -> Client: Update pagination (Page 1 of 5, 98 results)
+Client --> User: "Tất cả 98 bài hát VN LoFi" displayed in original order
+
+deactivate Client
+
+@enduml

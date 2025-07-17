@@ -1,0 +1,416 @@
+@startuml UC024-Sequence-Diagram-Phan-Quyen-Admin
+!theme plain
+
+title Biểu đồ tuần tự - UC024: Phân quyền admin
+
+actor SuperAdmin as "Super Admin"
+participant Browser as "Browser"
+participant AdminRoleManagementComponent as "AdminRoleManagement\nComponent"
+participant RoleAssignmentModalComponent as "RoleAssignmentModal\nComponent"
+participant BulkRoleAssignmentModalComponent as "BulkRoleAssignment\nModal"
+participant RoleManagementComponent as "RoleManagement\nComponent"
+participant RolePermissionMatrixComponent as "RolePermissionMatrix\nComponent"
+participant AdminAuditLogComponent as "AdminAuditLog\nComponent"
+participant AdminRoleService as "AdminRoleService\n(Frontend)"
+participant PermissionService as "PermissionService\n(Frontend)"
+participant AdminAuditService as "AdminAuditService\n(Frontend)"
+participant AdminRoleController as "AdminRole\nController"
+participant PermissionController as "Permission\nController"
+participant AdminAuditController as "AdminAudit\nController"
+participant AdminRoleService_BE as "AdminRole\nService"
+participant PermissionService_BE as "Permission\nService"
+participant RoleValidationService as "RoleValidation\nService"
+participant PermissionValidationService as "PermissionValidation\nService"
+participant AdminAuditService_BE as "AdminAudit\nService"
+participant AdminUserRepository as "AdminUser\nRepository"
+participant RoleRepository as "Role\nRepository"
+participant AdminRoleRepository as "AdminRole\nRepository"
+participant PermissionRepository as "Permission\nRepository"
+participant RolePermissionRepository as "RolePermission\nRepository"
+participant Database as "Database"
+
+== Truy cập trang quản lý phân quyền ==
+
+SuperAdmin -> Browser: Truy cập trang "Admin Role Management"
+Browser -> AdminRoleManagementComponent: ngOnInit()
+AdminRoleManagementComponent -> AdminRoleService: getAllAdminUsers(page, filters)
+AdminRoleService -> AdminRoleController: GET /api/admin/roles/users?page={page}&filters={filters}
+AdminRoleController -> AdminRoleService_BE: getAllAdminUsers(pageable, filters)
+
+AdminRoleService_BE -> RoleValidationService: validateSuperAdminPermissions(superAdminId)
+RoleValidationService -> AdminUserRepository: findById(superAdminId)
+AdminUserRepository -> Database: SELECT au.*, r.name as role_name FROM admin_users au JOIN admin_roles ar ON au.id = ar.admin_user_id JOIN roles r ON ar.role_id = r.id WHERE au.id = ?
+Database --> AdminUserRepository: SuperAdmin with roles
+AdminUserRepository --> RoleValidationService: SuperAdmin entity
+RoleValidationService -> RoleValidationService: checkSuperAdminRole(superAdmin)
+RoleValidationService --> AdminRoleService_BE: Super admin validation passed
+
+AdminRoleService_BE -> AdminUserRepository: findByActiveTrue(pageable)
+AdminUserRepository -> Database: SELECT au.*, GROUP_CONCAT(r.name) as role_names FROM admin_users au LEFT JOIN admin_roles ar ON au.id = ar.admin_user_id LEFT JOIN roles r ON ar.role_id = r.id WHERE au.active = true GROUP BY au.id ORDER BY au.created_at DESC
+Database --> AdminUserRepository: Page<AdminUser> with roles
+AdminUserRepository --> AdminRoleService_BE: All admin users with roles
+
+AdminRoleService_BE -> AdminRoleService_BE: buildAdminUserDtos(adminUsers)
+AdminRoleService_BE --> AdminRoleController: Page<AdminUserDto>
+AdminRoleController --> AdminRoleService: Admin users loaded
+AdminRoleService --> AdminRoleManagementComponent: Admin users with role info
+
+AdminRoleManagementComponent -> AdminRoleService: getAllRoles()
+AdminRoleService -> AdminRoleController: GET /api/admin/roles
+AdminRoleController -> AdminRoleService_BE: getAllRoles()
+
+AdminRoleService_BE -> RoleRepository: findAllByActiveTrue()
+RoleRepository -> Database: SELECT r.*, COUNT(ar.admin_user_id) as admin_count FROM roles r LEFT JOIN admin_roles ar ON r.id = ar.role_id WHERE r.active = true GROUP BY r.id ORDER BY r.level DESC
+Database --> RoleRepository: Active roles with admin counts
+RoleRepository --> AdminRoleService_BE: All active roles
+
+AdminRoleService_BE -> AdminRoleService_BE: buildRoleDtos(roles)
+AdminRoleService_BE --> AdminRoleController: List<RoleDto>
+AdminRoleController --> AdminRoleService: Roles loaded
+AdminRoleService --> AdminRoleManagementComponent: Roles received
+
+AdminRoleManagementComponent --> SuperAdmin: Hiển thị danh sách admin users với role info
+
+== Phân quyền cho admin đơn lẻ ==
+
+SuperAdmin -> AdminRoleManagementComponent: Click "Assign Role" trên admin user card
+AdminRoleManagementComponent -> RoleAssignmentModalComponent: open(adminUser)
+RoleAssignmentModalComponent -> RoleAssignmentModalComponent: ngOnInit()
+RoleAssignmentModalComponent -> RoleAssignmentModalComponent: loadAdminRoles()
+
+RoleAssignmentModalComponent -> AdminRoleService: getAdminRoles(adminId)
+AdminRoleService -> AdminRoleController: GET /api/admin/roles/users/{adminId}/roles
+AdminRoleController -> AdminRoleService_BE: getAdminRoles(adminId)
+
+AdminRoleService_BE -> AdminRoleRepository: findByAdminUserId(adminId)
+AdminRoleRepository -> Database: SELECT ar.*, r.name, r.description, r.level FROM admin_roles ar JOIN roles r ON ar.role_id = r.id WHERE ar.admin_user_id = ? AND ar.active = true
+Database --> AdminRoleRepository: Current admin roles
+AdminRoleRepository --> AdminRoleService_BE: Admin's current roles
+
+AdminRoleService_BE -> AdminRoleService_BE: buildAdminRoleDtos(adminRoles)
+AdminRoleService_BE --> AdminRoleController: List<RoleDto>
+AdminRoleController --> AdminRoleService: Current roles loaded
+AdminRoleService --> RoleAssignmentModalComponent: Current roles received
+
+RoleAssignmentModalComponent -> AdminAuditService: getAdminRoleHistory(adminId)
+AdminAuditService -> AdminAuditController: GET /api/admin/audit/users/{adminId}/role-history
+AdminAuditController -> AdminAuditService_BE: getAdminRoleHistory(adminId)
+
+AdminAuditService_BE -> AdminAuditService_BE: findByAdminUserIdOrderByCreatedAtDesc(adminId)
+AdminAuditService_BE -> Database: SELECT rah.*, r.name as role_name, au.username as assigned_by_username FROM role_assignment_history rah JOIN roles r ON rah.role_id = r.id LEFT JOIN admin_users au ON rah.assigned_by = au.id WHERE rah.admin_user_id = ? ORDER BY rah.assigned_at DESC
+Database --> AdminAuditService_BE: Role assignment history
+AdminAuditService_BE --> AdminAuditController: Role history
+AdminAuditController --> AdminAuditService: Role history loaded
+AdminAuditService --> RoleAssignmentModalComponent: Role history received
+
+RoleAssignmentModalComponent --> SuperAdmin: Hiển thị modal với current roles và history
+
+SuperAdmin -> RoleAssignmentModalComponent: Chọn role mới để assign
+RoleAssignmentModalComponent -> RoleAssignmentModalComponent: onRoleChange()
+RoleAssignmentModalComponent -> RoleAssignmentModalComponent: validateRoleAssignment()
+
+SuperAdmin -> RoleAssignmentModalComponent: Nhập lý do phân quyền
+SuperAdmin -> RoleAssignmentModalComponent: Click "Confirm Assignment"
+
+RoleAssignmentModalComponent -> AdminRoleService: assignRoleToAdmin(adminId, request)
+AdminRoleService -> AdminRoleController: POST /api/admin/roles/users/{adminId}/assign
+AdminRoleController -> AdminRoleService_BE: assignRoleToAdmin(adminId, request, superAdminId)
+
+AdminRoleService_BE -> RoleValidationService: validateRoleAssignmentRequest(request)
+RoleValidationService -> RoleRepository: findById(request.roleId)
+RoleRepository -> Database: SELECT * FROM roles WHERE id = ? AND active = true
+Database --> RoleRepository: Role details
+RoleRepository --> RoleValidationService: Role entity
+
+RoleValidationService -> AdminUserRepository: findById(adminId)
+AdminUserRepository --> RoleValidationService: Target admin user
+RoleValidationService -> RoleValidationService: checkRoleHierarchy(superAdminId, request.roleId)
+RoleValidationService -> RoleValidationService: checkRoleConflicts(adminId, request.roleId)
+RoleValidationService --> AdminRoleService_BE: Role assignment validation passed
+
+note over AdminRoleService_BE, AdminAuditService_BE: Log role assignment before making changes
+
+AdminRoleService_BE -> AdminAuditService_BE: logRoleAssignment(adminId, roleId, superAdminId, reason)
+AdminAuditService_BE -> Database: INSERT INTO admin_audit_logs (admin_id, action_type, resource_type, resource_id, target_admin_id, action_details, created_at)
+Database --> AdminAuditService_BE: Assignment logged
+AdminAuditService_BE --> AdminRoleService_BE: Audit log created
+
+AdminRoleService_BE -> AdminRoleRepository: save(newAdminRole)
+AdminRoleRepository -> Database: INSERT INTO admin_roles (admin_user_id, role_id, assigned_by, assigned_at, reason, active)
+Database --> AdminRoleRepository: Role assignment saved
+AdminRoleRepository --> AdminRoleService_BE: Assignment completed
+
+AdminRoleService_BE -> AdminRoleService_BE: saveRoleAssignmentHistory(adminId, roleId, superAdminId, reason)
+AdminRoleService_BE -> Database: INSERT INTO role_assignment_history (admin_user_id, role_id, action_type, assigned_by, assigned_at, reason, active)
+Database --> AdminRoleService_BE: Assignment history saved
+
+AdminRoleService_BE -> AdminRoleService_BE: buildRoleAssignmentResult(adminUser, role, assignment)
+AdminRoleService_BE --> AdminRoleController: RoleAssignmentResultDto
+AdminRoleController --> AdminRoleService: Role assigned successfully
+AdminRoleService --> AdminRoleManagementComponent: Role assignment completed
+
+AdminRoleManagementComponent -> AdminRoleManagementComponent: updateAdminInList(adminId, newRole)
+AdminRoleManagementComponent -> AdminRoleManagementComponent: showSuccessMessage("Đã phân quyền thành công")
+
+RoleAssignmentModalComponent -> RoleAssignmentModalComponent: close()
+RoleAssignmentModalComponent --> AdminRoleManagementComponent: Modal closed
+AdminRoleManagementComponent --> SuperAdmin: Hiển thị thông báo thành công và cập nhật danh sách
+
+== Phân quyền hàng loạt ==
+
+SuperAdmin -> AdminRoleManagementComponent: Click "Bulk Actions"
+AdminRoleManagementComponent -> AdminRoleManagementComponent: toggleBulkMode()
+AdminRoleManagementComponent -> AdminRoleManagementComponent: showBulkSelectionControls()
+
+SuperAdmin -> AdminRoleManagementComponent: Select multiple admin users via checkbox
+loop Chọn từng admin user
+    AdminRoleManagementComponent -> AdminRoleManagementComponent: selectAdmin(adminId)
+    AdminRoleManagementComponent -> AdminRoleManagementComponent: Add to selectedAdmins
+    AdminRoleManagementComponent -> AdminRoleManagementComponent: updateSelectedCount()
+end
+
+SuperAdmin -> AdminRoleManagementComponent: Click "Bulk Assign Role"
+AdminRoleManagementComponent -> BulkRoleAssignmentModalComponent: open(selectedAdmins)
+BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: ngOnInit()
+BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: initializeForm()
+
+BulkRoleAssignmentModalComponent --> SuperAdmin: Hiển thị modal phân quyền hàng loạt
+
+SuperAdmin -> BulkRoleAssignmentModalComponent: Chọn role để assign cho tất cả
+SuperAdmin -> BulkRoleAssignmentModalComponent: Nhập lý do phân quyền chung
+SuperAdmin -> BulkRoleAssignmentModalComponent: Chọn operation type "Add Role" hoặc "Replace Role"
+SuperAdmin -> BulkRoleAssignmentModalComponent: Tick "Override existing roles" nếu cần
+
+SuperAdmin -> BulkRoleAssignmentModalComponent: Click "Start Bulk Assignment"
+BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: startBulkAssignment()
+
+BulkRoleAssignmentModalComponent -> AdminRoleService: bulkAssignRoles(request)
+AdminRoleService -> AdminRoleController: POST /api/admin/roles/bulk-assign
+AdminRoleController -> AdminRoleService_BE: bulkAssignRoles(request, superAdminId)
+
+AdminRoleService_BE -> RoleValidationService: validateBulkRoleAssignmentRequest(request)
+RoleValidationService -> RoleValidationService: Check adminIds not empty
+RoleValidationService -> RoleValidationService: Validate role exists
+RoleValidationService -> RoleValidationService: Check reasonable batch size
+RoleValidationService -> RoleValidationService: Validate super admin can assign this role
+RoleValidationService --> AdminRoleService_BE: Bulk request validated
+
+AdminRoleService_BE -> AdminAuditService_BE: logBulkRoleAssignment(adminIds, roleId, superAdminId, reason)
+AdminAuditService_BE -> Database: INSERT INTO admin_audit_logs (bulk role assignment record)
+Database --> AdminAuditService_BE: Bulk assignment logged
+AdminAuditService_BE --> AdminRoleService_BE: Bulk audit log created
+
+AdminRoleService_BE -> AdminRoleService_BE: Initialize bulk assignment counters
+AdminRoleService_BE -> AdminRoleService_BE: successCount = 0, failedCount = 0
+
+loop Assign role cho từng admin
+    AdminRoleService_BE -> AdminUserRepository: findById(adminId)
+    AdminUserRepository -> Database: SELECT admin for role assignment
+    Database --> AdminUserRepository: Admin user to assign or null
+    AdminUserRepository --> AdminRoleService_BE: Admin entity
+
+    note over AdminRoleService_BE: Kiểm tra và assign role cho từng admin
+
+    AdminRoleService_BE -> RoleValidationService: checkRoleConflicts(adminId, roleId)
+    RoleValidationService --> AdminRoleService_BE: No conflicts
+
+    AdminRoleService_BE -> AdminRoleRepository: save(new AdminRole)
+    AdminRoleRepository -> Database: INSERT INTO admin_roles (admin_user_id, role_id, assigned_by, assigned_at, reason)
+    Database --> AdminRoleRepository: Role assignment saved
+    AdminRoleRepository --> AdminRoleService_BE: Assignment completed
+
+    AdminRoleService_BE -> AdminRoleService_BE: saveRoleAssignmentHistory(adminId, roleId, superAdminId, reason)
+    AdminRoleService_BE -> AdminRoleService_BE: successCount++
+
+    AdminRoleService_BE -> BulkRoleAssignmentModalComponent: updateProgress(currentIndex, successCount, failedCount)
+    BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: updateProgress(progress)
+    BulkRoleAssignmentModalComponent --> SuperAdmin: Hiển thị tiến độ phân quyền
+end
+
+AdminRoleService_BE -> AdminRoleService_BE: buildBulkRoleAssignmentResult()
+AdminRoleService_BE --> AdminRoleController: BulkRoleAssignmentResultDto
+AdminRoleController --> AdminRoleService: Bulk assignment completed
+AdminRoleService --> AdminRoleManagementComponent: Bulk assignment result received
+
+AdminRoleManagementComponent -> AdminRoleManagementComponent: updateAfterBulkAssignment(result)
+AdminRoleManagementComponent -> AdminRoleManagementComponent: Update admin users with new roles
+AdminRoleManagementComponent -> AdminRoleManagementComponent: Clear selection
+AdminRoleManagementComponent -> AdminRoleManagementComponent: Update statistics
+AdminRoleManagementComponent -> BulkRoleAssignmentModalComponent: showFinalResults(result)
+BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: Display final summary
+BulkRoleAssignmentModalComponent --> SuperAdmin: Hiển thị "Đã phân quyền {successCount} admin, {failedCount} thất bại"
+
+BulkRoleAssignmentModalComponent -> BulkRoleAssignmentModalComponent: close()
+
+== Quản lý role và permission ==
+
+SuperAdmin -> AdminRoleManagementComponent: Click "Manage Roles"
+AdminRoleManagementComponent -> RoleManagementComponent: navigate()
+RoleManagementComponent -> RoleManagementComponent: ngOnInit()
+
+RoleManagementComponent -> AdminRoleService: getAllRoles()
+AdminRoleService --> RoleManagementComponent: Roles loaded
+
+RoleManagementComponent -> PermissionService: getAllPermissions()
+PermissionService -> PermissionController: GET /api/admin/permissions
+PermissionController -> PermissionService_BE: getAllPermissions()
+
+PermissionService_BE -> PermissionRepository: findAllByActiveTrue()
+PermissionRepository -> Database: SELECT p.*, pc.name as category_name FROM permissions p JOIN permission_categories pc ON p.category_id = pc.id WHERE p.active = true ORDER BY pc.sort_order, p.name
+Database --> PermissionRepository: All active permissions
+PermissionRepository --> PermissionService_BE: Permissions with categories
+
+PermissionService_BE -> PermissionService_BE: buildPermissionDtos(permissions)
+PermissionService_BE --> PermissionController: List<PermissionDto>
+PermissionController --> PermissionService: Permissions loaded
+PermissionService --> RoleManagementComponent: Permissions received
+
+RoleManagementComponent --> SuperAdmin: Hiển thị role management interface
+
+note over SuperAdmin, Database: Super Admin có thể tạo role mới
+
+SuperAdmin -> RoleManagementComponent: Click "Create New Role"
+RoleManagementComponent -> RoleManagementComponent: openCreateRoleModal()
+
+SuperAdmin -> RoleManagementComponent: Nhập role name, description, level
+SuperAdmin -> RoleManagementComponent: Chọn permissions cho role
+SuperAdmin -> RoleManagementComponent: Click "Create Role"
+
+RoleManagementComponent -> AdminRoleService: createRole(request)
+AdminRoleService -> AdminRoleController: POST /api/admin/roles
+AdminRoleController -> AdminRoleService_BE: createRole(request, superAdminId)
+
+AdminRoleService_BE -> RoleValidationService: validateCreateRoleRequest(request)
+RoleValidationService -> RoleRepository: findByName(request.name)
+RoleValidationService -> RoleValidationService: checkRoleNameUnique()
+RoleValidationService -> RoleValidationService: validateRoleLevel(request.level)
+RoleValidationService -> PermissionRepository: findAllById(request.permissionIds)
+RoleValidationService -> RoleValidationService: validatePermissionsExist()
+RoleValidationService --> AdminRoleService_BE: Create role validation passed
+
+AdminRoleService_BE -> RoleRepository: save(newRole)
+RoleRepository -> Database: INSERT INTO roles (name, description, level, active, created_by, created_at)
+Database --> RoleRepository: New role created
+RoleRepository --> AdminRoleService_BE: Role entity
+
+AdminRoleService_BE -> RolePermissionRepository: bulkInsert(rolePermissions)
+RolePermissionRepository -> Database: INSERT INTO role_permissions (role_id, permission_id, granted_by, granted_at)
+Database --> RolePermissionRepository: Role permissions saved
+RolePermissionRepository --> AdminRoleService_BE: Permissions assigned
+
+AdminRoleService_BE -> AdminAuditService_BE: logRoleCreation(roleId, superAdminId, roleData)
+AdminAuditService_BE --> AdminRoleService_BE: Role creation logged
+
+AdminRoleService_BE --> AdminRoleController: RoleDto
+AdminRoleController --> AdminRoleService: Role created successfully
+AdminRoleService --> RoleManagementComponent: New role available
+RoleManagementComponent --> SuperAdmin: Role đã được tạo thành công
+
+== Quản lý Role-Permission Matrix ==
+
+SuperAdmin -> RoleManagementComponent: Click "View Permission Matrix"
+RoleManagementComponent -> RolePermissionMatrixComponent: open()
+RolePermissionMatrixComponent -> RolePermissionMatrixComponent: ngOnInit()
+
+RolePermissionMatrixComponent -> AdminRoleService: getRolePermissionMatrix()
+AdminRoleService -> AdminRoleController: GET /api/admin/roles/permission-matrix
+AdminRoleController -> AdminRoleService_BE: getRolePermissionMatrix()
+
+AdminRoleService_BE -> RoleRepository: findAllByActiveTrue()
+AdminRoleService_BE -> PermissionRepository: findAllByActiveTrue()
+AdminRoleService_BE -> RolePermissionRepository: findAll()
+
+AdminRoleService_BE -> AdminRoleService_BE: buildRolePermissionMatrix(roles, permissions, rolePermissions)
+AdminRoleService_BE --> AdminRoleController: RolePermissionMatrixDto
+AdminRoleController --> AdminRoleService: Matrix loaded
+AdminRoleService --> RolePermissionMatrixComponent: Permission matrix received
+
+RolePermissionMatrixComponent --> SuperAdmin: Hiển thị permission matrix
+
+SuperAdmin -> RolePermissionMatrixComponent: Toggle permission cho role
+RolePermissionMatrixComponent -> RolePermissionMatrixComponent: togglePermission(roleId, permissionId)
+
+RolePermissionMatrixComponent -> AdminRoleService: updateRolePermissions(roleId, permissions)
+AdminRoleService -> AdminRoleController: PUT /api/admin/roles/{roleId}/permissions
+AdminRoleController -> AdminRoleService_BE: updateRolePermissions(roleId, permissions, superAdminId)
+
+AdminRoleService_BE -> RoleValidationService: validateRoleExists(roleId)
+AdminRoleService_BE -> PermissionValidationService: validatePermissionsExist(permissions)
+
+AdminRoleService_BE -> RolePermissionRepository: deleteByRoleId(roleId)
+RolePermissionRepository -> Database: DELETE FROM role_permissions WHERE role_id = ?
+Database --> RolePermissionRepository: Old permissions removed
+
+AdminRoleService_BE -> RolePermissionRepository: bulkInsert(newRolePermissions)
+RolePermissionRepository -> Database: INSERT new role permissions
+Database --> RolePermissionRepository: New permissions saved
+
+AdminRoleService_BE -> AdminAuditService_BE: logRolePermissionUpdate(roleId, superAdminId, changes)
+AdminAuditService_BE --> AdminRoleService_BE: Permission update logged
+
+AdminRoleService_BE --> AdminRoleController: Update successful
+AdminRoleController --> AdminRoleService: Permissions updated
+AdminRoleService --> RolePermissionMatrixComponent: Matrix updated
+RolePermissionMatrixComponent --> SuperAdmin: "Quyền đã được cập nhật"
+
+== Xem audit log ==
+
+SuperAdmin -> AdminRoleManagementComponent: Click "View Audit Logs"
+AdminRoleManagementComponent -> AdminAuditLogComponent: navigate()
+AdminAuditLogComponent -> AdminAuditLogComponent: ngOnInit()
+
+AdminAuditLogComponent -> AdminAuditService: getAdminAuditLogs(filters)
+AdminAuditService -> AdminAuditController: GET /api/admin/audit/logs?filters={filters}
+AdminAuditController -> AdminAuditService_BE: getAdminAuditLogs(filters, pageable)
+
+AdminAuditService_BE -> AdminAuditService_BE: findAuditLogsByFilters(filters, pageable)
+AdminAuditService_BE -> Database: SELECT aal.*, au1.username as admin_username, au2.username as target_username FROM admin_audit_logs aal LEFT JOIN admin_users au1 ON aal.admin_id = au1.id LEFT JOIN admin_users au2 ON aal.target_admin_id = au2.id WHERE action_type LIKE '%ROLE%' ORDER BY aal.created_at DESC
+Database --> AdminAuditService_BE: Audit logs with details
+AdminAuditService_BE --> AdminAuditController: Page<AdminAuditLogDto>
+AdminAuditController --> AdminAuditService: Audit logs loaded
+AdminAuditService --> AdminAuditLogComponent: Audit logs received
+
+AdminAuditLogComponent --> SuperAdmin: Hiển thị audit logs với filter
+
+SuperAdmin -> AdminAuditLogComponent: Filter by admin hoặc action type
+AdminAuditLogComponent -> AdminAuditLogComponent: filterLogs()
+AdminAuditLogComponent -> AdminAuditService: getAdminAuditLogs(newFilters)
+' Similar flow as above with new filters
+
+SuperAdmin -> AdminAuditLogComponent: Click "Export Report"
+AdminAuditLogComponent -> AdminAuditService: exportAuditReport(filters)
+AdminAuditService -> AdminAuditController: GET /api/admin/audit/export?filters={filters}
+AdminAuditController -> AdminAuditService_BE: exportAuditReport(filters)
+
+AdminAuditService_BE -> AdminAuditService_BE: generateAuditReport(filters)
+AdminAuditService_BE --> AdminAuditController: ByteArrayResource (Excel/PDF)
+AdminAuditController --> AdminAuditService: File download
+AdminAuditService --> AdminAuditLogComponent: File downloaded
+AdminAuditLogComponent --> SuperAdmin: "Báo cáo đã được tải xuống"
+
+== Xử lý lỗi ==
+
+note over SuperAdmin, Database: Các trường hợp lỗi có thể xảy ra trong quá trình phân quyền
+
+note over RoleValidationService: Lỗi role không tồn tại
+note over SuperAdmin: "Role được chọn không tồn tại"
+
+note over RoleValidationService: Lỗi admin không tồn tại
+note over SuperAdmin: "Admin user không tồn tại"
+
+note over RoleValidationService: Lỗi phân cấp role
+note over SuperAdmin: "Không thể gán role cao hơn cấp của bạn"
+
+note over RoleValidationService: Lỗi conflict role
+note over SuperAdmin: "Admin đã có role này hoặc có role xung đột"
+
+note over RoleValidationService: Lỗi role name duplicate
+note over SuperAdmin: "Tên role đã tồn tại"
+
+note over PermissionValidationService: Lỗi permission không tồn tại
+note over SuperAdmin: "Permission được chọn không tồn tại"
+
+note over Database: Lỗi database constraint
+note over SuperAdmin: "Không thể thực hiện phân quyền do ràng buộc dữ liệu"
+
+@enduml

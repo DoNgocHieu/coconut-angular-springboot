@@ -1,0 +1,9 @@
+@startuml UC031-Quan-Ly-Nghe-Si
+!theme plain
+
+actor Admin
+usecase "Quản lý nghệ sĩ" as UC031
+
+Admin --> UC031
+
+@enduml

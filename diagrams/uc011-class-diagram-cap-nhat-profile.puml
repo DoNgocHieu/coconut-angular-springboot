@@ -1,0 +1,165 @@
+@startuml UC011-Class-Diagram-Cap-Nhat-Profile
+!theme plain
+
+title Biểu đồ lớp - UC011: Cập nhật profile
+
+class UserController {
+    + getCurrentUser(): ResponseEntity<UserDto>
+    + updateProfile(request: UpdateProfileRequest): ResponseEntity<UserDto>
+    + uploadAvatar(file: MultipartFile): ResponseEntity<ApiResponse>
+    + deleteAvatar(): ResponseEntity<ApiResponse>
+    + changePassword(request: ChangePasswordRequest): ResponseEntity<ApiResponse>
+    + validateEmail(email: String): ResponseEntity<Boolean>
+    + validateUsername(username: String): ResponseEntity<Boolean>
+}
+
+class UserService {
+    + getCurrentUser(userId: Long): User
+    + updateUserProfile(userId: Long, request: UpdateProfileRequest): User
+    + uploadUserAvatar(userId: Long, file: MultipartFile): String
+    + deleteUserAvatar(userId: Long): void
+    + changeUserPassword(userId: Long, request: ChangePasswordRequest): void
+    + validateEmailUnique(email: String, currentUserId: Long): boolean
+    + validateUsernameUnique(username: String, currentUserId: Long): boolean
+    + validateCurrentPassword(user: User, currentPassword: String): boolean
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - String fullName
+    - String phone
+    - LocalDate dateOfBirth
+    - Gender gender
+    - String bio
+    - String avatar
+    - String password
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - LocalDateTime lastLoginAt
+    + getId(): Long
+    + getUsername(): String
+    + getEmail(): String
+    + getFullName(): String
+    + getAvatar(): String
+}
+
+enum Gender {
+    MALE
+    FEMALE
+    OTHER
+    PREFER_NOT_TO_SAY
+}
+
+class UserRepository {
+    + save(user: User): User
+    + findById(id: Long): Optional<User>
+    + findByEmail(email: String): Optional<User>
+    + findByUsername(username: String): Optional<User>
+    + existsByEmailAndIdNot(email: String, id: Long): boolean
+    + existsByUsernameAndIdNot(username: String, id: Long): boolean
+}
+
+class FileStorageService {
+    + storeAvatar(file: MultipartFile, userId: Long): String
+    + deleteAvatar(fileName: String): void
+    + validateImageFile(file: MultipartFile): void
+    + generateUniqueFileName(originalFileName: String): String
+}
+
+class PasswordEncoder {
+    + encode(rawPassword: String): String
+    + matches(rawPassword: String, encodedPassword: String): boolean
+}
+
+class UpdateProfileRequest {
+    + String fullName
+    + String email
+    + String phone
+    + LocalDate dateOfBirth
+    + Gender gender
+    + String bio
+}
+
+class ChangePasswordRequest {
+    + String currentPassword
+    + String newPassword
+    + String confirmPassword
+}
+
+class UserDto {
+    + Long id
+    + String username
+    + String email
+    + String fullName
+    + String phone
+    + LocalDate dateOfBirth
+    + Gender gender
+    + String bio
+    + String avatar
+    + LocalDateTime createdAt
+    + LocalDateTime lastLoginAt
+    + int playlistCount
+    + int favoriteCount
+}
+
+class UserMapper {
+    + toDto(user: User): UserDto
+    + updateEntityFromRequest(user: User, request: UpdateProfileRequest): User
+}
+
+class ProfileValidationService {
+    + validateProfileData(request: UpdateProfileRequest): List<String>
+    + validateEmailFormat(email: String): boolean
+    + validatePhoneFormat(phone: String): boolean
+    + validateAge(dateOfBirth: LocalDate): boolean
+    + validateBioLength(bio: String): boolean
+}
+
+' Relationships
+UserController --> UserService : uses
+UserController --> UpdateProfileRequest : receives
+UserController --> ChangePasswordRequest : receives
+UserController --> UserDto : returns
+
+UserService --> UserRepository : uses
+UserService --> FileStorageService : uses
+UserService --> PasswordEncoder : uses
+UserService --> UserMapper : uses
+UserService --> ProfileValidationService : uses
+
+UserRepository --> User : manages
+User --> Gender : has
+UserMapper --> User : maps
+UserMapper --> UserDto : creates
+
+note right of UserService
+  Business rules:
+  - User can only update own profile
+  - Email/username must be unique
+  - Avatar max size: 5MB
+  - Supported formats: JPG, PNG, GIF
+  - Phone number validation
+  - Age restriction: 13+ years
+end note
+
+note bottom of User
+  Profile constraints:
+  - Username: 3-50 chars, alphanumeric
+  - Email: valid format, unique
+  - Phone: valid format (optional)
+  - Bio: max 500 characters
+  - Avatar: stored in uploads/avatars/
+end note
+
+note left of ProfileValidationService
+  Validation rules:
+  - Email format validation
+  - Phone number format
+  - Age validation (13+)
+  - Bio length limits
+  - Special character handling
+end note
+
+@enduml

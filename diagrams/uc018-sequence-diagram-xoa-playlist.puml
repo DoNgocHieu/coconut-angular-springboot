@@ -1,0 +1,346 @@
+@startuml UC018-Sequence-Diagram-Xoa-Playlist
+!theme plain
+
+title Biểu đồ tuần tự - UC018: Xóa playlist
+
+actor User as "Người dùng"
+participant Browser as "Browser"
+participant PlaylistListComponent as "PlaylistList\nComponent"
+participant PlaylistCardComponent as "PlaylistCard\nComponent"
+participant DeletePlaylistModal as "DeletePlaylist\nModal"
+participant DeleteConfirmationComponent as "DeleteConfirmation\nComponent"
+participant BulkDeleteComponent as "BulkDelete\nComponent"
+participant PlaylistService as "PlaylistService\n(Frontend)"
+participant PlaylistController as "PlaylistController"
+participant PlaylistService_BE as "PlaylistService\n(Backend)"
+participant PlaylistValidationService as "Playlist\nValidationService"
+participant PlaylistDeletionService as "PlaylistDeletion\nService"
+participant PlaylistRepository as "Playlist\nRepository"
+participant PlaylistMusicRepository as "PlaylistMusic\nRepository"
+participant FileStorageService as "FileStorage\nService"
+participant AuditService as "AuditService"
+participant UserActivityService as "UserActivity\nService"
+participant Database as "Database"
+
+== Truy cập trang quản lý playlist ==
+
+User -> Browser: Truy cập trang "My Playlists"
+Browser -> PlaylistListComponent: ngOnInit()
+PlaylistListComponent -> PlaylistService: getUserPlaylists(userId, page)
+PlaylistService -> PlaylistController: GET /api/playlists/user/{userId}
+PlaylistController -> PlaylistService_BE: getUserPlaylists(userId, pageable)
+PlaylistService_BE -> PlaylistRepository: findByUserIdAndDeletedFalse(userId, pageable)
+PlaylistRepository -> Database: SELECT * FROM playlists WHERE user_id = ? AND deleted = false ORDER BY created_at DESC
+Database --> PlaylistRepository: List<Playlist>
+PlaylistRepository --> PlaylistService_BE: Page<Playlist>
+PlaylistService_BE -> PlaylistService_BE: buildPlaylistDtos(playlists, userId)
+PlaylistService_BE --> PlaylistController: Page<PlaylistDto>
+PlaylistController --> PlaylistService: User playlists loaded
+PlaylistService --> PlaylistListComponent: Playlists with deletion permissions
+PlaylistListComponent -> PlaylistListComponent: Initialize playlist cards
+PlaylistListComponent --> User: Hiển thị danh sách playlist với nút Delete
+
+== Xóa playlist đơn lẻ ==
+
+alt Xóa một playlist
+    User -> PlaylistCardComponent: Click nút "Delete" trên playlist card
+    PlaylistCardComponent -> PlaylistCardComponent: Kiểm tra quyền xóa (isOwner && canDelete)
+
+    alt Có quyền xóa
+        PlaylistCardComponent -> PlaylistListComponent: openDeleteModal(playlist)
+        PlaylistListComponent -> DeletePlaylistModal: open(playlistToDelete)
+        DeletePlaylistModal -> DeletePlaylistModal: Load playlist information
+        DeletePlaylistModal -> DeletePlaylistModal: expectedPlaylistName = playlist.name
+        DeletePlaylistModal -> DeleteConfirmationComponent: initialize(playlist)
+        DeleteConfirmationComponent -> DeleteConfirmationComponent: Setup confirmation requirements
+        DeletePlaylistModal --> User: Hiển thị modal xác nhận xóa với cảnh báo
+
+        alt Validation check trước khi xóa
+            DeletePlaylistModal -> PlaylistService: validatePlaylistDeletion(playlistId)
+            PlaylistService -> PlaylistController: GET /api/playlists/{playlistId}/deletion-validation
+            PlaylistController -> PlaylistService_BE: validateDeletion(playlistId, userId)
+
+            PlaylistService_BE -> PlaylistValidationService: validatePlaylistExists(playlistId)
+            PlaylistValidationService -> PlaylistRepository: findByIdAndDeletedFalse(playlistId)
+            PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND deleted = false
+            Database --> PlaylistRepository: Playlist data
+            PlaylistRepository --> PlaylistValidationService: Playlist exists
+            PlaylistValidationService --> PlaylistService_BE: Validation passed
+
+            PlaylistService_BE -> PlaylistValidationService: validatePlaylistOwnership(playlistId, userId)
+            PlaylistValidationService -> PlaylistRepository: findByIdAndUserIdAndDeletedFalse(playlistId, userId)
+            PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND user_id = ? AND deleted = false
+            Database --> PlaylistRepository: Ownership confirmed
+            PlaylistRepository --> PlaylistValidationService: User owns playlist
+            PlaylistValidationService --> PlaylistService_BE: Ownership validated
+
+            PlaylistService_BE -> PlaylistService_BE: getDeletionImpact(playlistId)
+            PlaylistService_BE -> PlaylistMusicRepository: countByPlaylistId(playlistId)
+            PlaylistMusicRepository -> Database: SELECT COUNT(*) FROM playlist_musics WHERE playlist_id = ?
+            Database --> PlaylistMusicRepository: Music count
+            PlaylistMusicRepository --> PlaylistService_BE: {musicCount} songs in playlist
+
+            PlaylistService_BE -> PlaylistService_BE: buildDeletionValidationDto(playlist, musicCount)
+            PlaylistService_BE --> PlaylistController: DeletionValidationDto
+            PlaylistController --> PlaylistService: Validation result
+            PlaylistService --> DeletePlaylistModal: Deletion impact loaded
+            DeletePlaylistModal -> DeletePlaylistModal: Display impact information
+            DeletePlaylistModal -> DeletePlaylistModal: Show warnings and requirements
+        end
+
+        User -> DeleteConfirmationComponent: Nhập tên playlist để xác nhận
+        DeleteConfirmationComponent -> DeleteConfirmationComponent: validateInput()
+        DeleteConfirmationComponent -> DeleteConfirmationComponent: Check if input matches expected name
+        DeleteConfirmationComponent -> DeletePlaylistModal: onInputChange(isValid)
+
+        User -> DeleteConfirmationComponent: Tick checkbox "Tôi hiểu rủi ro"
+        DeleteConfirmationComponent -> DeleteConfirmationComponent: onCheckboxChange()
+        DeleteConfirmationComponent -> DeletePlaylistModal: onConfirmationChange(confirmed)
+
+        alt Tên playlist đúng và đã xác nhận rủi ro
+            User -> DeletePlaylistModal: Click "Xác nhận xóa playlist"
+            DeletePlaylistModal -> DeletePlaylistModal: isDeleting = true
+            DeletePlaylistModal -> PlaylistListComponent: confirmDelete()
+
+            PlaylistListComponent -> PlaylistService: deletePlaylist(playlistId)
+            PlaylistService -> PlaylistController: DELETE /api/playlists/{playlistId}
+            PlaylistController -> PlaylistService_BE: deletePlaylist(playlistId, userId)
+
+            PlaylistService_BE -> PlaylistValidationService: validateDeletionPermissions(playlistId, userId)
+            PlaylistValidationService --> PlaylistService_BE: Permissions validated
+
+            PlaylistService_BE -> PlaylistDeletionService: executePlaylistDeletion(playlistId, userId)
+
+            ' Log deletion activity before actual deletion
+            PlaylistDeletionService -> AuditService: logPlaylistDeletion(playlistId, userId, details)
+            AuditService -> Database: INSERT INTO audit_logs (user_id, action_type, resource_id, action_details, created_at)
+            Database --> AuditService: Deletion logged
+            AuditService --> PlaylistDeletionService: Activity logged
+
+            ' Get playlist info before deletion for cleanup
+            PlaylistDeletionService -> PlaylistRepository: findByIdAndUserIdAndDeletedFalse(playlistId, userId)
+            PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND user_id = ? AND deleted = false
+            Database --> PlaylistRepository: Playlist to delete
+            PlaylistRepository --> PlaylistDeletionService: Playlist entity
+
+            ' Delete all playlist musics first
+            PlaylistDeletionService -> PlaylistMusicRepository: deleteAllByPlaylistId(playlistId)
+            PlaylistMusicRepository -> Database: DELETE FROM playlist_musics WHERE playlist_id = ?
+            Database --> PlaylistMusicRepository: All playlist musics deleted
+            PlaylistMusicRepository --> PlaylistDeletionService: Music relations cleaned
+
+            ' Delete cover image if exists
+            alt Playlist has cover image
+                PlaylistDeletionService -> FileStorageService: deletePlaylistCover(coverImageUrl)
+                FileStorageService -> FileStorageService: validateFileExists(coverImageUrl)
+                FileStorageService -> FileStorageService: deleteFile(coverImageUrl)
+                FileStorageService --> PlaylistDeletionService: Cover image deleted
+            end
+
+            ' Soft delete playlist (mark as deleted)
+            PlaylistDeletionService -> PlaylistRepository: softDeleteById(playlistId)
+            PlaylistRepository -> Database: UPDATE playlists SET deleted = true, deleted_at = NOW(), deleted_by = ? WHERE id = ?
+            Database --> PlaylistRepository: Playlist marked as deleted
+            PlaylistRepository --> PlaylistDeletionService: Playlist soft deleted
+
+            ' Update user statistics
+            PlaylistDeletionService -> UserActivityService: updateUserStats(userId)
+            UserActivityService -> UserActivityService: updatePlaylistCount(userId)
+            UserActivityService -> Database: UPDATE users SET playlist_count = playlist_count - 1 WHERE id = ?
+            Database --> UserActivityService: User stats updated
+            UserActivityService -> UserActivityService: recordDeletionActivity(userId, playlistId)
+            UserActivityService -> Database: INSERT INTO user_activities (user_id, action_type, playlist_id, created_at)
+            Database --> UserActivityService: Activity recorded
+            UserActivityService --> PlaylistDeletionService: User stats updated
+
+            PlaylistDeletionService --> PlaylistService_BE: Deletion completed successfully
+            PlaylistService_BE --> PlaylistController: Playlist deleted
+            PlaylistController --> PlaylistService: Success response
+            PlaylistService --> PlaylistListComponent: Playlist deleted successfully
+
+            PlaylistListComponent -> PlaylistListComponent: removePlaylistFromList(playlistId)
+            PlaylistListComponent -> PlaylistListComponent: updatePlaylistStats()
+            PlaylistListComponent -> PlaylistListComponent: showSuccessMessage("Đã xóa playlist thành công")
+
+            DeletePlaylistModal -> DeletePlaylistModal: close()
+            DeletePlaylistModal --> PlaylistListComponent: Modal closed
+            PlaylistListComponent --> User: Hiển thị thông báo thành công và cập nhật danh sách
+
+        else Tên playlist không đúng hoặc chưa xác nhận
+            DeleteConfirmationComponent --> User: Hiển thị lỗi "Tên playlist không đúng" hoặc "Vui lòng xác nhận rủi ro"
+        end
+
+    else Không có quyền xóa
+        PlaylistCardComponent --> User: Hiển thị thông báo "Không có quyền xóa playlist này"
+    end
+end
+
+== Xóa hàng loạt playlist ==
+
+alt Xóa nhiều playlist
+    User -> PlaylistListComponent: Click "Bulk Actions"
+    PlaylistListComponent -> PlaylistListComponent: toggleBulkMode()
+    PlaylistListComponent -> BulkDeleteComponent: setVisible(true)
+    BulkDeleteComponent --> User: Hiển thị bulk actions toolbar
+
+    User -> PlaylistCardComponent: Select multiple playlists via checkbox
+    loop Chọn từng playlist
+        PlaylistCardComponent -> PlaylistListComponent: selectPlaylist(playlistId)
+        PlaylistListComponent -> PlaylistListComponent: Add to selectedPlaylists
+        PlaylistListComponent -> BulkDeleteComponent: updateSelectedCount(selectedPlaylists.length)
+        BulkDeleteComponent -> BulkDeleteComponent: Update selected count display
+    end
+
+    User -> BulkDeleteComponent: Click "Delete Selected"
+    BulkDeleteComponent -> PlaylistListComponent: onBulkDelete()
+
+    PlaylistListComponent -> PlaylistListComponent: Validate selection not empty
+
+    alt Có playlist được chọn
+        PlaylistListComponent -> DeletePlaylistModal: openBulkDelete(selectedPlaylists)
+        DeletePlaylistModal -> DeletePlaylistModal: isBulkMode = true
+        DeletePlaylistModal -> DeletePlaylistModal: Show bulk deletion confirmation
+        DeletePlaylistModal --> User: Hiển thị modal xác nhận xóa hàng loạt
+
+        User -> DeletePlaylistModal: Nhập "DELETE" để xác nhận
+        DeletePlaylistModal -> DeletePlaylistModal: validateBulkConfirmation()
+
+        alt Xác nhận hợp lệ
+            User -> DeletePlaylistModal: Click "Confirm Bulk Delete"
+            DeletePlaylistModal -> DeletePlaylistModal: isDeletingAll = true
+            DeletePlaylistModal -> PlaylistListComponent: confirmBulkDelete()
+
+            PlaylistListComponent -> PlaylistService: bulkDeletePlaylists(selectedPlaylistIds)
+            PlaylistService -> PlaylistController: DELETE /api/playlists/bulk
+            PlaylistController -> PlaylistService_BE: bulkDeletePlaylists(playlistIds, userId)
+
+            PlaylistService_BE -> PlaylistValidationService: validateBulkDeleteRequest(request)
+            PlaylistValidationService -> PlaylistValidationService: Check playlistIds not empty
+            PlaylistValidationService -> PlaylistValidationService: Validate reasonable batch size
+            PlaylistValidationService -> PlaylistValidationService: Check all playlists belong to user
+            PlaylistValidationService --> PlaylistService_BE: Bulk request validated
+
+            PlaylistService_BE -> PlaylistDeletionService: executeBulkDeletion(playlistIds, userId)
+
+            PlaylistDeletionService -> AuditService: logBulkDeletion(userId, playlistIds.size(), details)
+            AuditService -> Database: INSERT INTO audit_logs (bulk deletion record)
+            Database --> AuditService: Bulk deletion logged
+            AuditService --> PlaylistDeletionService: Bulk activity logged
+
+            PlaylistDeletionService -> PlaylistDeletionService: Initialize bulk deletion counters
+            PlaylistDeletionService -> PlaylistDeletionService: successCount = 0, failedCount = 0
+
+            loop Xóa từng playlist
+                PlaylistDeletionService -> PlaylistRepository: findByIdAndUserIdAndDeletedFalse(playlistId, userId)
+                PlaylistRepository -> Database: SELECT playlist for deletion
+                Database --> PlaylistRepository: Playlist to delete or null
+                PlaylistRepository --> PlaylistDeletionService: Playlist entity
+
+                alt Playlist exists and user owns it
+                    ' Delete playlist musics
+                    PlaylistDeletionService -> PlaylistMusicRepository: deleteAllByPlaylistId(playlistId)
+                    PlaylistMusicRepository -> Database: DELETE FROM playlist_musics WHERE playlist_id = ?
+                    Database --> PlaylistMusicRepository: Music relations deleted
+
+                    ' Delete cover image
+                    PlaylistDeletionService -> FileStorageService: deletePlaylistCover(playlist.coverImageUrl)
+                    FileStorageService --> PlaylistDeletionService: File deleted
+
+                    ' Soft delete playlist
+                    PlaylistDeletionService -> PlaylistRepository: softDeleteById(playlistId)
+                    PlaylistRepository -> Database: UPDATE playlists SET deleted = true WHERE id = ?
+                    Database --> PlaylistRepository: Playlist deleted
+
+                    PlaylistDeletionService -> PlaylistDeletionService: successCount++
+
+                else Playlist doesn't exist or access denied
+                    PlaylistDeletionService -> PlaylistDeletionService: failedCount++
+                    PlaylistDeletionService -> PlaylistDeletionService: Add to failedPlaylistIds
+                end
+
+                PlaylistDeletionService -> PlaylistDeletionService: updateProgress()
+            end
+
+            PlaylistDeletionService -> UserActivityService: updateUserStats(userId)
+            UserActivityService -> Database: UPDATE users SET playlist_count = playlist_count - ? WHERE id = ?
+            Database --> UserActivityService: User stats updated for bulk deletion
+            UserActivityService --> PlaylistDeletionService: Bulk stats updated
+
+            PlaylistDeletionService -> PlaylistDeletionService: buildBulkDeleteResult()
+            PlaylistDeletionService --> PlaylistService_BE: BulkDeleteResultDto
+            PlaylistService_BE --> PlaylistController: Bulk deletion result
+            PlaylistController --> PlaylistService: Bulk deletion completed
+            PlaylistService --> PlaylistListComponent: Bulk deletion result received
+
+            PlaylistListComponent -> PlaylistListComponent: updateAfterBulkDeletion(result)
+            PlaylistListComponent -> PlaylistListComponent: Remove deleted playlists from list
+            PlaylistListComponent -> PlaylistListComponent: Clear selection
+            PlaylistListComponent -> PlaylistListComponent: Update statistics
+            PlaylistListComponent -> BulkDeleteComponent: showResults(result)
+            BulkDeleteComponent -> BulkDeleteComponent: Display success/failure summary
+            BulkDeleteComponent --> User: Hiển thị "Đã xóa {successCount} playlist, {failedCount} thất bại"
+
+            DeletePlaylistModal -> DeletePlaylistModal: close()
+
+        else Xác nhận không hợp lệ
+            DeletePlaylistModal --> User: Hiển thị lỗi "Vui lòng nhập 'DELETE' để xác nhận"
+        end
+
+    else Không có playlist nào được chọn
+        PlaylistListComponent --> User: Hiển thị thông báo "Vui lòng chọn ít nhất một playlist"
+    end
+end
+
+== Xử lý lỗi ==
+
+alt Lỗi xác thực quyền sở hữu
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistOwnership fails
+    PlaylistValidationService --> PlaylistService_BE: throw UnauthorizedException
+    PlaylistService_BE --> PlaylistController: 403 Forbidden
+    PlaylistController --> PlaylistService: Error response
+    PlaylistService --> PlaylistListComponent: Access denied
+    PlaylistListComponent --> User: "Bạn không có quyền xóa playlist này"
+end
+
+alt Lỗi playlist không tồn tại
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistExists fails
+    PlaylistValidationService --> PlaylistService_BE: throw NotFoundException
+    PlaylistService_BE --> PlaylistController: 404 Not Found
+    PlaylistController --> PlaylistService: Error response
+    PlaylistService --> PlaylistListComponent: Playlist not found
+    PlaylistListComponent --> User: "Playlist không tồn tại hoặc đã bị xóa"
+end
+
+alt Lỗi xóa file storage
+    FileStorageService -> FileStorageService: deleteFile fails
+    FileStorageService --> PlaylistDeletionService: File deletion failed
+    PlaylistDeletionService -> PlaylistDeletionService: Log warning but continue
+    PlaylistDeletionService -> AuditService: logFileCleanupError(fileUrl, error)
+    AuditService --> PlaylistDeletionService: Error logged
+    PlaylistDeletionService --> PlaylistService_BE: Deletion completed with file cleanup warnings
+    PlaylistService_BE --> PlaylistController: Success with warnings
+    PlaylistController --> PlaylistService: Partial success
+    PlaylistService --> PlaylistListComponent: Deleted with file cleanup issues
+    PlaylistListComponent --> User: "Playlist đã xóa nhưng có lỗi dọn dẹp file"
+end
+
+alt Lỗi database constraint
+    Database --> PlaylistRepository: Foreign key constraint error
+    PlaylistRepository --> PlaylistDeletionService: DatabaseException
+    PlaylistDeletionService --> PlaylistService_BE: Deletion failed
+    PlaylistService_BE --> PlaylistController: 500 Internal Server Error
+    PlaylistController --> PlaylistService: Server error
+    PlaylistService --> PlaylistListComponent: Deletion failed
+    PlaylistListComponent --> User: "Không thể xóa playlist do ràng buộc dữ liệu"
+end
+
+alt Lỗi kết nối database
+    Database --> PlaylistRepository: Connection timeout
+    PlaylistRepository --> PlaylistService_BE: DatabaseConnectionException
+    PlaylistService_BE --> PlaylistController: 500 Internal Server Error
+    PlaylistController --> PlaylistService: Server error
+    PlaylistService --> PlaylistListComponent: Server error
+    PlaylistListComponent --> User: "Có lỗi kết nối, vui lòng thử lại sau"
+end
+
+@enduml

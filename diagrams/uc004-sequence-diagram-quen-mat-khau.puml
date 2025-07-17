@@ -1,0 +1,130 @@
+@startuml UC004-Sequence-Diagram-Quen-Mat-Khau
+!theme plain
+
+title Biểu đồ trình tự - UC004: Quên mật khẩu
+
+actor User
+participant "ForgotPasswordUI" as UI
+participant "AuthController" as Controller
+participant "AuthService" as AuthService
+participant "UserRepository" as UserRepo
+participant "PasswordResetTokenRepository" as TokenRepo
+participant "EmailService" as EmailService
+database "Database" as DB
+participant "EmailServer" as EmailServer
+
+User -> UI: Enter email address
+activate UI
+
+UI -> UI: validateEmail(email)
+UI -> Controller: POST /api/auth/forgot-password
+activate Controller
+
+Controller -> AuthService: processForgotPassword(email)
+activate AuthService
+
+AuthService -> UserRepo: findByEmail(email)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users WHERE email = ?
+DB --> UserRepo: User result
+UserRepo --> AuthService: Optional<User>
+deactivate UserRepo
+
+alt Email không tồn tại trong hệ thống
+    AuthService --> Controller: Success (không tiết lộ user có tồn tại hay không)
+    Controller --> UI: 200 OK "Email reset đã được gửi"
+    UI --> User: "Nếu email tồn tại, bạn sẽ nhận được link reset"
+else Email tồn tại
+    ' Delete any existing reset tokens for this user
+    AuthService -> TokenRepo: deleteByUser(user)
+    activate TokenRepo
+    TokenRepo -> DB: DELETE FROM password_reset_tokens WHERE user_id = ?
+    DB --> TokenRepo: success
+    deactivate TokenRepo
+
+    ' Generate new reset token
+    AuthService -> AuthService: generateResetToken(user)
+    AuthService -> AuthService: createPasswordResetToken(user, token)
+
+    AuthService -> TokenRepo: save(passwordResetToken)
+    activate TokenRepo
+    TokenRepo -> DB: INSERT INTO password_reset_tokens...
+    DB --> TokenRepo: success
+    deactivate TokenRepo
+
+    ' Send reset email
+    AuthService -> EmailService: sendPasswordResetEmail(user, resetToken)
+    activate EmailService
+
+    EmailService -> EmailService: buildResetEmailContent(user, resetLink)
+    EmailService -> EmailServer: sendEmail(to, subject, content)
+    activate EmailServer
+    EmailServer --> EmailService: email sent
+    deactivate EmailServer
+
+    EmailService --> AuthService: success
+    deactivate EmailService
+
+    AuthService --> Controller: success
+    deactivate AuthService
+
+    Controller --> UI: 200 OK "Email reset đã được gửi"
+    deactivate Controller
+
+    UI --> User: "Kiểm tra email để nhận link reset mật khẩu"
+    deactivate UI
+end
+
+== Reset Password Flow ==
+
+User -> User: Check email and click reset link
+User -> UI: Open reset password page with token
+activate UI
+
+UI -> UI: validateTokenFromURL()
+UI -> Controller: POST /api/auth/reset-password
+activate Controller
+
+Controller -> AuthService: resetPassword(token, newPassword)
+activate AuthService
+
+AuthService -> TokenRepo: findByToken(token)
+activate TokenRepo
+TokenRepo -> DB: SELECT * FROM password_reset_tokens WHERE token = ?
+DB --> TokenRepo: PasswordResetToken
+TokenRepo --> AuthService: Optional<PasswordResetToken>
+deactivate TokenRepo
+
+alt Token không hợp lệ hoặc đã hết hạn
+    AuthService --> Controller: InvalidTokenException
+    Controller --> UI: 400 Bad Request
+    UI --> User: "Link reset không hợp lệ hoặc đã hết hạn"
+else Token hợp lệ
+    AuthService -> AuthService: validateToken(passwordResetToken)
+    AuthService -> AuthService: encryptNewPassword(newPassword)
+
+    AuthService -> UserRepo: updatePassword(user, encryptedPassword)
+    activate UserRepo
+    UserRepo -> DB: UPDATE users SET password = ? WHERE id = ?
+    DB --> UserRepo: success
+    deactivate UserRepo
+
+    ' Mark token as used
+    AuthService -> TokenRepo: markTokenAsUsed(passwordResetToken)
+    activate TokenRepo
+    TokenRepo -> DB: UPDATE password_reset_tokens SET used = true WHERE id = ?
+    DB --> TokenRepo: success
+    deactivate TokenRepo
+
+    AuthService --> Controller: success
+    deactivate AuthService
+
+    Controller --> UI: 200 OK "Mật khẩu đã được cập nhật"
+    deactivate Controller
+
+    UI --> User: "Mật khẩu đã được đổi thành công. Vui lòng đăng nhập lại"
+    UI -> UI: redirectToLogin()
+    deactivate UI
+end
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC018-Xoa-Playlist
+!theme plain
+
+actor User
+usecase "Xóa playlist" as UC018
+
+User --> UC018
+
+@enduml

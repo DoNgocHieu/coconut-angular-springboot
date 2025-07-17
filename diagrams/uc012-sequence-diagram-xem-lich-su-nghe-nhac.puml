@@ -1,0 +1,343 @@
+@startuml UC012-Sequence-Diagram-Xem-Lich-Su-Nghe-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC012: Xem lịch sử nghe nhạc
+
+actor User
+participant "Angular\nMusic App" as Client
+participant "Listening History\nController" as HistoryController
+participant "Listening History\nService" as HistoryService
+participant "History Analytics\nService" as AnalyticsService
+participant "Listening History\nRepository" as HistoryRepo
+participant "Music\nRepository" as MusicRepo
+participant "Listening History\nMapper" as HistoryMapper
+participant "Stats\nMapper" as StatsMapper
+participant "History\nValidationService" as HistoryValidation
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "Lịch sử" page
+activate Client
+
+Client -> Client: Check if user is authenticated
+alt User is authenticated
+    Client -> Client: Initialize history page
+    Client -> Client: Show loading spinner
+    Client -> Client: Set default filters (last 30 days, newest first)
+
+    ' Load user's listening history
+    Client -> HistoryController: GET /api/listening-history?page=0&size=20&period=last30days
+    activate HistoryController
+
+    HistoryController -> HistoryController: Extract userId from JWT token
+    HistoryController -> HistoryService: getUserListeningHistory(userId, pageable)
+    activate HistoryService
+
+    ' Validate user can access history
+    HistoryService -> HistoryValidation: validateUserCanAccessHistory(userId)
+    activate HistoryValidation
+    HistoryValidation -> HistoryValidation: Check user is active and authorized
+    HistoryValidation --> HistoryService: void (validation passed)
+    deactivate HistoryValidation
+
+    ' Get listening history from database
+    HistoryService -> HistoryRepo: findByUserIdOrderByListenedAtDesc(userId, pageable)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT lh.*, m.title, m.artist, m.album, m.duration, m.cover_image_url,\nc.name as category_name, c.color, u.username, u.display_name\nFROM listening_histories lh\nJOIN musics m ON lh.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.user_id = u.id\nWHERE lh.user_id = ? AND lh.listened_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)\nORDER BY lh.listened_at DESC\nLIMIT 20 OFFSET 0
+    DB --> HistoryRepo: Page<ListeningHistory> with Music details
+    HistoryRepo --> HistoryService: Page<ListeningHistory>
+    deactivate HistoryRepo
+
+    ' Convert to DTOs with user-specific information
+    HistoryService -> HistoryMapper: toDtoList(listeningHistories.getContent())
+    activate HistoryMapper
+    HistoryMapper -> HistoryMapper: Convert each ListeningHistory to ListeningHistoryDto
+    HistoryMapper -> HistoryMapper: Set music info, category info
+    HistoryMapper -> HistoryMapper: Format listenedAt: "2 hours ago", "Yesterday", "3 days ago"
+    HistoryMapper -> HistoryMapper: Format duration: "2:45 / 3:30" (listened / total)
+    HistoryMapper -> HistoryMapper: Calculate completion percentage
+    HistoryMapper -> HistoryMapper: Set canDelete = true (user owns this history)
+    HistoryMapper -> HistoryMapper: Set isCompleteListen based on completion percentage
+    HistoryMapper --> HistoryService: List<ListeningHistoryDto>
+    deactivate HistoryMapper
+
+    HistoryService -> HistoryService: Create Page<ListeningHistoryDto> with pagination info
+    HistoryService --> HistoryController: Page<ListeningHistoryDto>
+    deactivate HistoryService
+
+    HistoryController --> Client: 200 OK\nPage<ListeningHistoryDto>
+    deactivate HistoryController
+
+    ' Display history on UI
+    Client -> Client: Hide loading spinner
+    Client -> Client: Group history by date (Today, Yesterday, This week, etc.)
+    Client -> Client: Display each history item with music info
+    Client -> Client: Show pagination controls (Page 1 of 12)
+    Client -> Client: Display filter options and stats summary
+    Client --> User: "Last 30 days: 247 songs listened, 18h 32m total time"
+
+    ' Load listening statistics
+    Client -> HistoryController: GET /api/listening-history/stats
+    activate HistoryController
+
+    HistoryController -> HistoryService: getListeningStats(userId)
+    activate HistoryService
+
+    HistoryService -> AnalyticsService: calculateListeningStats(userId)
+    activate AnalyticsService
+
+    ' Get total listening statistics
+    AnalyticsService -> HistoryRepo: sumListeningDurationByUserId(userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT SUM(duration) FROM listening_histories WHERE user_id = ?
+    DB --> HistoryRepo: totalListeningTime = 167520 seconds (46.5 hours)
+    HistoryRepo --> AnalyticsService: 167520
+    deactivate HistoryRepo
+
+    ' Get total song count
+    AnalyticsService -> HistoryRepo: countByUserId(userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT COUNT(*) FROM listening_histories WHERE user_id = ?
+    DB --> HistoryRepo: totalSongs = 1247
+    HistoryRepo --> AnalyticsService: 1247
+    deactivate HistoryRepo
+
+    ' Get top genres
+    AnalyticsService -> HistoryRepo: findTopGenresByUserId(userId, pageable)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT c.name, c.color, COUNT(*) as listen_count, SUM(lh.duration) as total_duration\nFROM listening_histories lh\nJOIN musics m ON lh.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nWHERE lh.user_id = ?\nGROUP BY c.id, c.name, c.color\nORDER BY listen_count DESC\nLIMIT 5
+    DB --> HistoryRepo: Top 5 genres with stats
+    HistoryRepo --> AnalyticsService: List<Object[]>
+    deactivate HistoryRepo
+
+    ' Get top artists
+    AnalyticsService -> HistoryRepo: findTopArtistsByUserId(userId, pageable)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT m.artist, COUNT(*) as listen_count, SUM(lh.duration) as total_duration, COUNT(DISTINCT m.id) as unique_songs\nFROM listening_histories lh\nJOIN musics m ON lh.music_id = m.id\nWHERE lh.user_id = ?\nGROUP BY m.artist\nORDER BY listen_count DESC\nLIMIT 5
+    DB --> HistoryRepo: Top 5 artists with stats
+    HistoryRepo --> AnalyticsService: List<Object[]>
+    deactivate HistoryRepo
+
+    ' Get listening trends (last 7 days)
+    AnalyticsService -> HistoryRepo: findListeningTrendsByUserId(userId, days=7)
+    activate HistoryRepo
+    HistoryRepo -> DB: SELECT DATE(listened_at) as date, COUNT(*) as count, SUM(duration) as total_duration\nFROM listening_histories\nWHERE user_id = ? AND listened_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)\nGROUP BY DATE(listened_at)\nORDER BY date DESC
+    DB --> HistoryRepo: Daily listening data for last 7 days
+    HistoryRepo --> AnalyticsService: List<Object[]>
+    deactivate HistoryRepo
+
+    AnalyticsService -> AnalyticsService: Calculate averages and percentages
+    AnalyticsService -> AnalyticsService: averageSessionLength = totalTime / totalSessions
+    AnalyticsService -> AnalyticsService: Build comprehensive stats object
+    AnalyticsService --> HistoryService: Raw stats data
+    deactivate AnalyticsService
+
+    ' Map stats to DTO
+    HistoryService -> StatsMapper: toListeningStatsDto(statsData, trends)
+    activate StatsMapper
+    StatsMapper -> StatsMapper: Create ListeningStatsDto
+    StatsMapper -> StatsMapper: Set totalListeningTime = 46.5 hours
+    StatsMapper -> StatsMapper: Set totalSongs = 1247
+    StatsMapper -> StatsMapper: Set averageSessionLength = 8.2 minutes
+    StatsMapper -> StatsMapper: Set mostPlayedGenre = "VN LoFi" (35%)
+    StatsMapper -> StatsMapper: Set mostPlayedArtist = "Đen Vâu" (12%)
+    StatsMapper -> StatsMapper: Convert trends to chart data
+    StatsMapper --> HistoryService: ListeningStatsDto
+    deactivate StatsMapper
+
+    HistoryService --> HistoryController: ListeningStatsDto
+    deactivate HistoryService
+
+    HistoryController --> Client: 200 OK\nListeningStatsDto
+    deactivate HistoryController
+
+    ' Display stats on UI
+    Client -> Client: Display stats summary card
+    Client -> Client: Show listening time chart
+    Client -> Client: Display top genres with percentages
+    Client -> Client: Show top artists with play counts
+    Client --> User: Stats displayed: "46.5h total, VN LoFi 35%, Đen Vâu most played"
+
+else User not authenticated
+    Client -> Client: Redirect to login page
+    Client --> User: "Vui lòng đăng nhập để xem lịch sử"
+end
+
+' User applies date filter
+User -> Client: Select "Last 7 days" filter
+Client -> Client: Update filter parameters
+Client -> Client: Show loading spinner
+
+Client -> HistoryController: GET /api/listening-history?page=0&size=20&period=last7days
+activate HistoryController
+
+HistoryController -> HistoryService: getListeningHistoryByPeriod(userId, "last7days")
+activate HistoryService
+
+' Validate period parameter
+HistoryService -> HistoryValidation: validatePeriodParameter("last7days")
+activate HistoryValidation
+HistoryValidation -> HistoryValidation: Check period is in allowed values
+HistoryValidation --> HistoryService: boolean valid = true
+deactivate HistoryValidation
+
+' Calculate date range for filter
+HistoryService -> HistoryService: startDate = now() - 7 days
+HistoryService -> HistoryService: endDate = now()
+
+HistoryService -> HistoryRepo: findByUserIdAndListenedAtBetween(userId, startDate, endDate, pageable)
+activate HistoryRepo
+HistoryRepo -> DB: SELECT lh.*, m.* FROM listening_histories lh\nJOIN musics m ON lh.music_id = m.id\nWHERE lh.user_id = ? AND lh.listened_at BETWEEN ? AND ?\nORDER BY lh.listened_at DESC\nLIMIT 20 OFFSET 0
+DB --> HistoryRepo: Page<ListeningHistory> for last 7 days
+HistoryRepo --> HistoryService: Page<ListeningHistory>
+deactivate HistoryRepo
+
+HistoryService -> HistoryMapper: toDtoList(filteredHistory.getContent())
+activate HistoryMapper
+HistoryMapper --> HistoryService: List<ListeningHistoryDto>
+deactivate HistoryMapper
+
+HistoryService --> HistoryController: Page<ListeningHistoryDto>
+deactivate HistoryService
+
+HistoryController --> Client: 200 OK\nPage<ListeningHistoryDto>
+deactivate HistoryController
+
+Client -> Client: Hide loading spinner
+Client -> Client: Update history list with filtered results
+Client -> Client: Update pagination (Page 1 of 3, 47 songs)
+Client -> Client: Update active filter indicator
+Client --> User: "Last 7 days: 47 songs, 5h 23m listening time"
+
+' User plays music from history
+User -> Client: Click play button on "Chill LoFi Beats - Study Mix"
+Client -> Client: Initialize music player
+Client -> Client: Load music data from history item
+Client -> Client: Start audio playback
+Client -> Client: Update player UI with track info
+Client -> Client: Show now playing indicator
+Client --> User: Music starts playing from history
+
+' User wants to remove item from history
+User -> Client: Click "Xóa" (delete) button on history item
+Client -> Client: Show confirmation modal
+Client -> Client: "Bạn có chắc muốn xóa bài hát này khỏi lịch sử?"
+
+User -> Client: Confirm deletion
+Client -> HistoryController: DELETE /api/listening-history/items/12345
+activate HistoryController
+
+HistoryController -> HistoryController: Extract userId from JWT token
+HistoryController -> HistoryService: removeHistoryItem(userId, historyId=12345)
+activate HistoryService
+
+' Validate user owns this history item
+HistoryService -> HistoryValidation: validateUserOwnsHistory(userId, historyId)
+activate HistoryValidation
+HistoryValidation -> HistoryRepo: findByIdAndUserId(historyId, userId)
+activate HistoryRepo
+HistoryRepo -> DB: SELECT * FROM listening_histories WHERE id = ? AND user_id = ?
+DB --> HistoryRepo: ListeningHistory entity
+HistoryRepo --> HistoryValidation: Optional<ListeningHistory>
+deactivate HistoryRepo
+
+alt History item exists and belongs to user
+    HistoryValidation --> HistoryService: void (validation passed)
+    deactivate HistoryValidation
+
+    ' Delete history item
+    HistoryService -> HistoryRepo: deleteByIdAndUserId(historyId, userId)
+    activate HistoryRepo
+    HistoryRepo -> DB: DELETE FROM listening_histories WHERE id = ? AND user_id = ?
+    DB --> HistoryRepo: 1 row deleted
+    HistoryRepo --> HistoryService: void
+    deactivate HistoryRepo
+
+    HistoryService --> HistoryController: void (success)
+    deactivate HistoryService
+
+    HistoryController --> Client: 200 OK\n{"message": "Đã xóa khỏi lịch sử"}
+    deactivate HistoryController
+
+    Client -> Client: Remove item from history list
+    Client -> Client: Update stats counters
+    Client -> Client: Close confirmation modal
+    Client --> User: "Đã xóa bài hát khỏi lịch sử"
+
+else History item not found or unauthorized
+    HistoryValidation --> HistoryService: throw UnauthorizedException
+    HistoryService --> HistoryController: throw UnauthorizedException
+    HistoryController --> Client: 403 Forbidden\n{"error": "Không có quyền xóa lịch sử này"}
+    Client --> User: "Lỗi: Không thể xóa lịch sử này"
+end
+
+' User wants to clear all history
+User -> Client: Click "Xóa toàn bộ lịch sử" button
+Client -> Client: Show confirmation modal with warning
+Client -> Client: "CẢNH BÁO: Thao tác này sẽ xóa toàn bộ lịch sử nghe nhạc. Không thể hoàn tác!"
+
+User -> Client: Type "XÓA LỊCH SỬ" to confirm and click "Xác nhận"
+Client -> HistoryController: DELETE /api/listening-history/clear-all
+activate HistoryController
+
+HistoryController -> HistoryController: Extract userId from JWT token
+HistoryController -> HistoryService: clearAllUserHistory(userId)
+activate HistoryService
+
+HistoryService -> HistoryRepo: deleteAllByUserId(userId)
+activate HistoryRepo
+HistoryRepo -> DB: DELETE FROM listening_histories WHERE user_id = ?
+DB --> HistoryRepo: 1247 rows deleted
+HistoryRepo --> HistoryService: void
+deactivate HistoryRepo
+
+HistoryService --> HistoryController: void (success)
+deactivate HistoryService
+
+HistoryController --> Client: 200 OK\n{"message": "Đã xóa toàn bộ lịch sử", "deletedCount": 1247}
+deactivate HistoryController
+
+Client -> Client: Clear history list from UI
+Client -> Client: Reset stats to zero
+Client -> Client: Show empty state message
+Client -> Client: Close confirmation modal
+Client --> User: "Đã xóa toàn bộ 1247 bài hát khỏi lịch sử"
+
+' User wants to export history
+User -> Client: Click "Xuất lịch sử" button and select "PDF Report"
+Client -> HistoryController: GET /api/listening-history/export?format=pdf
+activate HistoryController
+
+HistoryController -> HistoryController: Extract userId from JWT token
+HistoryController -> HistoryService: exportUserHistory(userId, "pdf")
+activate HistoryService
+
+' Get all user history for export
+HistoryService -> HistoryRepo: findByUserIdOrderByListenedAtDesc(userId, Pageable.unpaged())
+activate HistoryRepo
+HistoryRepo -> DB: SELECT * FROM listening_histories WHERE user_id = ? ORDER BY listened_at DESC
+DB --> HistoryRepo: All user listening history
+HistoryRepo --> HistoryService: List<ListeningHistory>
+deactivate HistoryRepo
+
+' Get stats for report
+HistoryService -> AnalyticsService: calculateListeningStats(userId)
+activate AnalyticsService
+AnalyticsService --> HistoryService: ListeningStatsDto
+deactivate AnalyticsService
+
+' Generate PDF report
+HistoryService -> HistoryService: Generate comprehensive PDF report
+HistoryService -> HistoryService: Include charts, top artists, listening patterns
+HistoryService -> HistoryService: Format as professional report
+HistoryService --> HistoryController: byte[] (PDF file)
+deactivate HistoryService
+
+HistoryController --> Client: 200 OK\nContent-Type: application/pdf\nContent-Disposition: attachment; filename="listening-history-report.pdf"
+deactivate HistoryController
+
+Client -> Client: Trigger file download
+Client --> User: PDF report downloaded: "listening-history-report.pdf"
+
+deactivate Client
+
+@enduml

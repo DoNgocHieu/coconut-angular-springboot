@@ -1,0 +1,9 @@
+@startuml UC023-Phan-Loai-Nhac
+!theme plain
+
+actor Admin
+usecase "Phân loại nhạc" as UC023
+
+Admin --> UC023
+
+@enduml

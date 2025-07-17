@@ -1,0 +1,16 @@
+@startuml UC022-Test-Syntax
+!theme plain
+
+title Test Biểu đồ tuần tự - UC022: Xóa nhạc (Admin)
+
+actor Admin as "Quản trị viên"
+participant Browser as "Browser"
+participant AdminMusicListComponent as "AdminMusicList\nComponent"
+
+== Test Section ==
+
+Admin -> Browser: Test action
+Browser -> AdminMusicListComponent: Test response
+AdminMusicListComponent --> Admin: Test result
+
+@enduml

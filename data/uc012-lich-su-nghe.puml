@@ -1,0 +1,9 @@
+@startuml UC012-Lich-Su-Nghe
+!theme plain
+
+actor User
+usecase "Xem lịch sử nghe nhạc" as UC012
+
+User --> UC012
+
+@enduml

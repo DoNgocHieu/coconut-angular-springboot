@@ -1,0 +1,268 @@
+@startuml UC021-Class-Diagram-Chinh-Sua-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC021: Chỉnh sửa thông tin nhạc (Admin)
+
+class AdminMusicController {
+    + getMusicById(id: Long): ResponseEntity<MusicDetailDto>
+    + updateMusic(id: Long, request: UpdateMusicRequest): ResponseEntity<MusicDto>
+    + updateMusicCover(id: Long, file: MultipartFile): ResponseEntity<ApiResponse>
+    + deleteMusicCover(id: Long): ResponseEntity<ApiResponse>
+    + updateMusicFile(id: Long, file: MultipartFile): ResponseEntity<ApiResponse>
+    + validateMusicTitle(title: String, currentMusicId: Long): ResponseEntity<Boolean>
+    + getMusicEditHistory(id: Long): ResponseEntity<List<MusicEditHistoryDto>>
+    + bulkUpdateMusic(request: BulkUpdateMusicRequest): ResponseEntity<ApiResponse>
+}
+
+class AdminMusicService {
+    + getMusicForEdit(id: Long): Music
+    + updateMusicInfo(id: Long, request: UpdateMusicRequest): Music
+    + updateMusicCover(id: Long, file: MultipartFile): String
+    + deleteMusicCover(id: Long): void
+    + updateMusicFile(id: Long, file: MultipartFile): String
+    + validateTitleUniqueness(title: String, currentMusicId: Long): boolean
+    + recordMusicEdit(musicId: Long, adminId: Long, changes: Map<String, Object>): void
+    + getMusicEditHistory(musicId: Long): List<MusicEditHistory>
+    + bulkUpdateMusicInfo(request: BulkUpdateMusicRequest): BatchUpdateResult
+    + extractAudioMetadata(file: MultipartFile): AudioMetadata
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String album
+    - String genre
+    - int duration
+    - String filePath
+    - String coverImagePath
+    - String lyrics
+    - Category category
+    - LocalDate releaseDate
+    - boolean isActive
+    - boolean isFeatured
+    - int viewCount
+    - int downloadCount
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - User uploadedBy
+    + getId(): Long
+    + getTitle(): String
+    + getArtist(): String
+    + getCoverImagePath(): String
+}
+
+class MusicRepository {
+    + save(music: Music): Music
+    + findById(id: Long): Optional<Music>
+    + findByIdAndIsActiveTrue(id: Long): Optional<Music>
+    + existsByTitleAndIdNot(title: String, id: Long): boolean
+    + existsByTitleAndArtistAndIdNot(title: String, artist: String, id: Long): boolean
+    + findByCategory(category: Category): List<Music>
+    + findByUploadedBy(user: User): List<Music>
+}
+
+class CategoryRepository {
+    + findById(id: Long): Optional<Category>
+    + findAll(): List<Category>
+    + findByIsActiveTrue(): List<Category>
+}
+
+class MusicEditHistory {
+    - Long id
+    - Music music
+    - User editedBy
+    - String fieldChanged
+    - String oldValue
+    - String newValue
+    - LocalDateTime editedAt
+    - String editReason
+    + getId(): Long
+    + getMusic(): Music
+    + getFieldChanged(): String
+}
+
+class MusicEditHistoryRepository {
+    + save(musicEditHistory: MusicEditHistory): MusicEditHistory
+    + saveAll(histories: List<MusicEditHistory>): List<MusicEditHistory>
+    + findByMusicIdOrderByEditedAtDesc(musicId: Long): List<MusicEditHistory>
+    + findByEditedByAndMusicId(user: User, musicId: Long): List<MusicEditHistory>
+    + deleteByMusicId(musicId: Long): void
+}
+
+class FileStorageService {
+    + storeMusicCover(file: MultipartFile, musicId: Long): String
+    + storeMusicFile(file: MultipartFile, musicId: Long): String
+    + deleteMusicCover(fileName: String): void
+    + deleteMusicFile(fileName: String): void
+    + validateAudioFile(file: MultipartFile): void
+    + validateImageFile(file: MultipartFile): void
+    + generateUniqueFileName(originalFileName: String): String
+}
+
+class AudioMetadataService {
+    + extractMetadata(file: MultipartFile): AudioMetadata
+    + getDuration(file: MultipartFile): int
+    + getArtistFromMetadata(file: MultipartFile): String
+    + getAlbumFromMetadata(file: MultipartFile): String
+    + getTitleFromMetadata(file: MultipartFile): String
+}
+
+class UpdateMusicRequest {
+    + String title
+    + String artist
+    + String album
+    + String genre
+    + Long categoryId
+    + String lyrics
+    + LocalDate releaseDate
+    + boolean isActive
+    + boolean isFeatured
+    + String editReason
+}
+
+class BulkUpdateMusicRequest {
+    + List<Long> musicIds
+    + Long categoryId
+    + String genre
+    + boolean isActive
+    + boolean isFeatured
+    + String editReason
+}
+
+class MusicDetailDto {
+    + Long id
+    + String title
+    + String artist
+    + String album
+    + String genre
+    + int duration
+    + String filePath
+    + String coverImagePath
+    + String lyrics
+    + CategoryDto category
+    + LocalDate releaseDate
+    + boolean isActive
+    + boolean isFeatured
+    + int viewCount
+    + int downloadCount
+    + LocalDateTime createdAt
+    + LocalDateTime updatedAt
+    + String uploadedByUsername
+    + List<PlaylistSummaryDto> usedInPlaylists
+    + List<String> tags
+}
+
+class MusicEditHistoryDto {
+    + Long id
+    + String fieldChanged
+    + String oldValue
+    + String newValue
+    + LocalDateTime editedAt
+    + String editedByUsername
+    + String editReason
+}
+
+class AudioMetadata {
+    + String title
+    + String artist
+    + String album
+    + String genre
+    + int duration
+    + int bitrate
+    + String format
+}
+
+class BatchUpdateResult {
+    + int totalProcessed
+    + int successfulUpdates
+    + int failedUpdates
+    + List<String> errors
+    + List<Long> updatedMusicIds
+}
+
+class Category {
+    - Long id
+    - String name
+    - String description
+    - boolean isActive
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - UserRole role
+}
+
+class MusicMapper {
+    + toDetailDto(music: Music): MusicDetailDto
+    + toDto(music: Music): MusicDto
+    + updateEntityFromRequest(music: Music, request: UpdateMusicRequest): Music
+    + toEditHistoryDto(history: MusicEditHistory): MusicEditHistoryDto
+}
+
+class MusicValidationService {
+    + validateMusicExists(musicId: Long): void
+    + validateCategoryExists(categoryId: Long): void
+    + validateTitleUniqueness(title: String, artist: String, currentMusicId: Long): void
+    + validateAudioFile(file: MultipartFile): void
+    + validateImageFile(file: MultipartFile): void
+    + validateMusicEditPermission(music: Music, adminId: Long): void
+}
+
+' Relationships
+AdminMusicController --> AdminMusicService : uses
+AdminMusicController --> UpdateMusicRequest : receives
+AdminMusicController --> BulkUpdateMusicRequest : receives
+AdminMusicController --> MusicDetailDto : returns
+AdminMusicController --> MusicEditHistoryDto : returns
+
+AdminMusicService --> MusicRepository : uses
+AdminMusicService --> CategoryRepository : uses
+AdminMusicService --> MusicEditHistoryRepository : uses
+AdminMusicService --> FileStorageService : uses
+AdminMusicService --> AudioMetadataService : uses
+AdminMusicService --> MusicMapper : uses
+AdminMusicService --> MusicValidationService : uses
+
+MusicRepository --> Music : manages
+MusicEditHistoryRepository --> MusicEditHistory : manages
+MusicEditHistory --> Music : references
+MusicEditHistory --> User : edited by
+Music --> Category : belongs to
+Music --> User : uploaded by
+
+MusicMapper --> Music : maps
+MusicMapper --> MusicDetailDto : creates
+
+note right of AdminMusicService
+  Business rules:
+  - Only ADMIN can edit music
+  - Title + Artist must be unique
+  - Track all changes in audit log
+  - Support bulk operations
+  - Auto-extract metadata from files
+  - Validate file formats
+end note
+
+note bottom of Music
+  Music constraints:
+  - Title: 1-200 characters
+  - Artist: 1-100 characters
+  - File size: max 50MB
+  - Supported formats: MP3, FLAC, WAV
+  - Cover image: max 5MB, JPG/PNG
+  - Audit timestamps
+end note
+
+note left of MusicEditHistory
+  Edit tracking:
+  - Track field-level changes
+  - Store old/new values
+  - Admin user attribution
+  - Edit reason/comments
+  - Full audit trail
+end note
+
+@enduml

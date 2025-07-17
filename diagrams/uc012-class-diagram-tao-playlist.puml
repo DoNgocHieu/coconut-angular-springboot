@@ -1,0 +1,129 @@
+@startuml UC012-Class-Diagram-Tao-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC012: Tạo playlist
+
+class PlaylistController {
+    + createPlaylist(request: CreatePlaylistRequest): ResponseEntity<PlaylistDto>
+    + getUserPlaylists(userId: Long): ResponseEntity<List<PlaylistDto>>
+    + updatePlaylist(id: Long, request: UpdatePlaylistRequest): ResponseEntity<PlaylistDto>
+    + deletePlaylist(id: Long): ResponseEntity<ApiResponse>
+    + uploadPlaylistImage(id: Long, file: MultipartFile): ResponseEntity<ApiResponse>
+}
+
+class PlaylistService {
+    + createUserPlaylist(userId: Long, request: CreatePlaylistRequest): Playlist
+    + getUserPlaylists(userId: Long): List<Playlist>
+    + updatePlaylist(id: Long, userId: Long, request: UpdatePlaylistRequest): Playlist
+    + deleteUserPlaylist(id: Long, userId: Long): void
+    + uploadPlaylistImage(id: Long, userId: Long, file: MultipartFile): String
+    + validatePlaylistOwnership(playlistId: Long, userId: Long): void
+}
+
+class Playlist {
+    - Long id
+    - String name
+    - String description
+    - String imageUrl
+    - User user
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - boolean isPublic
+    - Set<PlaylistMusic> playlistMusic
+    + getId(): Long
+    + getName(): String
+    + getDescription(): String
+    + getUser(): User
+}
+
+class PlaylistRepository {
+    + save(playlist: Playlist): Playlist
+    + findById(id: Long): Optional<Playlist>
+    + findByUserIdOrderByCreatedAtDesc(userId: Long): List<Playlist>
+    + deleteById(id: Long): void
+    + countByUserId(userId: Long): Long
+    + existsByUserIdAndName(userId: Long, name: String): boolean
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+    + existsById(id: Long): boolean
+}
+
+class FileStorageService {
+    + storePlaylistImage(file: MultipartFile): String
+    + deleteFile(fileName: String): void
+    + validateImageFile(file: MultipartFile): void
+}
+
+class CreatePlaylistRequest {
+    + String name
+    + String description
+    + boolean isPublic
+}
+
+class UpdatePlaylistRequest {
+    + String name
+    + String description
+    + boolean isPublic
+}
+
+class PlaylistDto {
+    + Long id
+    + String name
+    + String description
+    + String imageUrl
+    + boolean isPublic
+    + LocalDateTime createdAt
+    + int musicCount
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - Set<Playlist> playlists
+}
+
+class PlaylistMusic {
+    - Long id
+    - Playlist playlist
+    - Music music
+    - LocalDateTime addedAt
+    - int orderIndex
+}
+
+' Relationships
+PlaylistController --> PlaylistService : uses
+PlaylistController --> CreatePlaylistRequest : receives
+PlaylistController --> UpdatePlaylistRequest : receives
+PlaylistController --> PlaylistDto : returns
+
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> UserRepository : uses
+PlaylistService --> FileStorageService : uses
+PlaylistService --> Playlist : creates/manages
+
+PlaylistRepository --> Playlist : manages
+Playlist --> User : belongs to
+Playlist --> PlaylistMusic : contains
+User --> Playlist : owns
+
+note right of PlaylistService
+  Business rules:
+  - User must be authenticated
+  - Max 100 playlists per user
+  - Playlist name must be unique for user
+  - Only owner can modify playlist
+  - Image size max 5MB
+end note
+
+note bottom of Playlist
+  Playlist constraints:
+  - Name: 1-100 characters
+  - Description: max 500 characters
+  - Soft delete implementation
+  - Audit timestamps
+end note
+
+@enduml

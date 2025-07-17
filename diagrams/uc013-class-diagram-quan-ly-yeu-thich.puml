@@ -1,0 +1,172 @@
+@startuml UC013-Class-Diagram-Quan-Ly-Yeu-Thich
+!theme plain
+
+title Biểu đồ lớp - UC013: Quản lý danh sách yêu thích
+
+class FavoriteController {
+    + getFavoriteMusic(page: int, size: int): ResponseEntity<Page<FavoriteMusicDto>>
+    + addToFavorites(request: AddToFavoritesRequest): ResponseEntity<ApiResponse>
+    + removeFromFavorites(musicId: Long): ResponseEntity<ApiResponse>
+    + removeMultipleFromFavorites(request: RemoveMultipleFavoritesRequest): ResponseEntity<ApiResponse>
+    + checkIsFavorite(musicId: Long): ResponseEntity<Boolean>
+    + getFavoriteStatistics(): ResponseEntity<FavoriteStatsDto>
+    + searchInFavorites(query: String, page: int, size: int): ResponseEntity<Page<FavoriteMusicDto>>
+    + sortFavorites(sortBy: String, direction: String, page: int, size: int): ResponseEntity<Page<FavoriteMusicDto>>
+}
+
+class FavoriteService {
+    + getUserFavoriteMusic(userId: Long, pageable: Pageable): Page<Favorite>
+    + addMusicToFavorites(userId: Long, musicId: Long): void
+    + removeMusicFromFavorites(userId: Long, musicId: Long): void
+    + removeMultipleMusicFromFavorites(userId: Long, musicIds: List<Long>): void
+    + isMusicInFavorites(userId: Long, musicId: Long): boolean
+    + getFavoriteStatistics(userId: Long): FavoriteStatsDto
+    + searchFavoritesWithFilters(userId: Long, query: String, pageable: Pageable): Page<Favorite>
+    + validateFavoriteLimit(userId: Long): void
+}
+
+class Favorite {
+    - Long id
+    - User user
+    - Music music
+    - LocalDateTime addedAt
+    - boolean isActive
+    + getId(): Long
+    + getUser(): User
+    + getMusic(): Music
+    + getAddedAt(): LocalDateTime
+    + isActive(): boolean
+}
+
+class FavoriteRepository {
+    + save(favorite: Favorite): Favorite
+    + findByUserIdAndMusicId(userId: Long, musicId: Long): Optional<Favorite>
+    + findByUserIdAndIsActiveTrue(userId: Long, pageable: Pageable): Page<Favorite>
+    + deleteByUserIdAndMusicId(userId: Long, musicId: Long): void
+    + deleteByUserIdAndMusicIdIn(userId: Long, musicIds: List<Long>): void
+    + countByUserIdAndIsActiveTrue(userId: Long): Long
+    + existsByUserIdAndMusicIdAndIsActiveTrue(userId: Long, musicId: Long): boolean
+    + findByUserIdAndMusicTitleContainingIgnoreCaseAndIsActiveTrue(userId: Long, title: String, pageable: Pageable): Page<Favorite>
+    + findByUserIdAndMusicArtistContainingIgnoreCaseAndIsActiveTrue(userId: Long, artist: String, pageable: Pageable): Page<Favorite>
+    + findByUserIdAndIsActiveTrueOrderByAddedAtDesc(userId: Long, pageable: Pageable): Page<Favorite>
+    + findByUserIdAndIsActiveTrueOrderByMusicTitleAsc(userId: Long, pageable: Pageable): Page<Favorite>
+    + findByUserIdAndIsActiveTrueOrderByMusicArtistAsc(userId: Long, pageable: Pageable): Page<Favorite>
+}
+
+class MusicRepository {
+    + findById(id: Long): Optional<Music>
+    + existsById(id: Long): boolean
+    + findAllById(ids: List<Long>): List<Music>
+}
+
+class UserRepository {
+    + findById(id: Long): Optional<User>
+    + existsById(id: Long): boolean
+}
+
+class AddToFavoritesRequest {
+    + Long musicId
+}
+
+class RemoveMultipleFavoritesRequest {
+    + List<Long> musicIds
+}
+
+class FavoriteMusicDto {
+    + Long favoriteId
+    + MusicDto music
+    + LocalDateTime addedAt
+    + boolean canRemove
+}
+
+class FavoriteStatsDto {
+    + Long totalFavorites
+    + Long favoritesThisWeek
+    + Long favoritesThisMonth
+    + List<CategoryStatsDto> favoritesByCategory
+    + List<ArtistStatsDto> favoritesByArtist
+    + LocalDateTime oldestFavorite
+    + LocalDateTime newestFavorite
+}
+
+class Music {
+    - Long id
+    - String title
+    - String artist
+    - String filePath
+    - int duration
+    - Category category
+    - LocalDateTime createdAt
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - Set<Favorite> favorites
+}
+
+class FavoriteMapper {
+    + toDto(favorite: Favorite): FavoriteMusicDto
+    + toDtoList(favorites: List<Favorite>): List<FavoriteMusicDto>
+    + toPageDto(favoritePage: Page<Favorite>): Page<FavoriteMusicDto>
+}
+
+class FavoriteValidationService {
+    + validateFavoriteLimit(userId: Long, currentCount: Long): void
+    + validateMusicExists(musicId: Long): void
+    + validateUserExists(userId: Long): void
+    + validateNotDuplicate(userId: Long, musicId: Long): void
+}
+
+' Relationships
+FavoriteController --> FavoriteService : uses
+FavoriteController --> AddToFavoritesRequest : receives
+FavoriteController --> RemoveMultipleFavoritesRequest : receives
+FavoriteController --> FavoriteMusicDto : returns
+FavoriteController --> FavoriteStatsDto : returns
+
+FavoriteService --> FavoriteRepository : uses
+FavoriteService --> MusicRepository : uses
+FavoriteService --> UserRepository : uses
+FavoriteService --> FavoriteMapper : uses
+FavoriteService --> FavoriteValidationService : uses
+
+FavoriteRepository --> Favorite : manages
+Favorite --> User : references
+Favorite --> Music : references
+User --> Favorite : has
+Music --> Favorite : referenced by
+
+FavoriteMapper --> Favorite : maps
+FavoriteMapper --> FavoriteMusicDto : creates
+
+note right of FavoriteService
+  Business rules:
+  - Max 1000 favorites per user
+  - Soft delete implementation
+  - Duplicate prevention
+  - Search within favorites
+  - Sort by: date, title, artist
+  - Batch operations support
+end note
+
+note bottom of Favorite
+  Favorite constraints:
+  - Composite unique key (user_id, music_id)
+  - Soft delete with isActive flag
+  - Index on user_id, added_at
+  - Audit timestamps
+  - Cascade delete with user
+end note
+
+note left of FavoriteValidationService
+  Validation rules:
+  - Favorite count limits
+  - Music existence check
+  - User existence check
+  - Duplicate validation
+  - Permission validation
+end note
+
+@enduml

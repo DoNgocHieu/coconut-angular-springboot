@@ -1,0 +1,414 @@
+@startuml UC012-Class-Diagram-Xem-Lich-Su-Nghe-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC012: Xem lịch sử nghe nhạc
+
+package "Frontend Layer" {
+    class ListeningHistoryComponent {
+        +history: ListeningHistoryDto[]
+        +filteredHistory: ListeningHistoryDto[]
+        +isLoading: boolean
+        +currentPage: number
+        +totalPages: number
+        +pageSize: number
+        +filterPeriod: string
+        +selectedDateRange: DateRangeDto
+        +sortBy: string
+        +groupByDate: boolean
+        +totalListeningTime: number
+        +ngOnInit(): void
+        +loadListeningHistory(): void
+        +applyDateFilter(period: string): void
+        +applyCustomDateRange(range: DateRangeDto): void
+        +groupHistoryByDate(): Map<string, ListeningHistoryDto[]>
+        +playMusicFromHistory(musicId: number): void
+        +removeFromHistory(historyId: number): void
+        +clearAllHistory(): void
+        +exportHistory(): void
+        +loadNextPage(): void
+        +changeSortOrder(sortBy: string): void
+        +getListeningStats(): void
+    }
+
+    class HistoryFilterComponent {
+        +filterOptions: HistoryFilterOptionsDto
+        +selectedPeriod: string
+        +customDateRange: DateRangeDto
+        +sortOptions: SortOptionDto[]
+        +onFilterChange(): void
+        +onDateRangeChange(): void
+        +resetFilters(): void
+        +loadFilterOptions(): void
+    }
+
+    class HistoryItemComponent {
+        +historyItem: ListeningHistoryDto
+        +showMusicDetails: boolean
+        +canDelete: boolean
+        +onPlayMusic(): void
+        +onRemoveFromHistory(): void
+        +onShowMusicDetail(): void
+        +formatListenTime(): string
+        +formatDuration(): string
+    }
+
+    class HistoryStatsComponent {
+        +stats: ListeningStatsDto
+        +chartData: ChartDataDto[]
+        +topGenres: GenreStatsDto[]
+        +topArtists: ArtistStatsDto[]
+        +loadStats(): void
+        +generateCharts(): void
+        +displayTopCategories(): void
+    }
+
+    class HistoryGroupComponent {
+        +date: string
+        +historyItems: ListeningHistoryDto[]
+        +totalDuration: number
+        +isExpanded: boolean
+        +toggleExpanded(): void
+        +getTotalDuration(): number
+        +getListenCount(): number
+    }
+
+    class ConfirmDeleteModalComponent {
+        +historyItem: ListeningHistoryDto
+        +isMultipleDelete: boolean
+        +selectedItems: number[]
+        +onConfirmDelete(): void
+        +onCancel(): void
+    }
+}
+
+package "Backend Controller Layer" {
+    class ListeningHistoryController {
+        -listeningHistoryService: ListeningHistoryService
+        +getUserListeningHistory(userId: Long, pageable: Pageable): ResponseEntity<Page<ListeningHistoryDto>>
+        +getListeningHistoryByDateRange(userId: Long, startDate: LocalDate, endDate: LocalDate, pageable: Pageable): ResponseEntity<Page<ListeningHistoryDto>>
+        +getListeningStats(userId: Long): ResponseEntity<ListeningStatsDto>
+        +removeHistoryItem(historyId: Long): ResponseEntity<Void>
+        +clearAllHistory(userId: Long): ResponseEntity<Void>
+        +exportListeningHistory(userId: Long, format: String): ResponseEntity<byte[]>
+        +getRecentListeningHistory(userId: Long, limit: int): ResponseEntity<List<ListeningHistoryDto>>
+        +getListeningHistoryByPeriod(userId: Long, period: String): ResponseEntity<List<ListeningHistoryDto>>
+    }
+}
+
+package "Service Layer" {
+    class ListeningHistoryService {
+        -listeningHistoryRepository: ListeningHistoryRepository
+        -listeningHistoryMapper: ListeningHistoryMapper
+        -musicService: MusicService
+        -historyValidationService: HistoryValidationService
+        +getUserListeningHistory(userId: Long, pageable: Pageable): Page<ListeningHistoryDto>
+        +getListeningHistoryByDateRange(userId: Long, startDate: LocalDate, endDate: LocalDate, pageable: Pageable): Page<ListeningHistoryDto>
+        +recordListeningSession(userId: Long, musicId: Long, duration: Integer, deviceInfo: String): ListeningHistoryDto
+        +removeHistoryItem(userId: Long, historyId: Long): void
+        +clearAllUserHistory(userId: Long): void
+        +getListeningStats(userId: Long): ListeningStatsDto
+        +getRecentHistory(userId: Long, limit: int): List<ListeningHistoryDto>
+        +getListeningHistoryByPeriod(userId: Long, period: String): List<ListeningHistoryDto>
+        +exportUserHistory(userId: Long, format: String): byte[]
+        +getTotalListeningTime(userId: Long): Long
+        +getMostPlayedMusic(userId: Long, limit: int): List<MusicDto>
+        +getListeningTrends(userId: Long): List<ChartDataDto>
+    }
+
+    class HistoryValidationService {
+        +validateUserOwnsHistory(userId: Long, historyId: Long): void
+        +validateDateRange(startDate: LocalDate, endDate: LocalDate): List<String>
+        +validatePeriodParameter(period: String): boolean
+        +validateExportFormat(format: String): boolean
+        +validateHistoryExists(historyId: Long): void
+        +validateUserCanAccessHistory(userId: Long): void
+    }
+
+    class HistoryAnalyticsService {
+        -listeningHistoryRepository: ListeningHistoryRepository
+        +calculateListeningStats(userId: Long): ListeningStatsDto
+        +getTopGenres(userId: Long, limit: int): List<GenreStatsDto>
+        +getTopArtists(userId: Long, limit: int): List<ArtistStatsDto>
+        +getListeningPatterns(userId: Long): List<PatternDto>
+        +generateListeningChart(userId: Long, period: String): List<ChartDataDto>
+        +getListeningHeatmap(userId: Long): Map<String, Integer>
+        +calculateAverageSessionLength(userId: Long): Double
+        +getMostActiveListeningHours(userId: Long): List<Integer>
+    }
+
+    class HistoryExportService {
+        +exportToCsv(history: List<ListeningHistoryDto>): byte[]
+        +exportToJson(history: List<ListeningHistoryDto>): byte[]
+        +exportToPdf(history: List<ListeningHistoryDto>, stats: ListeningStatsDto): byte[]
+        +generateHistoryReport(userId: Long): byte[]
+    }
+}
+
+package "Repository Layer" {
+    interface ListeningHistoryRepository {
+        +findByUserIdOrderByListenedAtDesc(userId: Long, pageable: Pageable): Page<ListeningHistory>
+        +findByUserIdAndListenedAtBetween(userId: Long, startDate: LocalDateTime, endDate: LocalDateTime, pageable: Pageable): Page<ListeningHistory>
+        +findByUserIdAndMusicId(userId: Long, musicId: Long): List<ListeningHistory>
+        +countByUserId(userId: Long): long
+        +deleteByIdAndUserId(id: Long, userId: Long): void
+        +deleteAllByUserId(userId: Long): void
+        +findRecentByUserId(userId: Long, limit: int): List<ListeningHistory>
+        +sumListeningDurationByUserId(userId: Long): Long
+        +findMostPlayedMusicByUserId(userId: Long, pageable: Pageable): Page<Object[]>
+        +findListeningStatsByUserId(userId: Long): Object[]
+        +findListeningTrendsByUserId(userId: Long, days: int): List<Object[]>
+        +findTopGenresByUserId(userId: Long, pageable: Pageable): Page<Object[]>
+        +findTopArtistsByUserId(userId: Long, pageable: Pageable): Page<Object[]>
+        +findListeningPatternsByUserId(userId: Long): List<Object[]>
+    }
+}
+
+package "Entity Layer" {
+    class ListeningHistory {
+        -id: Long
+        -userId: Long
+        -musicId: Long
+        -listenedAt: LocalDateTime
+        -duration: Integer
+        -completionPercentage: Double
+        -deviceInfo: String
+        -ipAddress: String
+        -userAgent: String
+        -sessionId: String
+        -skipCount: Integer
+        -repeatCount: Integer
+        +getId(): Long
+        +getUserId(): Long
+        +getMusicId(): Long
+        +getListenedAt(): LocalDateTime
+        +getDuration(): Integer
+        +getCompletionPercentage(): Double
+        +getDeviceInfo(): String
+        +isCompleteListen(): Boolean
+        +isValidSession(): Boolean
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -viewCount: Long
+        -favoriteCount: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +getCoverImageUrl(): String
+        +isPublic(): Boolean
+        +isDeleted(): Boolean
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+        +isActive(): Boolean
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -description: String
+        -color: String
+        -imageUrl: String
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +getImageUrl(): String
+        +isActive(): Boolean
+    }
+}
+
+package "DTO Layer" {
+    class ListeningHistoryDto {
+        +id: Long
+        +music: MusicDto
+        +listenedAt: LocalDateTime
+        +duration: Integer
+        +completionPercentage: Double
+        +deviceInfo: String
+        +sessionId: String
+        +skipCount: Integer
+        +repeatCount: Integer
+        +canDelete: Boolean
+        +listenedAtFormatted: String
+        +durationFormatted: String
+        +isCompleteListen: Boolean
+        +relativeTime: String
+    }
+
+    class ListeningStatsDto {
+        +totalListeningTime: Long
+        +totalSongs: Long
+        +averageSessionLength: Double
+        +mostPlayedGenre: String
+        +mostPlayedArtist: String
+        +listeningStreak: Integer
+        +topMusics: List<MusicDto>
+        +topGenres: List<GenreStatsDto>
+        +topArtists: List<ArtistStatsDto>
+        +listeningTrends: List<ChartDataDto>
+        +dailyAverage: Double
+        +longestSession: Integer
+        +favoriteListeningHours: List<Integer>
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +category: CategoryDto
+        +viewCount: Long
+        +favoriteCount: Long
+        +isFavorite: Boolean
+        +durationFormatted: String
+    }
+
+    class GenreStatsDto {
+        +genreName: String
+        +listenCount: Long
+        +totalDuration: Long
+        +percentage: Double
+        +averageSessionLength: Double
+        +color: String
+    }
+
+    class ArtistStatsDto {
+        +artistName: String
+        +listenCount: Long
+        +totalDuration: Long
+        +uniqueSongs: Integer
+        +percentage: Double
+        +averageRating: Double
+    }
+
+    class ChartDataDto {
+        +label: String
+        +value: Number
+        +date: LocalDate
+        +color: String
+        +category: String
+    }
+
+    class DateRangeDto {
+        +startDate: LocalDate
+        +endDate: LocalDate
+        +period: String
+        +label: String
+    }
+
+    class HistoryFilterOptionsDto {
+        +availablePeriods: List<String>
+        +dateRanges: List<DateRangeDto>
+        +sortOptions: List<SortOptionDto>
+        +maxDate: LocalDate
+        +minDate: LocalDate
+    }
+
+    class SortOptionDto {
+        +value: String
+        +label: String
+        +direction: String
+        +isDefault: Boolean
+    }
+
+    class PatternDto {
+        +hour: Integer
+        +dayOfWeek: String
+        +count: Long
+        +percentage: Double
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class ListeningHistoryMapper {
+        +toDto(listeningHistory: ListeningHistory, music: Music): ListeningHistoryDto
+        +toDtoList(listeningHistories: List<ListeningHistory>): List<ListeningHistoryDto>
+        +toEntity(dto: ListeningHistoryDto): ListeningHistory
+        +setUserSpecificFlags(dto: ListeningHistoryDto, userId: Long): void
+        +formatDuration(duration: Integer): String
+        +formatRelativeTime(listenedAt: LocalDateTime): String
+    }
+
+    class StatsMapper {
+        +toListeningStatsDto(statsData: Object[], trends: List<ChartDataDto>): ListeningStatsDto
+        +toGenreStatsDto(genreData: Object[]): GenreStatsDto
+        +toArtistStatsDto(artistData: Object[]): ArtistStatsDto
+        +toChartDataDto(chartData: Object[]): ChartDataDto
+        +toPatternDto(patternData: Object[]): PatternDto
+    }
+}
+
+' Relationships
+ListeningHistoryComponent --> HistoryFilterComponent : contains
+ListeningHistoryComponent --> HistoryItemComponent : contains
+ListeningHistoryComponent --> HistoryStatsComponent : contains
+ListeningHistoryComponent --> HistoryGroupComponent : contains
+ListeningHistoryComponent --> ConfirmDeleteModalComponent : opens
+
+ListeningHistoryComponent --> ListeningHistoryController : calls
+
+ListeningHistoryController --> ListeningHistoryService : uses
+
+ListeningHistoryService --> ListeningHistoryRepository : uses
+ListeningHistoryService --> ListeningHistoryMapper : uses
+ListeningHistoryService --> HistoryValidationService : uses
+ListeningHistoryService --> HistoryAnalyticsService : uses
+ListeningHistoryService --> HistoryExportService : uses
+
+ListeningHistoryRepository --> ListeningHistory : manages
+
+ListeningHistory --> User : belongs to
+ListeningHistory --> Music : references
+
+Music --> Category : belongs to
+Music --> User : uploaded by
+
+ListeningHistoryMapper --> ListeningHistoryDto : creates
+StatsMapper --> ListeningStatsDto : creates
+StatsMapper --> GenreStatsDto : creates
+StatsMapper --> ArtistStatsDto : creates
+
+@enduml

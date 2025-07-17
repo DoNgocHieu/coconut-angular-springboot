@@ -1,0 +1,96 @@
+@startuml UC008-Tim-Kiem
+!theme plain
+title UC008 - Tìm Kiếm Bài Hát
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Coconut Music - Tìm Kiếm" {
+    frame "Search Header" as header {
+        rectangle "🔍 Search Box" as search_box #lightgreen
+        rectangle "🎯 Advanced Filters" as filters_btn
+        rectangle "📊 Search Suggestions" as suggestions
+    }
+
+    frame "Search Filters" as filters {
+        rectangle "🎵 Tên Bài Hát" as song_filter
+        rectangle "👤 Nghệ Sĩ" as artist_filter
+        rectangle "💿 Album" as album_filter
+        rectangle "🏷️ Thể Loại" as genre_filter
+        rectangle "📅 Năm Phát Hành" as year_filter
+    }
+
+    frame "Search Results" as results {
+        rectangle "📊 Found: 245 results" as result_count
+        rectangle "🔄 Sort By: Relevance ▼" as sort_options
+
+        rectangle "Song Result Item 1" as item1 {
+            rectangle "🖼️ Thumbnail" as thumb1
+            rectangle "🎵 Song Title" as title1
+            rectangle "👤 Artist Name" as artist1
+            rectangle "⏱️ 3:45" as duration1
+            rectangle "▶️ Play" as play1
+            rectangle "❤️ Like" as like1
+            rectangle "➕ Add" as add1
+        }
+
+        rectangle "Song Result Item 2" as item2 {
+            rectangle "🖼️ Thumbnail" as thumb2
+            rectangle "🎵 Song Title" as title2
+            rectangle "👤 Artist Name" as artist2
+            rectangle "⏱️ 4:12" as duration2
+            rectangle "▶️ Play" as play2
+            rectangle "❤️ Like" as like2
+            rectangle "➕ Add" as add2
+        }
+
+        rectangle "... More Results ..." as more_results
+    }
+
+    frame "Pagination" as pagination {
+        rectangle "⬅️ Previous" as prev_page
+        rectangle "1 2 [3] 4 5 ... 25" as page_numbers #lightgreen
+        rectangle "➡️ Next" as next_page
+        rectangle "📄 Show: 20 per page" as per_page
+    }
+
+    frame "Search States" as states {
+        rectangle "⏳ Searching..." as searching #yellow
+        rectangle "✅ Results Found" as found #lightgreen
+        rectangle "❌ No Results" as no_results #lightcoral
+        rectangle "🔍 Enter keywords..." as empty_state
+    }
+
+    frame "Quick Actions" as actions {
+        rectangle "🎵 Play All Results" as play_all
+        rectangle "➕ Add All to Playlist" as add_all
+        rectangle "📤 Share Search" as share_search
+        rectangle "🔄 Clear Filters" as clear_filters
+    }
+}
+
+' Flow connections
+search_box --> suggestions
+suggestions --> searching
+searching --> found : "Results Found"
+searching --> no_results : "No Results"
+
+filters_btn --> filters
+filters --> search_box : "Apply Filters"
+
+found --> results
+results --> pagination
+
+play1 ..> "Start Playing" : "UC007"
+add1 ..> "Add to Playlist" : "UC016"
+like1 ..> "Toggle Favorite" : "UC013"
+
+footer UC008 - Tìm Kiếm: Interface tìm kiếm với filters và pagination
+@enduml

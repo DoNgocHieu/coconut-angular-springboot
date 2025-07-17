@@ -1,0 +1,9 @@
+@startuml UC034-Thong-Ke-User
+!theme plain
+
+actor Admin
+usecase "Thống kê người dùng" as UC034
+
+Admin --> UC034
+
+@enduml

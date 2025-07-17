@@ -1,0 +1,539 @@
+@startuml UC025-Class-Diagram-Chinh-Sua-The-Loai
+!theme plain
+
+title Biểu đồ lớp - UC025: Chỉnh sửa thể loại
+
+package "Frontend Components" {
+    class CategoryManagementComponent {
+        +categories: Category[]
+        +selectedCategory: Category
+        +categoryForm: FormGroup
+        +searchForm: FormGroup
+        +hierarchyView: boolean
+        +isTreeView: boolean
+        +filterForm: FormGroup
+        +currentPage: number
+        +totalPages: number
+        +isLoading: boolean
+        --
+        +ngOnInit(): void
+        +loadCategories(): void
+        +toggleHierarchyView(): void
+        +selectCategory(category: Category): void
+        +openCreateModal(): void
+        +openEditModal(category: Category): void
+        +deleteCategory(category: Category): void
+        +searchCategories(query: string): void
+        +filterCategories(filters: CategoryFilter): void
+        +onPageChange(page: number): void
+        +exportCategories(): void
+        +importCategories(): void
+    }
+
+    class CategoryEditModalComponent {
+        +category: Category
+        +parentCategories: Category[]
+        +categoryForm: FormGroup
+        +isCreateMode: boolean
+        +isLoading: boolean
+        +previewMode: boolean
+        +validationErrors: ValidationError[]
+        --
+        +ngOnInit(): void
+        +initializeForm(): void
+        +loadParentCategories(): void
+        +onParentCategoryChange(): void
+        +validateCategoryData(): boolean
+        +previewChanges(): void
+        +confirmSave(): void
+        +close(): void
+        +uploadIcon(): void
+        +removeIcon(): void
+    }
+
+    class CategoryHierarchyComponent {
+        +categoryTree: CategoryNode[]
+        +selectedNode: CategoryNode
+        +expandedNodes: Set<number>
+        +dragDropEnabled: boolean
+        +contextMenuVisible: boolean
+        --
+        +ngOnInit(): void
+        +loadCategoryTree(): void
+        +expandNode(node: CategoryNode): void
+        +collapseNode(node: CategoryNode): void
+        +selectNode(node: CategoryNode): void
+        +onNodeDrop(event: CdkDragDrop): void
+        +showContextMenu(event: MouseEvent, node: CategoryNode): void
+        +moveCategory(categoryId: number, newParentId: number): void
+    }
+
+    class CategoryDeleteConfirmComponent {
+        +category: Category
+        +childCategories: Category[]
+        +affectedMusics: Music[]
+        +deleteOption: string
+        +reassignCategoryId: number
+        +confirmForm: FormGroup
+        --
+        +ngOnInit(): void
+        +loadAffectedData(): void
+        +onDeleteOptionChange(): void
+        +confirmDelete(): void
+        +close(): void
+        +validateDeletion(): boolean
+    }
+
+    class CategoryCardComponent {
+        +category: Category
+        +showDetails: boolean
+        +canEdit: boolean
+        +canDelete: boolean
+        +musicCount: number
+        +childCount: number
+        --
+        +onEditClick(): void
+        +onDeleteClick(): void
+        +onViewMusicClick(): void
+        +toggleDetails(): void
+        +getMusicCount(): void
+    }
+
+    class CategoryImportModalComponent {
+        +importFile: File
+        +importPreview: CategoryImportPreview[]
+        +importOptions: ImportOptions
+        +importProgress: number
+        +isProcessing: boolean
+        +importResults: ImportResult[]
+        --
+        +ngOnInit(): void
+        +onFileSelect(file: File): void
+        +previewImport(): void
+        +validateImportData(): void
+        +startImport(): void
+        +downloadTemplate(): void
+        +close(): void
+    }
+
+    class CategoryFilterComponent {
+        +filterForm: FormGroup
+        +parentCategories: Category[]
+        +statusOptions: string[]
+        +sortOptions: string[]
+        --
+        +ngOnInit(): void
+        +onFilterChange(): void
+        +clearFilters(): void
+        +applyFilters(): void
+    }
+}
+
+package "Frontend Services" {
+    class CategoryService {
+        +http: HttpClient
+        --
+        +getAllCategories(page: number, filters: CategoryFilter): Observable<Page<Category>>
+        +getCategoryById(id: number): Observable<Category>
+        +createCategory(request: CreateCategoryRequest): Observable<Category>
+        +updateCategory(id: number, request: UpdateCategoryRequest): Observable<Category>
+        +deleteCategory(id: number, options: DeleteCategoryOptions): Observable<void>
+        +getCategoryHierarchy(): Observable<CategoryNode[]>
+        +moveCategoryToParent(categoryId: number, newParentId: number): Observable<void>
+        +validateCategoryName(name: string, excludeId?: number): Observable<boolean>
+        +getCategoryStatistics(id: number): Observable<CategoryStatistics>
+        +exportCategories(format: string): Observable<Blob>
+        +importCategories(file: File, options: ImportOptions): Observable<ImportResult>
+        +previewCategoryImport(file: File): Observable<CategoryImportPreview[]>
+    }
+
+    class CategoryValidationService {
+        +http: HttpClient
+        --
+        +validateCategoryName(name: string, excludeId?: number): Observable<ValidationResult>
+        +validateCategoryHierarchy(categoryId: number, parentId: number): Observable<ValidationResult>
+        +checkCategoryDeletion(categoryId: number): Observable<DeletionValidationResult>
+        +validateCategoryIcon(iconFile: File): Observable<ValidationResult>
+        +validateImportData(data: any[]): Observable<ImportValidationResult>
+    }
+
+    class CategoryIconService {
+        +http: HttpClient
+        --
+        +uploadCategoryIcon(file: File): Observable<IconUploadResult>
+        +deleteCategoryIcon(iconUrl: string): Observable<void>
+        +getDefaultIcons(): Observable<DefaultIcon[]>
+        +resizeIcon(file: File, size: number): Observable<Blob>
+    }
+}
+
+package "Backend Controllers" {
+    class CategoryController {
+        +categoryService: CategoryService
+        +categoryValidationService: CategoryValidationService
+        --
+        +getAllCategories(pageable: Pageable, filters: CategoryFilterDto): ResponseEntity<Page<CategoryDto>>
+        +getCategoryById(id: Long): ResponseEntity<CategoryDto>
+        +createCategory(request: CreateCategoryRequestDto): ResponseEntity<CategoryDto>
+        +updateCategory(id: Long, request: UpdateCategoryRequestDto): ResponseEntity<CategoryDto>
+        +deleteCategory(id: Long, options: DeleteCategoryOptionsDto): ResponseEntity<Void>
+        +getCategoryHierarchy(): ResponseEntity<List<CategoryNodeDto>>
+        +moveCategoryToParent(categoryId: Long, newParentId: Long): ResponseEntity<Void>
+        +validateCategoryName(name: String, excludeId: Long): ResponseEntity<Boolean>
+        +getCategoryStatistics(id: Long): ResponseEntity<CategoryStatisticsDto>
+        +exportCategories(format: String): ResponseEntity<ByteArrayResource>
+        +importCategories(file: MultipartFile, options: ImportOptionsDto): ResponseEntity<ImportResultDto>
+        +previewCategoryImport(file: MultipartFile): ResponseEntity<List<CategoryImportPreviewDto>>
+    }
+
+    class CategoryIconController {
+        +categoryIconService: CategoryIconService
+        --
+        +uploadCategoryIcon(file: MultipartFile): ResponseEntity<IconUploadResultDto>
+        +deleteCategoryIcon(iconUrl: String): ResponseEntity<Void>
+        +getDefaultIcons(): ResponseEntity<List<DefaultIconDto>>
+    }
+}
+
+package "Backend Services" {
+    class CategoryService {
+        +categoryRepository: CategoryRepository
+        +musicRepository: MusicRepository
+        +categoryValidationService: CategoryValidationService
+        +categoryIconService: CategoryIconService
+        +adminAuditService: AdminAuditService
+        +fileStorageService: FileStorageService
+        --
+        +getAllCategories(pageable: Pageable, filters: CategoryFilterDto): Page<CategoryDto>
+        +getCategoryById(id: Long): CategoryDto
+        +createCategory(request: CreateCategoryRequestDto, createdBy: Long): CategoryDto
+        +updateCategory(id: Long, request: UpdateCategoryRequestDto, updatedBy: Long): CategoryDto
+        +deleteCategory(id: Long, options: DeleteCategoryOptionsDto, deletedBy: Long): void
+        +getCategoryHierarchy(): List<CategoryNodeDto>
+        +moveCategoryToParent(categoryId: Long, newParentId: Long, movedBy: Long): void
+        +validateCategoryName(name: String, excludeId: Long): boolean
+        +getCategoryStatistics(id: Long): CategoryStatisticsDto
+        +exportCategories(format: String): ByteArrayResource
+        +importCategories(file: MultipartFile, options: ImportOptionsDto, importedBy: Long): ImportResultDto
+        +previewCategoryImport(file: MultipartFile): List<CategoryImportPreviewDto>
+        +buildCategoryTree(categories: List<Category>): List<CategoryNodeDto>
+    }
+
+    class CategoryValidationService {
+        +categoryRepository: CategoryRepository
+        +musicRepository: MusicRepository
+        --
+        +validateCategoryExists(id: Long): void
+        +validateCategoryName(name: String, excludeId: Long): ValidationResult
+        +validateCategoryHierarchy(categoryId: Long, parentId: Long): ValidationResult
+        +checkCircularReference(categoryId: Long, parentId: Long): boolean
+        +validateCategoryDeletion(categoryId: Long): DeletionValidationResult
+        +validateCreateCategoryRequest(request: CreateCategoryRequestDto): void
+        +validateUpdateCategoryRequest(id: Long, request: UpdateCategoryRequestDto): void
+        +validateCategoryIcon(iconFile: MultipartFile): ValidationResult
+        +validateImportData(data: List<CategoryImportDto>): ImportValidationResult
+        +checkCategoryNameConflicts(categories: List<CategoryImportDto>): List<ConflictResult>
+    }
+
+    class CategoryIconService {
+        +fileStorageService: FileStorageService
+        +imageProcessingService: ImageProcessingService
+        --
+        +uploadCategoryIcon(file: MultipartFile, categoryId: Long): IconUploadResult
+        +deleteCategoryIcon(iconUrl: String): void
+        +getDefaultIcons(): List<DefaultIcon>
+        +processIcon(file: MultipartFile): ProcessedIcon
+        +generateIconVariants(originalFile: MultipartFile): List<IconVariant>
+        +validateIconFile(file: MultipartFile): ValidationResult
+    }
+
+    class CategoryImportService {
+        +categoryRepository: CategoryRepository
+        +categoryValidationService: CategoryValidationService
+        +excelParsingService: ExcelParsingService
+        +csvParsingService: CsvParsingService
+        --
+        +parseImportFile(file: MultipartFile): List<CategoryImportDto>
+        +validateImportData(data: List<CategoryImportDto>): ImportValidationResult
+        +previewImport(data: List<CategoryImportDto>): List<CategoryImportPreviewDto>
+        +executeImport(data: List<CategoryImportDto>, options: ImportOptionsDto, importedBy: Long): ImportResultDto
+        +generateImportTemplate(format: String): ByteArrayResource
+        +handleDuplicateCategories(duplicates: List<CategoryImportDto>, strategy: String): List<CategoryImportDto>
+    }
+
+    class AdminAuditService {
+        +adminAuditRepository: AdminAuditRepository
+        --
+        +logCategoryCreation(categoryId: Long, adminId: Long, categoryData: CreateCategoryRequestDto): void
+        +logCategoryUpdate(categoryId: Long, adminId: Long, changes: Map<String, Object>): void
+        +logCategoryDeletion(categoryId: Long, adminId: Long, deletionOptions: DeleteCategoryOptionsDto): void
+        +logCategoryMove(categoryId: Long, adminId: Long, oldParentId: Long, newParentId: Long): void
+        +logCategoryImport(importedCount: Integer, adminId: Long, importOptions: ImportOptionsDto): void
+    }
+}
+
+package "Repository Layer" {
+    interface CategoryRepository {
+        +findAll(pageable: Pageable): Page<Category>
+        +findAllByActiveTrue(pageable: Pageable): Page<Category>
+        +findById(id: Long): Optional<Category>
+        +findByName(name: String): Optional<Category>
+        +findByNameIgnoreCase(name: String): Optional<Category>
+        +findByParentId(parentId: Long): List<Category>
+        +findRootCategories(): List<Category>
+        +findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Category>
+        +countByParentId(parentId: Long): long
+        +existsByParentId(parentId: Long): boolean
+        +save(category: Category): Category
+        +deleteById(id: Long): void
+        +updateParentId(categoryId: Long, newParentId: Long): int
+        +findCategoryHierarchy(): List<CategoryHierarchyProjection>
+        +findDescendants(categoryId: Long): List<Category>
+        +updateMusicCountRecursive(categoryId: Long): void
+    }
+
+    interface MusicRepository {
+        +countByCategoryId(categoryId: Long): long
+        +findByCategoryId(categoryId: Long, pageable: Pageable): Page<Music>
+        +updateCategoryForMusics(oldCategoryId: Long, newCategoryId: Long): int
+        +findDistinctCategoryIds(): List<Long>
+    }
+
+    interface AdminAuditRepository {
+        +save(auditLog: AdminAuditLog): AdminAuditLog
+        +findByResourceTypeAndResourceId(resourceType: String, resourceId: Long): List<AdminAuditLog>
+    }
+}
+
+package "Domain Models" {
+    class Category {
+        +id: Long
+        +name: String
+        +description: String
+        +parentId: Long
+        +parent: Category
+        +children: Set<Category>
+        +level: Integer
+        +iconUrl: String
+        +iconSmallUrl: String
+        +iconLargeUrl: String
+        +colorCode: String
+        +sortOrder: Integer
+        +active: Boolean
+        +musicCount: Long
+        +totalMusicCount: Long
+        +featured: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +createdBy: Long
+        +updatedBy: Long
+        --
+        +isRootCategory(): boolean
+        +hasChildren(): boolean
+        +getFullPath(): String
+        +canBeDeleted(): boolean
+        +canHaveChildren(): boolean
+        +getDepth(): int
+        +updateMusicCount(): void
+        +calculateTotalMusicCount(): long
+    }
+
+    class CategoryNode {
+        +category: Category
+        +children: List<CategoryNode>
+        +parent: CategoryNode
+        +expanded: Boolean
+        +level: Integer
+        --
+        +addChild(child: CategoryNode): void
+        +removeChild(child: CategoryNode): void
+        +isLeaf(): boolean
+        +getPath(): List<Category>
+    }
+
+    class CategoryImportDto {
+        +name: String
+        +description: String
+        +parentName: String
+        +iconUrl: String
+        +colorCode: String
+        +active: Boolean
+        +featured: Boolean
+        +sortOrder: Integer
+        +rowNumber: Integer
+        --
+        +isValid(): boolean
+        +getValidationErrors(): List<String>
+    }
+
+    class AdminAuditLog {
+        +id: Long
+        +adminId: Long
+        +actionType: String
+        +resourceType: String
+        +resourceId: Long
+        +actionDetails: String
+        +ipAddress: String
+        +userAgent: String
+        +createdAt: LocalDateTime
+        --
+        +getActionDescription(): String
+    }
+}
+
+package "DTOs" {
+    class CreateCategoryRequestDto {
+        +name: String
+        +description: String
+        +parentId: Long
+        +iconUrl: String
+        +colorCode: String
+        +active: Boolean
+        +featured: Boolean
+        +sortOrder: Integer
+    }
+
+    class UpdateCategoryRequestDto {
+        +name: String
+        +description: String
+        +parentId: Long
+        +iconUrl: String
+        +colorCode: String
+        +active: Boolean
+        +featured: Boolean
+        +sortOrder: Integer
+    }
+
+    class DeleteCategoryOptionsDto {
+        +reassignCategoryId: Long
+        +deleteChildCategories: Boolean
+        +deleteMusics: Boolean
+        +reason: String
+    }
+
+    class CategoryFilterDto {
+        +name: String
+        +parentId: Long
+        +active: Boolean
+        +featured: Boolean
+        +hasMusics: Boolean
+        +level: Integer
+    }
+
+    class CategoryStatisticsDto {
+        +categoryId: Long
+        +categoryName: String
+        +directMusicCount: Long
+        +totalMusicCount: Long
+        +childCategoryCount: Long
+        +totalChildCount: Long
+        +popularityRank: Integer
+        +lastMusicAddedAt: LocalDateTime
+    }
+
+    class ImportOptionsDto {
+        +skipDuplicates: Boolean
+        +updateExisting: Boolean
+        +createMissingParents: Boolean
+        +validateHierarchy: Boolean
+        +dryRun: Boolean
+    }
+
+    class ImportResultDto {
+        +totalProcessed: Integer
+        +successCount: Integer
+        +failedCount: Integer
+        +skippedCount: Integer
+        +createdCategories: List<CategoryDto>
+        +updatedCategories: List<CategoryDto>
+        +errors: List<ImportErrorDto>
+        +warnings: List<ImportWarningDto>
+        +processingTimeMs: Long
+    }
+
+    class CategoryImportPreviewDto {
+        +rowNumber: Integer
+        +name: String
+        +parentName: String
+        +status: String
+        +action: String
+        +warnings: List<String>
+        +errors: List<String>
+        +existingCategory: CategoryDto
+    }
+
+    class IconUploadResultDto {
+        +originalUrl: String
+        +smallUrl: String
+        +largeUrl: String
+        +fileName: String
+        +fileSize: Long
+        +uploadedAt: LocalDateTime
+    }
+
+    class ValidationResult {
+        +valid: Boolean
+        +errors: List<String>
+        +warnings: List<String>
+    }
+
+    class DeletionValidationResult {
+        +canDelete: Boolean
+        +reasons: List<String>
+        +affectedMusicCount: Long
+        +affectedChildCategories: List<CategoryDto>
+        +suggestedReassignmentCategories: List<CategoryDto>
+    }
+}
+
+' Relationships
+CategoryManagementComponent --> CategoryEditModalComponent
+CategoryManagementComponent --> CategoryDeleteConfirmComponent
+CategoryManagementComponent --> CategoryHierarchyComponent
+CategoryManagementComponent --> CategoryImportModalComponent
+CategoryManagementComponent --> CategoryFilterComponent
+CategoryManagementComponent --> CategoryCardComponent
+CategoryManagementComponent --> CategoryService
+
+CategoryEditModalComponent --> CategoryService
+CategoryEditModalComponent --> CategoryValidationService
+CategoryEditModalComponent --> CategoryIconService
+
+CategoryHierarchyComponent --> CategoryService
+
+CategoryDeleteConfirmComponent --> CategoryService
+CategoryDeleteConfirmComponent --> CategoryValidationService
+
+CategoryImportModalComponent --> CategoryService
+
+CategoryService --> CategoryController
+CategoryValidationService --> CategoryController
+CategoryIconService --> CategoryIconController
+
+CategoryController --> CategoryService
+CategoryIconController --> CategoryIconService
+
+CategoryService --> CategoryRepository
+CategoryService --> MusicRepository
+CategoryService --> CategoryValidationService
+CategoryService --> CategoryIconService
+CategoryService --> CategoryImportService
+CategoryService --> AdminAuditService
+
+CategoryValidationService --> CategoryRepository
+CategoryValidationService --> MusicRepository
+
+CategoryIconService --> FileStorageService
+
+CategoryImportService --> CategoryRepository
+CategoryImportService --> CategoryValidationService
+
+AdminAuditService --> AdminAuditRepository
+
+CategoryRepository --> Category
+MusicRepository --> Music
+AdminAuditRepository --> AdminAuditLog
+
+Category --> Category : parent/children
+
+@enduml

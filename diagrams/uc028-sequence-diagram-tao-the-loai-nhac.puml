@@ -1,0 +1,289 @@
+@startuml UC028-Sequence-Diagram-Tao-The-Loai-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC028: Tạo thể loại nhạc mới (Admin)
+
+actor Admin
+participant "Angular\nAdmin Panel" as Client
+participant "AdminCategory\nController" as Controller
+participant "AdminCategory\nService" as Service
+participant "Category\nValidationService" as ValidationService
+participant "Category\nRepository" as CategoryRepo
+participant "User\nRepository" as UserRepo
+participant "Color\nGeneratorService" as ColorService
+participant "Category\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+Admin -> Client: Navigate to "Quản lý thể loại" > Click "Tạo thể loại mới"
+activate Client
+
+Client -> Client: Open create category modal
+Client -> Client: Initialize form with default values
+Client -> Client: Load color picker and display order options
+Client --> Admin: Create category form displayed
+
+' Admin fills the form
+Admin -> Client: Enter category name: "Nhạc Lofi"
+Admin -> Client: Enter description: "Nhạc lofi thư giãn và tập trung"
+Admin -> Client: Select color: "#6B73FF" (or use color picker)
+Admin -> Client: Set display order: auto-generated
+Admin -> Client: Click "Tạo thể loại"
+
+Client -> Client: Validate form data on frontend
+alt Form valid
+    ' Check name uniqueness in real-time
+    Client -> Controller: GET /api/admin/categories/validate-name?name=Nhạc Lofi
+    activate Controller
+
+    Controller -> Controller: Verify admin role from JWT
+
+    Controller -> Service: validateCategoryNameUniqueness(name="Nhạc Lofi", currentId=null)
+    activate Service
+
+    Service -> CategoryRepo: existsByNameIgnoreCase(name)
+    activate CategoryRepo
+    CategoryRepo -> DB: SELECT COUNT(*) FROM categories WHERE LOWER(name) = LOWER('Nhạc Lofi')
+    DB --> CategoryRepo: count = 0 (name available)
+    CategoryRepo --> Service: false
+    deactivate CategoryRepo
+
+    Service --> Controller: false (name available)
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"available": true}
+    deactivate Controller
+
+    ' Proceed with category creation
+    Client -> Controller: POST /api/admin/categories\n{name: "Nhạc Lofi", description: "Nhạc lofi thư giãn và tập trung", colorCode: "#6B73FF"}
+    activate Controller
+
+    Controller -> Controller: Extract adminId from JWT token
+    Controller -> Controller: Validate request data
+
+    Controller -> Service: createCategory(request)
+    activate Service
+
+    ' Validate input data
+    Service -> ValidationService: validateCategoryName(name)
+    activate ValidationService
+    ValidationService -> ValidationService: Check name length (1-100 chars)
+    ValidationService -> ValidationService: Check special characters
+    ValidationService --> Service: List<String> errors (empty if valid)
+    deactivate ValidationService
+
+    Service -> ValidationService: validateCategoryDescription(description)
+    activate ValidationService
+    ValidationService -> ValidationService: Check description length (max 500 chars)
+    ValidationService --> Service: List<String> errors (empty if valid)
+    deactivate ValidationService
+
+    Service -> ValidationService: validateColorCode(colorCode)
+    activate ValidationService
+    ValidationService -> ValidationService: Check hex color format (#RRGGBB)
+    ValidationService --> Service: boolean valid = true
+    deactivate ValidationService
+
+    alt All validations passed
+        ' Check name uniqueness again (double-check)
+        Service -> CategoryRepo: existsByNameIgnoreCase(name)
+        activate CategoryRepo
+        CategoryRepo -> DB: SELECT COUNT(*) FROM categories WHERE LOWER(name) = LOWER('Nhạc Lofi')
+        DB --> CategoryRepo: count = 0
+        CategoryRepo --> Service: false
+        deactivate CategoryRepo
+
+        alt Name still available
+            ' Get admin user for attribution
+            Service -> UserRepo: findById(adminId)
+            activate UserRepo
+            UserRepo -> DB: SELECT * FROM users WHERE id = ?
+            DB --> UserRepo: Admin user entity
+            UserRepo --> Service: User
+            deactivate UserRepo
+
+            ' Generate display order if not provided
+            alt Display order not specified
+                Service -> CategoryRepo: findMaxDisplayOrder()
+                activate CategoryRepo
+                CategoryRepo -> DB: SELECT MAX(display_order) FROM categories WHERE is_active = true
+                DB --> CategoryRepo: maxOrder = 15
+                CategoryRepo --> Service: Optional<Integer>
+                deactivate CategoryRepo
+
+                Service -> Service: Set displayOrder = maxOrder + 1 = 16
+            end
+
+            ' Validate/generate color if needed
+            alt Color not provided or invalid
+                Service -> ColorService: generateRandomColor()
+                activate ColorService
+                ColorService -> ColorService: Generate pleasant random hex color
+                ColorService --> Service: "#4CAF50"
+                deactivate ColorService
+
+                Service -> Service: Set colorCode = generated color
+            end
+
+            ' Create category entity
+            Service -> Mapper: toEntity(request)
+            activate Mapper
+            Mapper -> Mapper: Create new Category entity
+            Mapper -> Mapper: Set name, description, colorCode, displayOrder
+            Mapper -> Mapper: Set createdBy = admin, createdAt = now()
+            Mapper -> Mapper: Set isActive = true
+            Mapper --> Service: Category entity
+            deactivate Mapper
+
+            ' Save to database
+            Service -> CategoryRepo: save(category)
+            activate CategoryRepo
+            CategoryRepo -> DB: INSERT INTO categories\n(name, description, image_url, color_code, is_active, display_order, created_at, updated_at, created_by, updated_by)\nVALUES ('Nhạc Lofi', 'Nhạc lofi thư giãn và tập trung', NULL, '#6B73FF', true, 16, NOW(), NOW(), adminId, adminId)
+            DB --> CategoryRepo: Category saved with ID = 25
+            CategoryRepo --> Service: Category entity with ID
+            deactivate CategoryRepo
+
+            ' Convert to DTO for response
+            Service -> Mapper: toDto(category)
+            activate Mapper
+            Mapper -> Mapper: Convert Category to CategoryDto
+            Mapper -> Mapper: Set musicCount = 0 (new category)
+            Mapper -> Mapper: Set canDelete = true, canEdit = true
+            Mapper --> Service: CategoryDto
+            deactivate Mapper
+
+            Service --> Controller: CategoryDto
+            deactivate Service
+
+            Controller --> Client: 201 Created\nCategoryDto
+            deactivate Controller
+
+            Client -> Client: Close create modal
+            Client -> Client: Add new category to categories list
+            Client -> Client: Show success notification
+            Client -> Client: Refresh categories grid
+            Client --> Admin: "Đã tạo thể loại 'Nhạc Lofi' thành công"
+
+        else Name taken (race condition)
+            Service --> Controller: throw CategoryNameExistsException
+            Controller --> Client: 409 Conflict\n{"error": "Tên thể loại đã tồn tại"}
+            Client --> Admin: Show error message
+        end
+
+    else Validation failed
+        Service --> Controller: throw ValidationException
+        Controller --> Client: 400 Bad Request\n{"errors": ["validation errors"]}
+        Client --> Admin: Show validation errors
+    end
+
+else Form invalid
+    Client --> Admin: Show form validation errors
+end
+
+' Admin wants to upload image for category
+Admin -> Client: Click "Thêm ảnh đại diện" on newly created category
+Client -> Client: Open file picker
+Admin -> Client: Select category image
+Client -> Client: Preview selected image
+
+Admin -> Client: Click "Upload"
+
+Client -> Controller: POST /api/admin/categories/25/image\n(multipart/form-data with image file)
+activate Controller
+
+Controller -> Service: uploadCategoryImage(categoryId=25, file)
+activate Service
+
+' Validate category exists
+Service -> ValidationService: validateCategoryExists(categoryId)
+activate ValidationService
+ValidationService -> CategoryRepo: findById(categoryId)
+activate CategoryRepo
+CategoryRepo -> DB: SELECT * FROM categories WHERE id = ? AND is_active = true
+DB --> CategoryRepo: Category entity
+CategoryRepo --> ValidationService: Optional<Category>
+deactivate CategoryRepo
+ValidationService --> Service: Category entity
+deactivate ValidationService
+
+' Validate image file
+Service -> ValidationService: validateImageFile(file)
+activate ValidationService
+ValidationService -> ValidationService: Check file size (max 5MB)
+ValidationService -> ValidationService: Check format (JPG/PNG/GIF)
+ValidationService -> ValidationService: Check image dimensions
+alt File valid
+    ValidationService --> Service: void (success)
+    deactivate ValidationService
+
+    ' Store category image
+    Service -> Service: fileStorageService.storeCategoryImage(file, categoryId)
+    Service -> Service: Generate unique filename: "category_25_1234567890.jpg"
+    Service -> Service: Resize image to 300x300 for consistency
+    Service -> Service: Save file to uploads/categories/
+    Service -> Service: newImageUrl = "/uploads/categories/category_25_1234567890.jpg"
+
+    ' Update category with image URL
+    Service -> Service: category.setImageUrl(newImageUrl)
+    Service -> Service: category.setUpdatedAt(now())
+    Service -> Service: category.setUpdatedBy(admin)
+
+    Service -> CategoryRepo: save(category)
+    activate CategoryRepo
+    CategoryRepo -> DB: UPDATE categories SET\nimage_url = ?, updated_at = NOW(), updated_by = ?\nWHERE id = 25
+    DB --> CategoryRepo: Updated category
+    CategoryRepo --> Service: Category
+    deactivate CategoryRepo
+
+    Service --> Controller: Image URL
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"imageUrl": "/uploads/categories/category_25_1234567890.jpg"}
+    deactivate Controller
+
+    Client -> Client: Update category image display
+    Client --> Admin: "Đã cập nhật ảnh đại diện cho thể loại"
+
+else File invalid
+    ValidationService --> Service: throw InvalidFileException
+    Service --> Controller: throw BadRequestException
+    Controller --> Client: 400 Bad Request\n{"error": "File ảnh không hợp lệ"}
+    Client --> Admin: Show file error message
+end
+
+' Admin wants to see category statistics
+Admin -> Client: Click "Xem thống kê" on category
+
+Client -> Controller: GET /api/admin/categories/25/statistics
+activate Controller
+
+Controller -> Service: getCategoryStatistics(categoryId=25)
+activate Service
+
+' Get category statistics
+Service -> CategoryRepo: countMusicByCategoryId(categoryId)
+activate CategoryRepo
+CategoryRepo -> DB: SELECT COUNT(*) FROM music WHERE category_id = 25 AND is_active = true
+DB --> CategoryRepo: count = 0 (new category)
+CategoryRepo --> Service: 0
+deactivate CategoryRepo
+
+Service -> Service: Build CategoryStatsDto with all statistics
+Service -> Service: totalMusic = 0, totalPlaylists = 0, etc.
+
+Service -> Mapper: toStatsDto(category, statistics)
+activate Mapper
+Mapper --> Service: CategoryStatsDto
+deactivate Mapper
+
+Service --> Controller: CategoryStatsDto
+deactivate Service
+
+Controller --> Client: 200 OK\nCategoryStatsDto
+deactivate Controller
+
+Client -> Client: Display statistics modal
+Client --> Admin: "Thể loại mới: 0 bài hát, 0 playlist"
+
+deactivate Client
+
+@enduml

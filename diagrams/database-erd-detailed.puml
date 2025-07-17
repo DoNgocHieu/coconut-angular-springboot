@@ -1,0 +1,221 @@
+@startuml Coconut_Music_Database_ERD
+!define TABLE(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define PRIMARY_KEY(x) <b><color:#b8861b><&key></color> x</b>
+!define FOREIGN_KEY(x) <color:#aaaaaa><&arrow-right></color> x
+!define UNIQUE(x) <color:#green><&asterisk></color> x
+!define NOT_NULL(x) <color:#red>x</color>
+
+title Coconut Music Platform - Database Entity Relationship Diagram
+
+' Define color scheme
+skinparam class {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+' Users Table - Central entity
+TABLE(users, "🧑‍💼 USERS\n(Người dùng)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(username: VARCHAR(255))
+    NOT_NULL(email: VARCHAR(255))
+    NOT_NULL(password: VARCHAR(255))
+    is_admin: BIT(1)
+    is_verified: BIT(1)
+    avatar_url: VARCHAR(255)
+    forgot_password_token: VARCHAR(255)
+    forgot_password_token_expiry: DATETIME(6)
+    verify_token: VARCHAR(255)
+    verify_token_expiry: DATETIME(6)
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    --
+    UNIQUE(email)
+    UNIQUE(username)
+}
+
+' Artists Table
+TABLE(artists, "🎤 ARTISTS\n(Nghệ sĩ)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(name: VARCHAR(255))
+    bio: TEXT
+    avatar_url: VARCHAR(255)
+    is_active: BIT(1)
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+}
+
+' Categories Table
+TABLE(categories, "📂 CATEGORIES\n(Thể loại)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(name: VARCHAR(255))
+    description: TEXT
+    image_url: VARCHAR(255)
+    is_active: BIT(1)
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    --
+    UNIQUE(name)
+}
+
+' Music Table - Core content entity
+TABLE(music, "🎵 MUSIC\n(Bài nhạc)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(title: VARCHAR(255))
+    NOT_NULL(file_url: VARCHAR(255))
+    image_url: VARCHAR(255)
+    NOT_NULL(duration_seconds: INT)
+    play_count: BIGINT
+    like_count: BIGINT
+    is_active: BIT(1)
+    type_music: ENUM
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    --
+    FOREIGN_KEY(artist_id: BIGINT)
+    FOREIGN_KEY(category_id: BIGINT)
+    FOREIGN_KEY(uploaded_by: BIGINT)
+}
+
+' Playlists Table
+TABLE(playlists, "🎧 PLAYLISTS\n(Danh sách phát)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(name: VARCHAR(255))
+    description: TEXT
+    image_url: VARCHAR(255)
+    is_public: BIT(1)
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+    --
+    FOREIGN_KEY(user_id: BIGINT)
+}
+
+' Playlist Music Junction Table
+TABLE(playlist_music, "🔗 PLAYLIST_MUSIC\n(Nhạc trong playlist)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    position: INT
+    added_at: DATETIME(6)
+    --
+    FOREIGN_KEY(playlist_id: BIGINT)
+    FOREIGN_KEY(music_id: BIGINT)
+    --
+    UNIQUE(playlist_id, music_id)
+}
+
+' Favorites Junction Table
+TABLE(favorites, "❤️ FAVORITES\n(Yêu thích)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    created_at: DATETIME(6)
+    --
+    FOREIGN_KEY(user_id: BIGINT)
+    FOREIGN_KEY(music_id: BIGINT)
+    --
+    UNIQUE(user_id, music_id)
+}
+
+' History Table
+TABLE(history, "📊 HISTORY\n(Lịch sử nghe)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    played_at: DATETIME(6)
+    --
+    FOREIGN_KEY(user_id: BIGINT)
+    FOREIGN_KEY(music_id: BIGINT)
+}
+
+' Favorite Playlists Junction Table
+TABLE(favorite_playlists, "💖 FAVORITE_PLAYLISTS\n(Playlist yêu thích)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    created_at: DATETIME(6)
+    --
+    FOREIGN_KEY(user_id: BIGINT)
+    FOREIGN_KEY(playlist_id: BIGINT)
+    --
+    UNIQUE(user_id, playlist_id)
+}
+
+' Banners Table - Standalone
+TABLE(banners, "🎪 BANNERS\n(Banner quảng cáo)") {
+    PRIMARY_KEY(id: BIGINT)
+    --
+    NOT_NULL(title: VARCHAR(255))
+    NOT_NULL(image_url: VARCHAR(255))
+    link_url: VARCHAR(255)
+    is_active: BIT(1)
+    sort_order: INT
+    created_at: DATETIME(6)
+    updated_at: DATETIME(6)
+}
+
+' Relationships - One to Many
+users ||--o{ playlists : "user_id"
+users ||--o{ history : "user_id"
+users ||--o{ favorites : "user_id"
+users ||--o{ favorite_playlists : "user_id"
+users ||--o{ music : "uploaded_by"
+
+artists ||--o{ music : "artist_id"
+categories ||--o{ music : "category_id"
+
+playlists ||--o{ playlist_music : "playlist_id"
+playlists ||--o{ favorite_playlists : "playlist_id"
+
+music ||--o{ playlist_music : "music_id"
+music ||--o{ favorites : "music_id"
+music ||--o{ history : "music_id"
+
+' Notes explaining key concepts
+note top of users : "**👤 USERS - Trung tâm hệ thống**\n• Admin có quyền quản lý toàn bộ\n• User thường có thể tạo playlist\n• Xác thực email qua verify_token\n• Reset password qua forgot_password_token"
+
+note top of music : "**🎵 MUSIC - Nội dung chính**\n• 5 loại: NEW_MUSIC, TRENDING,\n  TOP_VIEW, VN_LOFI, FAVORITE\n• Tracking play_count & like_count\n• File audio lưu trên Firebase\n• Mỗi bài nhạc thuộc 1 artist & 1 category"
+
+note top of playlist_music : "**🔗 MANY-TO-MANY**\n• 1 Playlist chứa nhiều Music\n• 1 Music có thể trong nhiều Playlist\n• Position xác định thứ tự\n• Unique constraint ngăn trùng lặp"
+
+note top of favorites : "**❤️ USER INTERACTIONS**\n• User có thể yêu thích Music\n• User có thể yêu thích Playlist\n• History tracking mọi lần nghe\n• Unique constraints ngăn spam"
+
+note bottom of banners : "**🎪 STANDALONE TABLE**\n• Quản lý banner/quảng cáo\n• Không liên kết với bảng khác\n• Sort_order cho thứ tự hiển thị\n• Link_url cho điều hướng"
+
+' Additional relationship notes
+note on link : users to music : "1:N\nUser upload nhạc"
+note on link : users to playlists : "1:N\nUser tạo playlist"
+note on link : users to favorites : "1:N\nUser yêu thích nhạc"
+note on link : users to history : "1:N\nLịch sử nghe nhạc"
+note on link : artists to music : "1:N\nNghệ sĩ sáng tác nhạc"
+note on link : categories to music : "1:N\nThể loại chứa nhạc"
+note on link : playlists to playlist_music : "1:N\nPlaylist chứa nhạc"
+note on link : music to playlist_music : "1:N\nNhạc trong playlist"
+
+' Legend
+legend top right
+    |= Ký hiệu |= Ý nghĩa |
+    | <b><color:#b8861b><&key></color></b> | Primary Key |
+    | <color:#aaaaaa><&arrow-right></color> | Foreign Key |
+    | <color:#green><&asterisk></color> | Unique Constraint |
+    | <color:#red>■</color> | Not Null |
+    | BIT(1) | Boolean (0/1) |
+    | ENUM | NEW_MUSIC, TRENDING, TOP_VIEW, VN_LOFI, FAVORITE |
+endlegend
+
+' Database statistics
+note bottom : "**📈 THỐNG KÊ DATABASE**\n\
+• **10 bảng** trong hệ thống\n\
+• **6 bảng chính**: users, music, artists, categories, playlists, banners\n\
+• **4 bảng liên kết**: playlist_music, favorites, history, favorite_playlists\n\
+• **15 foreign key** relationships\n\
+• **6 unique constraints** đảm bảo tính toàn vẹn\n\
+• **Support**: User management, Content management, Social features"
+
+@enduml

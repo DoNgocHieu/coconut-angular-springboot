@@ -1,0 +1,83 @@
+@startuml UC002-Class-Diagram-Dang-Nhap
+!theme plain
+
+title Biểu đồ lớp - UC002: Đăng nhập
+
+class LoginController {
+    + login(request: LoginRequest): ResponseEntity<AuthResponse>
+    + logout(): ResponseEntity<ApiResponse>
+}
+
+class AuthService {
+    + authenticate(request: LoginRequest): AuthResponse
+    + generateToken(username: String): String
+    + validateToken(token: String): boolean
+}
+
+class JwtTokenProvider {
+    + generateToken(username: String): String
+    + validateToken(token: String): boolean
+    + getUsernameFromToken(token: String): String
+    + getExpirationTime(): long
+}
+
+class UserRepository {
+    + findByUsernameOrEmail(username: String, email: String): Optional<User>
+    + findByUsername(username: String): Optional<User>
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - String password
+    - String role
+    - boolean enabled
+    + isEnabled(): boolean
+}
+
+class LoginRequest {
+    + String usernameOrEmail
+    + String password
+}
+
+class AuthResponse {
+    + String token
+    + UserDto user
+    + long expiresIn
+}
+
+class UserDto {
+    + Long id
+    + String username
+    + String email
+    + String role
+    + from(user: User): UserDto
+}
+
+' Relationships
+LoginController --> AuthService : uses
+AuthService --> JwtTokenProvider : uses
+AuthService --> UserRepository : uses
+UserRepository --> User : manages
+LoginController --> LoginRequest : receives
+LoginController --> AuthResponse : returns
+AuthResponse --> UserDto : contains
+UserDto --> User : "converts from"
+
+note right of AuthService
+  authenticate():
+  1. Validate credentials
+  2. Check user status
+  3. Generate JWT token
+  4. Return AuthResponse
+end note
+
+note bottom of JwtTokenProvider
+  JWT Configuration:
+  - Secret key
+  - Expiration time (24h)
+  - Algorithm: HS512
+end note
+
+@enduml

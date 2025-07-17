@@ -1,0 +1,153 @@
+@startuml UC021-Class-Diagram-Quan-Ly-User
+!theme plain
+
+title Biểu đồ lớp - UC021: Quản lý người dùng (Admin)
+
+class AdminUserController {
+    + getAllUsers(page: int, size: int, search: String): ResponseEntity<Page<UserDto>>
+    + getUserById(id: Long): ResponseEntity<UserDto>
+    + updateUser(id: Long, request: UpdateUserRequest): ResponseEntity<UserDto>
+    + deleteUser(id: Long): ResponseEntity<ApiResponse>
+    + banUser(id: Long, request: BanUserRequest): ResponseEntity<ApiResponse>
+    + unbanUser(id: Long): ResponseEntity<ApiResponse>
+    + getUserStatistics(): ResponseEntity<UserStatsDto>
+}
+
+class AdminUserService {
+    + getAllUsers(pageable: Pageable, search: String): Page<User>
+    + getUserById(id: Long): User
+    + updateUser(id: Long, request: UpdateUserRequest): User
+    + deleteUser(id: Long): void
+    + banUser(id: Long, reason: String, banDuration: Duration): void
+    + unbanUser(id: Long): void
+    + getUserStatistics(): UserStatsDto
+    + isUserAdmin(userId: Long): boolean
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - String fullName
+    - String avatar
+    - UserRole role
+    - UserStatus status
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - LocalDateTime lastLoginAt
+    - LocalDateTime bannedUntil
+    - String banReason
+    + getId(): Long
+    + getUsername(): String
+    + getEmail(): String
+    + getRole(): UserRole
+    + getStatus(): UserStatus
+}
+
+enum UserRole {
+    USER
+    ADMIN
+    MODERATOR
+}
+
+enum UserStatus {
+    ACTIVE
+    INACTIVE
+    BANNED
+    PENDING_VERIFICATION
+}
+
+class UserRepository {
+    + save(user: User): User
+    + findById(id: Long): Optional<User>
+    + findAll(pageable: Pageable): Page<User>
+    + findByUsernameContainingOrEmailContaining(username: String, email: String, pageable: Pageable): Page<User>
+    + deleteById(id: Long): void
+    + countByStatus(status: UserStatus): Long
+    + countByRole(role: UserRole): Long
+    + countByCreatedAtBetween(start: LocalDateTime, end: LocalDateTime): Long
+    + findByRoleOrderByCreatedAtDesc(role: UserRole): List<User>
+}
+
+class UpdateUserRequest {
+    + String fullName
+    + String email
+    + UserRole role
+    + UserStatus status
+}
+
+class BanUserRequest {
+    + String reason
+    + int banDurationDays
+}
+
+class UserDto {
+    + Long id
+    + String username
+    + String email
+    + String fullName
+    + String avatar
+    + UserRole role
+    + UserStatus status
+    + LocalDateTime createdAt
+    + LocalDateTime lastLoginAt
+    + boolean isBanned
+    + String banReason
+    + LocalDateTime bannedUntil
+    + int playlistCount
+    + int favoriteCount
+}
+
+class UserStatsDto {
+    + Long totalUsers
+    + Long activeUsers
+    + Long bannedUsers
+    + Long newUsersThisMonth
+    + Long newUsersThisWeek
+    + List<UserDto> recentUsers
+    + Map<UserRole, Long> usersByRole
+}
+
+class UserMapper {
+    + toDto(user: User): UserDto
+    + toDtoList(users: List<User>): List<UserDto>
+    + updateEntityFromDto(user: User, request: UpdateUserRequest): User
+}
+
+' Relationships
+AdminUserController --> AdminUserService : uses
+AdminUserController --> UpdateUserRequest : receives
+AdminUserController --> BanUserRequest : receives
+AdminUserController --> UserDto : returns
+AdminUserController --> UserStatsDto : returns
+
+AdminUserService --> UserRepository : uses
+AdminUserService --> User : manages
+AdminUserService --> UserMapper : uses
+
+UserRepository --> User : manages
+User --> UserRole : has
+User --> UserStatus : has
+
+UserMapper --> User : maps
+UserMapper --> UserDto : creates
+
+note right of AdminUserService
+  Business rules:
+  - Only ADMIN role can manage users
+  - Cannot delete/ban other admins
+  - Audit all user changes
+  - Soft delete implementation
+  - Ban duration limits (max 365 days)
+end note
+
+note bottom of User
+  User constraints:
+  - Username: unique, 3-50 chars
+  - Email: unique, valid format
+  - Soft delete with deleted_at
+  - Audit timestamps
+  - Ban system with duration
+end note
+
+@enduml

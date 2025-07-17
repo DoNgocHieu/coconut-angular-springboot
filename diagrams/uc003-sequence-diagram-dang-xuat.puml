@@ -1,0 +1,74 @@
+@startuml UC003-Sequence-Diagram-Dang-Xuat
+!theme plain
+
+title Biểu đồ trình tự - UC003: Đăng xuất
+
+actor User
+participant "UI" as UI
+participant "AuthController" as Controller
+participant "AuthService" as AuthService
+participant "JwtTokenProvider" as JwtProvider
+participant "TokenBlacklistService" as BlacklistService
+participant "LocalStorage" as LocalStorage
+
+User -> UI: Click logout button
+activate UI
+
+UI -> UI: getStoredToken()
+UI -> Controller: POST /api/auth/logout (with JWT token)
+activate Controller
+
+Controller -> AuthService: logout(token)
+activate AuthService
+
+AuthService -> JwtProvider: invalidateToken(token)
+activate JwtProvider
+
+JwtProvider -> JwtProvider: validateTokenFormat(token)
+alt Token format không hợp lệ
+    JwtProvider --> AuthService: InvalidTokenException
+    AuthService --> Controller: BadRequestException
+    Controller --> UI: 400 Bad Request
+    UI --> User: "Token không hợp lệ"
+else Token format hợp lệ
+    JwtProvider -> BlacklistService: addToken(token)
+    activate BlacklistService
+    BlacklistService -> BlacklistService: storeInCache(token)
+    BlacklistService --> JwtProvider: success
+    deactivate BlacklistService
+
+    JwtProvider --> AuthService: success
+    deactivate JwtProvider
+
+    AuthService -> AuthService: clearUserSession(username)
+    AuthService --> Controller: success
+    deactivate AuthService
+
+    Controller --> UI: 200 OK + ApiResponse("Đăng xuất thành công")
+    deactivate Controller
+
+    UI -> LocalStorage: removeItem("token")
+    activate LocalStorage
+    LocalStorage --> UI: success
+    deactivate LocalStorage
+
+    UI -> LocalStorage: removeItem("user")
+    activate LocalStorage
+    LocalStorage --> UI: success
+    deactivate LocalStorage
+
+    UI -> UI: clearUserState()
+    UI -> UI: redirectToLoginPage()
+    UI --> User: "Đăng xuất thành công - chuyển về trang đăng nhập"
+    deactivate UI
+end
+
+note over UI, BlacklistService
+  Logout process:
+  1. Invalidate JWT token
+  2. Add token to blacklist
+  3. Clear client-side storage
+  4. Redirect to login page
+end note
+
+@enduml

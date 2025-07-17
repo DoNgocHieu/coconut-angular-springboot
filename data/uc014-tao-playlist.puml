@@ -1,0 +1,96 @@
+@startuml UC014-Tao-Playlist
+!theme plain
+title UC014 - Tạo Playlist Mới
+
+skinparam rectangle {
+    BackgroundColor lightblue
+    BorderColor blue
+}
+
+skinparam frame {
+    BackgroundColor lightgray
+    BorderColor black
+}
+
+rectangle "Tạo Playlist Mới" {
+    frame "Modal Header" as header {
+        rectangle "🎵 Tạo Playlist Mới" as title
+        rectangle "❌ Close" as close_btn
+    }
+
+    frame "Playlist Info Form" as form {
+        rectangle "📝 Tên Playlist *" as playlist_name #lightgreen
+        rectangle "📄 Mô Tả (Optional)" as description
+        rectangle "🖼️ Upload Ảnh Bìa" as cover_upload
+        rectangle "👁️ Preview Ảnh" as cover_preview #lightyellow
+    }
+
+    frame "Privacy Settings" as privacy {
+        rectangle "🌐 Public" as public_radio
+        rectangle "🔒 Private" as private_radio #lightgreen
+        note right of private_radio : "Default: Private"
+    }
+
+    frame "Cover Upload Area" as upload_area {
+        rectangle "📁 Drag & Drop Image" as drag_drop
+        rectangle "🖱️ Click to Browse" as browse_btn
+        rectangle "✅ Supported: JPG, PNG, GIF" as file_types
+        rectangle "📏 Max Size: 5MB" as size_limit
+    }
+
+    frame "Form Validation" as validation {
+        rectangle "✅ Valid Name" as valid_name #lightgreen
+        rectangle "❌ Name Required" as invalid_name #lightcoral
+        rectangle "❌ Name Too Long (>100)" as name_too_long #lightcoral
+        rectangle "❌ Invalid Image Format" as invalid_image #lightcoral
+    }
+
+    frame "Action Buttons" as actions {
+        rectangle "🚫 Hủy" as cancel_btn
+        rectangle "✅ Tạo Playlist" as create_btn #lightgreen
+        rectangle "⏳ Đang Tạo..." as creating #yellow
+    }
+
+    frame "Success State" as success {
+        rectangle "🎉 Playlist Created!" as success_msg #lightgreen
+        rectangle "🎵 'My Favorite Songs'" as created_playlist
+        rectangle "➡️ Go to Playlist" as goto_playlist
+        rectangle "➕ Add Songs Now" as add_songs
+    }
+
+    frame "Error States" as errors {
+        rectangle "❌ Network Error" as network_error #lightcoral
+        rectangle "❌ Server Error" as server_error #lightcoral
+        rectangle "❌ Duplicate Name" as duplicate_error #lightcoral
+    }
+}
+
+' Flow connections
+playlist_name --> description
+description --> cover_upload
+cover_upload --> drag_drop
+drag_drop --> cover_preview
+
+public_radio ..> private_radio : "Toggle"
+private_radio --> create_btn
+
+playlist_name --> valid_name : "Valid Input"
+playlist_name --> invalid_name : "Empty Input"
+playlist_name --> name_too_long : "Too Long"
+
+cover_upload --> invalid_image : "Wrong Format"
+
+create_btn --> creating
+creating --> success_msg : "Success"
+creating --> network_error : "Network Fail"
+creating --> server_error : "Server Fail"
+creating --> duplicate_error : "Name Exists"
+
+success_msg --> goto_playlist
+success_msg --> add_songs
+
+cancel_btn ..> "Close Modal" : "Cancel"
+close_btn ..> "Close Modal" : "Close"
+
+footer UC014 - Tạo Playlist: Form tạo playlist với validation và upload
+@enduml

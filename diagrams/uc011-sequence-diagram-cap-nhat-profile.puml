@@ -1,0 +1,217 @@
+@startuml UC011-Sequence-Diagram-Cap-Nhat-Profile
+!theme plain
+
+title Biểu đồ trình tự - UC011: Cập nhật profile
+
+actor User
+participant "Angular\nClient" as Client
+participant "User\nController" as Controller
+participant "User\nService" as Service
+participant "Profile\nValidationService" as ValidationService
+participant "User\nRepository" as UserRepo
+participant "File\nStorageService" as FileService
+participant "Password\nEncoder" as PasswordEncoder
+participant "User\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "Hồ sơ cá nhân"
+activate Client
+
+' Load current profile
+Client -> Controller: GET /api/user/profile
+activate Controller
+
+Controller -> Controller: Extract userId from JWT token
+Controller -> Service: getCurrentUser(userId)
+activate Service
+
+Service -> UserRepo: findById(userId)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users WHERE id = ?
+DB --> UserRepo: User entity
+UserRepo --> Service: User
+deactivate UserRepo
+
+Service -> Mapper: toDto(user)
+activate Mapper
+Mapper -> Mapper: Convert User to UserDto\nwith playlist/favorite counts
+Mapper --> Service: UserDto
+deactivate Mapper
+
+Service --> Controller: UserDto
+deactivate Service
+
+Controller --> Client: 200 OK\nUserDto
+deactivate Controller
+
+Client -> Client: Display profile form with current data
+Client --> User: Profile form displayed
+
+' User updates profile information
+User -> Client: Edit profile fields (name, email, phone, bio, etc.)
+User -> Client: Click "Cập nhật hồ sơ"
+
+Client -> Client: Validate form data on frontend
+alt Form valid
+    Client -> Controller: PUT /api/user/profile\n{fullName: "New Name", email: "new@email.com", phone: "0123456789", bio: "New bio"}
+    activate Controller
+
+    Controller -> Controller: Extract userId from JWT token
+    Controller -> Controller: Validate request data
+
+    Controller -> Service: updateUserProfile(userId, request)
+    activate Service
+
+    ' Get current user
+    Service -> UserRepo: findById(userId)
+    activate UserRepo
+    UserRepo -> DB: SELECT * FROM users WHERE id = ?
+    DB --> UserRepo: Current user entity
+    UserRepo --> Service: User
+    deactivate UserRepo
+
+    ' Validate profile data
+    Service -> ValidationService: validateProfileData(request)
+    activate ValidationService
+
+    ValidationService -> ValidationService: validateEmailFormat(email)
+    ValidationService -> ValidationService: validatePhoneFormat(phone)
+    ValidationService -> ValidationService: validateAge(dateOfBirth)
+    ValidationService -> ValidationService: validateBioLength(bio)
+    ValidationService --> Service: List<String> errors (empty if valid)
+    deactivate ValidationService
+
+    alt Validation passed
+        ' Check email uniqueness if changed
+        alt Email changed
+            Service -> Service: validateEmailUnique(newEmail, userId)
+            Service -> UserRepo: existsByEmailAndIdNot(email, userId)
+            activate UserRepo
+            UserRepo -> DB: SELECT COUNT(*) FROM users WHERE email = ? AND id != ?
+            DB --> UserRepo: exists = false
+            UserRepo --> Service: false
+            deactivate UserRepo
+
+            alt Email unique
+                Service -> Service: Continue update process
+            else Email exists
+                Service --> Controller: throw EmailAlreadyExistsException
+                Controller --> Client: 409 Conflict\n{"error": "Email đã được sử dụng"}
+                Client --> User: Show error message
+            end
+        end
+
+        ' Update user entity
+        Service -> Mapper: updateEntityFromRequest(user, request)
+        activate Mapper
+        Mapper -> Mapper: Update user fields from request
+        Mapper --> Service: Updated user
+        deactivate Mapper
+
+        Service -> Service: Set updatedAt = now()
+
+        ' Save to database
+        Service -> UserRepo: save(user)
+        activate UserRepo
+        UserRepo -> DB: UPDATE users SET\nfull_name = ?, email = ?, phone = ?,\ndate_of_birth = ?, gender = ?, bio = ?,\nupdated_at = NOW()\nWHERE id = ?
+        DB --> UserRepo: Updated user entity
+        UserRepo --> Service: User
+        deactivate UserRepo
+
+        Service -> Mapper: toDto(user)
+        activate Mapper
+        Mapper --> Service: UserDto
+        deactivate Mapper
+
+        Service --> Controller: UserDto
+        deactivate Service
+
+        Controller --> Client: 200 OK\nUpdated UserDto
+        deactivate Controller
+
+        Client -> Client: Update local user data
+        Client -> Client: Show success notification
+        Client --> User: "Cập nhật hồ sơ thành công"
+
+    else Validation failed
+        Service --> Controller: throw ValidationException
+        Controller --> Client: 400 Bad Request\n{"errors": ["validation errors"]}
+        Client --> User: Show validation errors
+    end
+
+else Form invalid
+    Client --> User: Show form validation errors
+end
+
+' User wants to upload avatar
+User -> Client: Click "Thay đổi ảnh đại diện"
+Client -> Client: Open file picker
+User -> Client: Select image file
+Client -> Client: Preview selected image
+
+User -> Client: Click "Upload"
+Client -> Controller: POST /api/user/avatar\n(multipart/form-data with image file)
+activate Controller
+
+Controller -> Service: uploadUserAvatar(userId, file)
+activate Service
+
+' Validate image file
+Service -> FileService: validateImageFile(file)
+activate FileService
+FileService -> FileService: Check file size (max 5MB)
+FileService -> FileService: Check file format (JPG/PNG/GIF)
+alt File valid
+    FileService --> Service: void (success)
+    deactivate FileService
+
+    ' Get current user for avatar cleanup
+    Service -> UserRepo: findById(userId)
+    activate UserRepo
+    UserRepo --> Service: User with current avatar
+    deactivate UserRepo
+
+    ' Delete old avatar if exists
+    alt Current avatar exists
+        Service -> FileService: deleteAvatar(oldAvatarFileName)
+        activate FileService
+        FileService --> Service: void
+        deactivate FileService
+    end
+
+    ' Store new avatar
+    Service -> FileService: storeAvatar(file, userId)
+    activate FileService
+    FileService -> FileService: Generate unique filename
+    FileService -> FileService: Save file to uploads/avatars/
+    FileService --> Service: New avatar filename
+    deactivate FileService
+
+    ' Update user avatar field
+    Service -> Service: user.setAvatar(newAvatarPath)
+    Service -> UserRepo: save(user)
+    activate UserRepo
+    UserRepo -> DB: UPDATE users SET avatar = ?, updated_at = NOW() WHERE id = ?
+    DB --> UserRepo: Updated user
+    UserRepo --> Service: User
+    deactivate UserRepo
+
+    Service --> Controller: New avatar URL
+    deactivate Service
+
+    Controller --> Client: 200 OK\n{"avatarUrl": "/uploads/avatars/filename.jpg"}
+    deactivate Controller
+
+    Client -> Client: Update avatar display
+    Client --> User: "Đã cập nhật ảnh đại diện"
+
+else File invalid
+    FileService --> Service: throw InvalidFileException
+    Service --> Controller: throw BadRequestException
+    Controller --> Client: 400 Bad Request\n{"error": "File không hợp lệ"}
+    Client --> User: Show file error message
+end
+
+deactivate Client
+
+@enduml

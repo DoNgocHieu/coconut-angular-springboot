@@ -1,0 +1,9 @@
+@startuml UC027-Phan-Quyen-Admin
+!theme plain
+
+actor Admin
+usecase "Phân quyền admin" as UC027
+
+Admin --> UC027
+
+@enduml

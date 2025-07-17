@@ -1,0 +1,9 @@
+@startuml UC022-Xoa-Nhac
+!theme plain
+
+actor Admin
+usecase "Xóa nhạc" as UC022
+
+Admin --> UC022
+
+@enduml

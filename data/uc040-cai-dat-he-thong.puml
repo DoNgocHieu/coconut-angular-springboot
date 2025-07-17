@@ -1,0 +1,9 @@
+@startuml UC040-Cai-Dat-He-Thong
+!theme plain
+
+actor Admin
+usecase "Cài đặt hệ thống" as UC040
+
+Admin --> UC040
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC025-Khoa-Mo-Khoa-User
+!theme plain
+
+actor Admin
+usecase "Khóa/mở khóa tài khoản" as UC025
+
+Admin --> UC025
+
+@enduml

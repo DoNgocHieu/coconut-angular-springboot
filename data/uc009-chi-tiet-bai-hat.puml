@@ -1,0 +1,9 @@
+@startuml UC009-Chi-Tiet-Bai-Hat
+!theme plain
+
+actor User
+usecase "Xem chi tiết bài hát" as UC009
+
+User --> UC009
+
+@enduml

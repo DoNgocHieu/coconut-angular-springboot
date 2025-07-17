@@ -1,0 +1,428 @@
+@startuml UC026_Sequence_Diagram_Xoa_The_Loai
+title Biểu đồ trình tự - UC026: Xóa thể loại
+autonumber
+
+skinparam actor {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+}
+
+skinparam participant {
+    BackgroundColor LightGreen
+    BorderColor DarkGreen
+}
+
+skinparam boundary {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+skinparam control {
+    BackgroundColor LightPink
+    BorderColor Red
+}
+
+skinparam entity {
+    BackgroundColor LightGray
+    BorderColor Black
+}
+
+actor "Admin" as Admin
+participant "CategoryManagementComponent" as CategoryManagementComponent
+participant "CategoryDeleteConfirmComponent" as CategoryDeleteConfirmComponent
+participant "CategoryDeletionService" as CategoryDeletionService
+participant "CategoryDeletionController" as CategoryDeletionController
+participant "CategoryDeletionService_BE" as CategoryDeletionService_BE
+participant "CategoryValidationService_BE" as CategoryValidationService_BE
+participant "CategoryHierarchyService" as CategoryHierarchyService
+participant "CategoryContentService" as CategoryContentService
+participant "CategoryBackupService_BE" as CategoryBackupService_BE
+participant "CategoryAuditService" as CategoryAuditService
+participant "CategoryNotificationService_BE" as CategoryNotificationService_BE
+participant "CategoryNotificationService" as CategoryNotificationService
+participant "CategoryRepository" as CategoryRepository
+participant "MusicRepository" as MusicRepository
+participant "PlaylistCategoryRepository" as PlaylistCategoryRepository
+participant "DeletionBackupRepository" as DeletionBackupRepository
+participant "AuditLogRepository" as AuditLogRepository
+participant "BulkCategoryDeleteComponent" as BulkCategoryDeleteComponent
+participant "CategoryRecoveryComponent" as CategoryRecoveryComponent
+participant "CategoryRecoveryController" as CategoryRecoveryController
+entity "Database" as Database
+
+== Khởi tạo xóa thể loại ==
+
+Admin -> CategoryManagementComponent: Select category to delete
+CategoryManagementComponent -> CategoryDeletionService: getDeletePreview(categoryId)
+CategoryDeletionService -> CategoryDeletionController: GET /api/admin/categories/{categoryId}/delete-preview
+CategoryDeletionController -> CategoryDeletionService_BE: getDeletePreview(categoryId, adminId)
+
+CategoryDeletionService_BE -> CategoryValidationService_BE: validateDeletionPermissions(categoryId, adminId)
+CategoryValidationService_BE -> CategoryValidationService_BE: checkCategoryDeletionPermissions(adminId, CATEGORY_DELETE)
+CategoryValidationService_BE -> CategoryValidationService_BE: checkCategoryOwnership(categoryId, adminId)
+CategoryValidationService_BE --> CategoryDeletionService_BE: Deletion permissions validated
+
+CategoryDeletionService_BE -> CategoryContentService: getDeletionImpactAnalysis(categoryId)
+CategoryContentService -> MusicRepository: countMusicByCategory(categoryId)
+MusicRepository --> CategoryContentService: Music count
+CategoryContentService -> PlaylistCategoryRepository: countPlaylistsByCategory(categoryId)
+PlaylistCategoryRepository --> CategoryContentService: Playlist count
+CategoryContentService -> CategoryHierarchyService: getChildCategories(categoryId)
+CategoryHierarchyService --> CategoryContentService: Child categories list
+CategoryContentService -> CategoryContentService: calculateDeletionImpact(impactData)
+CategoryContentService --> CategoryDeletionService_BE: DeletionImpactDto
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildDeletePreview(category, impactData)
+CategoryDeletionService_BE --> CategoryDeletionController: DeletePreviewDto
+CategoryDeletionController --> CategoryDeletionService: Delete preview data
+CategoryDeletionService --> CategoryManagementComponent: Preview received
+
+CategoryManagementComponent -> CategoryDeleteConfirmComponent: openDeleteConfirmation(previewData)
+CategoryDeleteConfirmComponent --> Admin: Hiển thị delete confirmation modal với impact
+
+== Xác nhận và thực hiện xóa ==
+
+Admin -> CategoryDeleteConfirmComponent: Configure deletion options (soft/hard, children handling)
+Admin -> CategoryDeleteConfirmComponent: Nhập lý do xóa
+Admin -> CategoryDeleteConfirmComponent: Click "Confirm Delete"
+
+CategoryDeleteConfirmComponent -> CategoryDeletionService: deleteCategory(categoryId, deletionOptions)
+CategoryDeletionService -> CategoryDeletionController: DELETE /api/admin/categories/{categoryId}
+CategoryDeletionController -> CategoryDeletionService_BE: deleteCategory(categoryId, deletionOptions, adminId)
+
+CategoryDeletionService_BE -> CategoryValidationService_BE: revalidateDeletionPermissions(categoryId, adminId)
+CategoryValidationService_BE -> CategoryValidationService_BE: checkConcurrentModification(categoryId)
+CategoryValidationService_BE -> CategoryValidationService_BE: validateDeletionConstraints(categoryId)
+CategoryValidationService_BE --> CategoryDeletionService_BE: Re-validation successful
+
+== Tạo backup trước khi xóa ==
+
+CategoryDeletionService_BE -> CategoryBackupService_BE: createDeletionBackup(categoryId, deletionOptions)
+CategoryBackupService_BE -> CategoryRepository: findByIdWithDetails(categoryId)
+CategoryRepository --> CategoryBackupService_BE: Category data
+CategoryBackupService_BE -> CategoryContentService: getAssociatedContent(categoryId)
+CategoryContentService --> CategoryBackupService_BE: Associated content data
+CategoryBackupService_BE -> CategoryBackupService_BE: createBackupSnapshot(categoryData, contentData)
+CategoryBackupService_BE -> DeletionBackupRepository: save(backupData)
+DeletionBackupRepository -> Database: INSERT INTO deletion_backups (backup details)
+Database --> DeletionBackupRepository: Backup created
+DeletionBackupRepository --> CategoryBackupService_BE: Backup ID generated
+CategoryBackupService_BE --> CategoryDeletionService_BE: Backup created successfully
+
+== Xử lý thể loại con ==
+
+alt Reassign children to parent
+    CategoryDeletionService_BE -> CategoryHierarchyService: reassignChildrenToParent(categoryId)
+    CategoryHierarchyService -> CategoryHierarchyService: getParentCategory(categoryId)
+    CategoryHierarchyService -> CategoryHierarchyService: validateReassignmentHierarchy(parentId, children)
+    CategoryHierarchyService -> CategoryRepository: updateParentForChildren(categoryId, parentId)
+    CategoryRepository -> Database: UPDATE categories SET parent_id = ? WHERE parent_id = ?
+    Database --> CategoryRepository: Children reassigned
+    CategoryRepository --> CategoryHierarchyService: Reassignment completed
+    CategoryHierarchyService -> CategoryHierarchyService: updateHierarchyLevels(affectedCategories)
+    CategoryHierarchyService --> CategoryDeletionService_BE: Hierarchy reorganized
+else Delete children recursively
+    CategoryDeletionService_BE -> CategoryHierarchyService: getChildCategories(categoryId)
+    CategoryHierarchyService --> CategoryDeletionService_BE: Child categories list
+
+    loop For each child category
+        CategoryDeletionService_BE -> CategoryDeletionService_BE: deleteCategory(childId, cascadeOptions)
+    end
+end
+
+== Xử lý nội dung liên quan ==
+
+alt Reassign music to other category
+    CategoryDeletionService_BE -> CategoryContentService: reassignMusicToCategory(categoryId, targetCategoryId)
+    CategoryContentService -> MusicRepository: updateCategoryForMusic(categoryId, targetCategoryId)
+    MusicRepository -> Database: UPDATE musics SET category_id = ? WHERE category_id = ?
+    Database --> MusicRepository: Music reassigned
+    MusicRepository --> CategoryContentService: Music reassignment completed
+    CategoryContentService --> CategoryDeletionService_BE: Content reassigned
+else Soft delete associated music
+    CategoryDeletionService_BE -> CategoryContentService: softDeleteAssociatedMusic(categoryId)
+    CategoryContentService -> MusicRepository: softDeleteByCategory(categoryId)
+    MusicRepository -> Database: UPDATE musics SET deleted = true, deleted_at = NOW(), deleted_by = ? WHERE category_id = ?
+    Database --> MusicRepository: Music soft deleted
+    MusicRepository --> CategoryContentService: Music deletion completed
+    CategoryContentService --> CategoryDeletionService_BE: Associated content deleted
+end
+
+== Audit logging ==
+
+CategoryDeletionService_BE -> CategoryAuditService: logCategoryDeletionStarted(categoryId, adminId, deletionOptions)
+CategoryAuditService -> AuditLogRepository: save(deletionAudit)
+AuditLogRepository -> Database: INSERT INTO audit_logs (deletion details)
+Database --> AuditLogRepository: Audit log created
+AuditLogRepository --> CategoryAuditService: Audit logged
+CategoryAuditService --> CategoryDeletionService_BE: Deletion start logged
+
+== Thực hiện xóa thể loại ==
+
+alt Soft delete
+    CategoryDeletionService_BE -> CategoryRepository: softDelete(categoryId, adminId)
+    CategoryRepository -> Database: UPDATE categories SET deleted = true, deleted_at = NOW(), deleted_by = ? WHERE id = ?
+    Database --> CategoryRepository: Category soft deleted
+    CategoryRepository --> CategoryDeletionService_BE: Soft deletion completed
+else Hard delete
+    CategoryDeletionService_BE -> CategoryRepository: hardDelete(categoryId)
+    CategoryRepository -> Database: DELETE FROM categories WHERE id = ?
+    Database --> CategoryRepository: Category hard deleted
+    CategoryRepository --> CategoryDeletionService_BE: Hard deletion completed
+end
+
+CategoryDeletionService_BE -> CategoryAuditService: logCategoryDeletionCompleted(categoryId, adminId, deletionResult)
+CategoryAuditService -> AuditLogRepository: save(completionAudit)
+AuditLogRepository -> Database: INSERT INTO audit_logs (completion details)
+Database --> AuditLogRepository: Completion logged
+AuditLogRepository --> CategoryAuditService: Completion audit created
+CategoryAuditService --> CategoryDeletionService_BE: Deletion completion logged
+
+CategoryDeletionService_BE -> CategoryNotificationService_BE: notifyStakeholders(categoryId, DeletionType.SOFT_DELETE)
+CategoryNotificationService_BE -> CategoryNotificationService_BE: sendDeletionConfirmation(adminId, deletionResult)
+CategoryNotificationService_BE --> CategoryDeletionService_BE: Notifications sent
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildDeletionResult(operationData)
+CategoryDeletionService_BE --> CategoryDeletionController: DeletionResultDto
+CategoryDeletionController --> CategoryDeletionService: Category deleted successfully
+CategoryDeletionService --> CategoryDeleteConfirmComponent: Deletion completed
+
+CategoryDeleteConfirmComponent -> CategoryNotificationService: notifyDeletionCompleted(deletionResult)
+CategoryNotificationService -> CategoryNotificationService: showDeletionSuccessMessage(deletionResult)
+
+CategoryDeleteConfirmComponent -> CategoryDeleteConfirmComponent: close()
+CategoryDeleteConfirmComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent -> CategoryManagementComponent: refreshCategoryList()
+CategoryManagementComponent --> Admin: Danh sách cập nhật
+
+== Xóa hàng loạt thể loại ==
+
+Admin -> CategoryManagementComponent: Select multiple categories
+Admin -> CategoryManagementComponent: Click "Bulk Delete"
+CategoryManagementComponent -> BulkCategoryDeleteComponent: openBulkDeleteModal(selectedCategoryIds)
+
+BulkCategoryDeleteComponent -> CategoryDeletionService: getBulkDeletionImpact(categoryIds)
+CategoryDeletionService -> CategoryDeletionController: POST /api/admin/categories/bulk-delete-preview
+
+CategoryDeletionController -> CategoryDeletionService_BE: getBulkDeletionImpact(categoryIds, adminId)
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: calculateBulkDeletionImpact(categoryIds)
+CategoryDeletionService_BE -> CategoryDeletionService_BE: estimateBulkDeletionDuration(categoryIds)
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildBulkDeletionImpact(impactData)
+CategoryDeletionService_BE --> CategoryDeletionController: BulkDeletionImpactDto
+CategoryDeletionController --> CategoryDeletionService: Bulk impact analysis
+CategoryDeletionService --> BulkCategoryDeleteComponent: Bulk deletion impact received
+
+BulkCategoryDeleteComponent --> Admin: Hiển thị bulk deletion modal với impact analysis
+
+Admin -> BulkCategoryDeleteComponent: Configure bulk deletion options
+Admin -> BulkCategoryDeleteComponent: Click "Confirm Bulk Delete"
+
+BulkCategoryDeleteComponent -> CategoryDeletionService: executeBulkDeletion(categoryIds, bulkOptions)
+CategoryDeletionService -> CategoryDeletionController: POST /api/admin/categories/bulk-delete
+
+CategoryDeletionController -> CategoryDeletionService_BE: executeBulkDeletion(categoryIds, bulkOptions, adminId)
+
+par Parallel deletion processing
+    loop For each category batch
+        CategoryDeletionService_BE -> CategoryDeletionService_BE: deleteCategory(categoryId, bulkOptions)
+    end
+else Progress tracking
+    CategoryDeletionService_BE -> CategoryDeletionService_BE: updateBulkDeletionProgress(processed, total)
+    CategoryDeletionService_BE -> CategoryNotificationService_BE: broadcastProgress(progressData)
+    CategoryNotificationService_BE --> BulkCategoryDeleteComponent: Progress update
+end
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildBulkDeletionResult(results)
+CategoryDeletionService_BE --> CategoryDeletionController: BulkDeletionResultDto
+CategoryDeletionController --> CategoryDeletionService: Bulk deletion completed
+CategoryDeletionService --> BulkCategoryDeleteComponent: Bulk deletion result
+
+BulkCategoryDeleteComponent -> CategoryNotificationService: notifyBulkDeletionCompleted(result)
+CategoryNotificationService -> CategoryNotificationService: showBulkDeletionSummary(result)
+
+BulkCategoryDeleteComponent -> BulkCategoryDeleteComponent: close()
+BulkCategoryDeleteComponent --> CategoryManagementComponent: Modal closed
+CategoryManagementComponent -> CategoryManagementComponent: refreshCategoryList()
+CategoryManagementComponent --> Admin: Danh sách cập nhật với bulk deletion summary
+
+== Khôi phục thể loại đã xóa ==
+
+Admin -> CategoryManagementComponent: Navigate to "Deleted Categories"
+CategoryManagementComponent -> CategoryRecoveryComponent: openRecoveryView()
+CategoryRecoveryComponent -> CategoryDeletionService: getDeletedCategories()
+CategoryDeletionService -> CategoryRecoveryController: GET /api/admin/categories/deleted
+CategoryRecoveryController -> CategoryDeletionService_BE: getDeletedCategories(adminId)
+
+CategoryDeletionService_BE -> CategoryRepository: findDeletedCategories()
+CategoryRepository --> CategoryDeletionService_BE: Deleted categories list
+CategoryDeletionService_BE --> CategoryRecoveryController: DeletedCategoriesDto
+CategoryRecoveryController --> CategoryDeletionService: Deleted categories data
+CategoryDeletionService --> CategoryRecoveryComponent: Deleted categories received
+
+CategoryRecoveryComponent --> Admin: Hiển thị danh sách thể loại đã xóa
+
+Admin -> CategoryRecoveryComponent: Select category to recover
+Admin -> CategoryRecoveryComponent: Click "Preview Recovery"
+CategoryRecoveryComponent -> CategoryDeletionService: getRecoveryPreview(categoryId)
+CategoryDeletionService -> CategoryRecoveryController: GET /api/admin/categories/{categoryId}/recovery-preview
+CategoryRecoveryController -> CategoryDeletionService_BE: getRecoveryPreview(categoryId, adminId)
+
+CategoryDeletionService_BE -> CategoryValidationService_BE: validateRecoveryPermissions(categoryId, adminId)
+CategoryValidationService_BE --> CategoryDeletionService_BE: Recovery validation passed
+
+CategoryDeletionService_BE -> CategoryBackupService_BE: getAvailableBackups(categoryId)
+CategoryBackupService_BE -> DeletionBackupRepository: findByCategoryId(categoryId)
+DeletionBackupRepository --> CategoryBackupService_BE: Available backups
+CategoryBackupService_BE --> CategoryDeletionService_BE: Backup options
+
+CategoryDeletionService_BE -> CategoryHierarchyService: validateRecoveryHierarchy(categoryId)
+CategoryHierarchyService -> CategoryHierarchyService: checkForNamingConflicts(categoryName)
+CategoryHierarchyService -> CategoryHierarchyService: validateHierarchyIntegrity(recoveryData)
+CategoryHierarchyService --> CategoryDeletionService_BE: Recovery hierarchy validated
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildRecoveryPreview(category, backups, conflicts)
+CategoryDeletionService_BE --> CategoryRecoveryController: RecoveryPreviewDto
+CategoryRecoveryController --> CategoryDeletionService: Recovery preview
+CategoryDeletionService --> CategoryRecoveryComponent: Recovery preview received
+
+CategoryRecoveryComponent --> Admin: Hiển thị recovery preview với conflicts và options
+
+Admin -> CategoryRecoveryComponent: Configure recovery options
+Admin -> CategoryRecoveryComponent: Resolve name conflicts nếu cần
+Admin -> CategoryRecoveryComponent: Choose backup version để restore
+Admin -> CategoryRecoveryComponent: Click "Confirm Recovery"
+
+CategoryRecoveryComponent -> CategoryDeletionService: recoverCategory(categoryId, recoveryOptions)
+CategoryDeletionService -> CategoryRecoveryController: POST /api/admin/categories/{categoryId}/recover
+CategoryRecoveryController -> CategoryDeletionService_BE: recoverCategory(categoryId, recoveryOptions, adminId)
+
+alt Restore from backup
+    CategoryDeletionService_BE -> CategoryBackupService_BE: restoreFromBackup(options.backupId)
+    CategoryBackupService_BE -> DeletionBackupRepository: findById(options.backupId)
+    DeletionBackupRepository --> CategoryBackupService_BE: Backup data
+
+    CategoryBackupService_BE -> CategoryBackupService_BE: validateBackupIntegrity(backupData)
+    CategoryBackupService_BE -> CategoryBackupService_BE: restoreCategoryFromBackup(backupData)
+    CategoryBackupService_BE --> CategoryDeletionService_BE: Category restored from backup
+else Simple recovery
+    CategoryDeletionService_BE -> CategoryRepository: findById(categoryId)
+    CategoryRepository --> CategoryDeletionService_BE: Deleted category
+
+    CategoryDeletionService_BE -> CategoryDeletionService_BE: prepareRecoveryData(category, options)
+end
+
+CategoryDeletionService_BE -> CategoryRepository: save(recoveredCategory)
+CategoryRepository -> Database: UPDATE categories SET deleted = false, deleted_at = NULL, deleted_by = NULL, active = true, recovered_at = NOW(), recovered_by = ? WHERE id = ?
+Database --> CategoryRepository: Category recovered
+CategoryRepository --> CategoryDeletionService_BE: Category restoration completed
+
+alt Recover associated music
+    CategoryDeletionService_BE -> CategoryContentService: restoreCategoryContent(categoryId)
+    CategoryContentService -> MusicRepository: findDeletedMusicByCategory(categoryId)
+    MusicRepository --> CategoryContentService: Deleted music list
+
+    CategoryContentService -> MusicRepository: recoverMusicByCategory(categoryId)
+    MusicRepository -> Database: UPDATE musics SET deleted = false, deleted_at = NULL, deleted_by = NULL WHERE category_id = ? AND deleted = true
+    Database --> MusicRepository: Music recovered
+    MusicRepository --> CategoryContentService: Music restoration completed
+    CategoryContentService --> CategoryDeletionService_BE: Content recovery completed
+end
+
+CategoryDeletionService_BE -> CategoryHierarchyService: validateHierarchyIntegrity()
+CategoryHierarchyService -> CategoryHierarchyService: repairHierarchyInconsistencies()
+CategoryHierarchyService --> CategoryDeletionService_BE: Hierarchy validated
+
+CategoryDeletionService_BE -> CategoryAuditService: logCategoryRecoveryCompleted(categoryId, adminId, recoveryResult)
+CategoryAuditService --> CategoryDeletionService_BE: Recovery completion logged
+
+CategoryDeletionService_BE -> CategoryDeletionService_BE: buildRecoveryResult(recoveryData)
+CategoryDeletionService_BE --> CategoryRecoveryController: RecoveryResultDto
+CategoryRecoveryController --> CategoryDeletionService: Category recovered successfully
+CategoryDeletionService --> CategoryRecoveryComponent: Recovery completed
+
+CategoryRecoveryComponent -> CategoryNotificationService: notifyRecoveryCompleted(recoveryResult)
+CategoryNotificationService -> CategoryNotificationService: showRecoverySuccessMessage(recoveryResult)
+
+CategoryRecoveryComponent -> CategoryRecoveryComponent: refreshDeletedCategoriesList()
+CategoryRecoveryComponent --> Admin: Recovery completed successfully
+
+== Xóa vĩnh viễn thể loại ==
+
+Admin -> CategoryRecoveryComponent: Select deleted category
+Admin -> CategoryRecoveryComponent: Click "Permanently Delete"
+CategoryRecoveryComponent -> CategoryRecoveryComponent: openPermanentDeleteConfirmation()
+
+CategoryRecoveryComponent --> Admin: Hiển thị confirmation modal với cảnh báo
+
+Admin -> CategoryRecoveryComponent: Nhập confirmation text
+Admin -> CategoryRecoveryComponent: Nhập lý do xóa vĩnh viễn
+Admin -> CategoryRecoveryComponent: Click "Permanently Delete Forever"
+
+CategoryRecoveryComponent -> CategoryDeletionService: permanentlyDeleteCategory(categoryId, reason)
+CategoryDeletionService -> CategoryRecoveryController: DELETE /api/admin/categories/{categoryId}/permanent
+CategoryRecoveryController -> CategoryDeletionService_BE: permanentlyDeleteCategory(categoryId, reason, adminId)
+
+CategoryDeletionService_BE -> CategoryValidationService_BE: validatePermanentDeletion(categoryId, adminId)
+CategoryValidationService_BE -> CategoryValidationService_BE: checkPermanentDeletionPermissions(adminId)
+CategoryValidationService_BE -> CategoryValidationService_BE: validatePermanentDeletionReason(reason)
+CategoryValidationService_BE --> CategoryDeletionService_BE: Permanent deletion validated
+
+CategoryDeletionService_BE -> CategoryAuditService: logPermanentDeletion(categoryId, adminId, reason)
+CategoryAuditService -> AuditLogRepository: save(permanentDeletionAudit)
+AuditLogRepository -> Database: INSERT INTO audit_logs (permanent deletion details)
+Database --> AuditLogRepository: Permanent deletion logged
+AuditLogRepository --> CategoryAuditService: Audit created
+CategoryAuditService --> CategoryDeletionService_BE: Permanent deletion logged
+
+CategoryDeletionService_BE -> CategoryRepository: hardDeleteById(categoryId)
+CategoryRepository -> Database: DELETE FROM categories WHERE id = ?
+Database --> CategoryRepository: Category permanently deleted
+CategoryRepository --> CategoryDeletionService_BE: Hard deletion completed
+
+CategoryDeletionService_BE -> DeletionBackupRepository: deleteBackupsForCategory(categoryId)
+DeletionBackupRepository -> Database: DELETE FROM deletion_backups WHERE category_id = ?
+Database --> DeletionBackupRepository: Backups purged
+DeletionBackupRepository --> CategoryDeletionService_BE: Backup cleanup completed
+
+CategoryDeletionService_BE --> CategoryRecoveryController: Permanent deletion successful
+CategoryRecoveryController --> CategoryDeletionService: Category permanently deleted
+CategoryDeletionService --> CategoryRecoveryComponent: Permanent deletion completed
+
+CategoryRecoveryComponent -> CategoryNotificationService: notifyPermanentDeletion("Thể loại đã được xóa vĩnh viễn")
+CategoryRecoveryComponent -> CategoryRecoveryComponent: removeFromDeletedList(categoryId)
+CategoryRecoveryComponent --> Admin: Permanent deletion completed
+
+== Xử lý lỗi ==
+
+note over CategoryValidationService_BE: Lỗi không có quyền xóa thể loại
+note over Admin: "Bạn không có quyền xóa thể loại này"
+
+note over CategoryValidationService_BE: Lỗi thể loại đang được sử dụng
+note over Admin: "Không thể xóa thể loại hệ thống hoặc thể loại đặc biệt"
+
+note over CategoryHierarchyService: Lỗi circular reference trong reassignment
+note over Admin: "Không thể reassign children to descendant category"
+
+note over CategoryContentService: Lỗi reassignment category không hợp lệ
+note over Admin: "Thể loại đích cho reassignment không tồn tại hoặc đã bị xóa"
+
+note over CategoryBackupService_BE: Lỗi tạo backup
+note over Admin: "Không thể tạo backup, quá trình xóa đã bị hủy"
+
+note over CategoryDeletionService_BE: Lỗi concurrent modification
+note over Admin: "Thể loại đã bị thay đổi bởi người dùng khác"
+
+note over Database: Lỗi database constraint violation
+note over Admin: "Không thể xóa do ràng buộc dữ liệu"
+
+note over CategoryDeletionService_BE: Lỗi bulk deletion timeout
+note over Admin: "Quá trình xóa hàng loạt đã timeout, một số thể loại có thể chưa được xóa"
+
+note over CategoryRecoveryController: Lỗi recovery validation failed
+note over Admin: "Không thể khôi phục do conflict với dữ liệu hiện tại"
+
+note over CategoryBackupService_BE: Lỗi backup corruption
+note over Admin: "Backup bị lỗi, không thể khôi phục từ backup này"
+
+@enduml

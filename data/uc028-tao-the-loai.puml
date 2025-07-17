@@ -1,0 +1,9 @@
+@startuml UC028-Tao-The-Loai
+!theme plain
+
+actor Admin
+usecase "Tạo thể loại nhạc mới" as UC028
+
+Admin --> UC028
+
+@enduml

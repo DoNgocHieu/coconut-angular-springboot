@@ -1,0 +1,526 @@
+@startuml UC023-Class-Diagram-Phan-Loai-Nhac
+!theme plain
+
+title Biểu đồ lớp - UC023: Phân loại nhạc
+
+package "Frontend Components" {
+    class AdminMusicCategoryComponent {
+        +musicList: Music[]
+        +categories: Category[]
+        +selectedMusics: Music[]
+        +bulkCategoryForm: FormGroup
+        +filterForm: FormGroup
+        +isBulkMode: boolean
+        +isLoading: boolean
+        +currentPage: number
+        +totalPages: number
+        --
+        +ngOnInit(): void
+        +loadMusicsForCategorization(): void
+        +loadCategories(): void
+        +toggleBulkMode(): void
+        +selectMusic(music: Music): void
+        +selectAllMusics(): void
+        +clearSelection(): void
+        +openCategoryModal(music: Music): void
+        +openBulkCategoryModal(): void
+        +filterByCategory(categoryId: number): void
+        +searchMusics(query: string): void
+        +onPageChange(page: number): void
+    }
+
+    class MusicCategoryModalComponent {
+        +music: Music
+        +categories: Category[]
+        +categoryForm: FormGroup
+        +currentCategory: Category
+        +suggestedCategories: Category[]
+        +isLoading: boolean
+        +showCreateCategory: boolean
+        --
+        +ngOnInit(): void
+        +loadMusicDetails(): void
+        +loadSuggestedCategories(): void
+        +onCategoryChange(): void
+        +createNewCategory(): void
+        +confirmCategorization(): void
+        +close(): void
+        +validateCategorySelection(): boolean
+    }
+
+    class BulkCategorizationModalComponent {
+        +selectedMusics: Music[]
+        +categories: Category[]
+        +bulkCategoryForm: FormGroup
+        +categorizationProgress: number
+        +isProcessing: boolean
+        +results: BulkCategorizationResult
+        --
+        +ngOnInit(): void
+        +initializeForm(): void
+        +startBulkCategorization(): void
+        +updateProgress(progress: number): void
+        +showResults(): void
+        +close(): void
+    }
+
+    class CategorySuggestionComponent {
+        +music: Music
+        +suggestedCategories: SuggestedCategory[]
+        +confidence: number
+        +isAnalyzing: boolean
+        --
+        +ngOnInit(): void
+        +analyzeMusicForSuggestions(): void
+        +applySuggestion(category: Category): void
+        +rejectSuggestion(category: Category): void
+        +requestManualAnalysis(): void
+    }
+
+    class CategoryManagementComponent {
+        +categories: Category[]
+        +categoryForm: FormGroup
+        +editingCategory: Category
+        +isCreating: boolean
+        +hierarchyView: boolean
+        --
+        +ngOnInit(): void
+        +loadCategories(): void
+        +createCategory(): void
+        +editCategory(category: Category): void
+        +deleteCategory(category: Category): void
+        +moveCategory(category: Category, newParent: Category): void
+        +toggleHierarchyView(): void
+        +validateCategoryData(): boolean
+    }
+
+    class MusicCategoryCardComponent {
+        +music: Music
+        +canEdit: boolean
+        +isSelected: boolean
+        +showCategoryInfo: boolean
+        --
+        +onCategoryClick(): void
+        +onSelectChange(): void
+        +showCategoryDetails(): void
+        +requestRecategorization(): void
+    }
+
+    class CategoryFilterComponent {
+        +categories: Category[]
+        +selectedCategories: number[]
+        +filterMode: string
+        +showUncategorized: boolean
+        --
+        +ngOnInit(): void
+        +onCategorySelect(categoryId: number): void
+        +onFilterModeChange(): void
+        +clearFilters(): void
+        +applyFilters(): void
+    }
+}
+
+package "Frontend Services" {
+    class AdminCategoryService {
+        +http: HttpClient
+        --
+        +getMusicsForCategorization(page: number, filters: CategoryFilter): Observable<Page<Music>>
+        +getAllCategories(): Observable<Category[]>
+        +getCategoryHierarchy(): Observable<CategoryNode[]>
+        +categorizeMusicAsAdmin(musicId: number, request: CategorizationRequest): Observable<CategorizationResult>
+        +bulkCategorizeMusicsAsAdmin(request: BulkCategorizationRequest): Observable<BulkCategorizationResult>
+        +createCategory(request: CreateCategoryRequest): Observable<Category>
+        +updateCategory(categoryId: number, request: UpdateCategoryRequest): Observable<Category>
+        +deleteCategory(categoryId: number): Observable<void>
+        +getSuggestedCategories(musicId: number): Observable<SuggestedCategory[]>
+        +getMusicAnalysisForCategorization(musicId: number): Observable<MusicAnalysis>
+    }
+
+    class CategorySuggestionService {
+        +http: HttpClient
+        --
+        +analyzeMusicForCategorization(musicId: number): Observable<CategorySuggestion[]>
+        +getMLCategorySuggestions(musicFeatures: MusicFeatures): Observable<MLCategorySuggestion[]>
+        +getUserBehaviorSuggestions(musicId: number): Observable<UserBehaviorSuggestion[]>
+        +getGenreSimilaritySuggestions(musicId: number): Observable<SimilaritySuggestion[]>
+        +submitCategorizationFeedback(feedback: CategorizationFeedback): Observable<void>
+    }
+
+    class MusicAnalysisService {
+        +http: HttpClient
+        --
+        +extractMusicFeatures(musicId: number): Observable<MusicFeatures>
+        +analyzeAudioContent(audioUrl: string): Observable<AudioAnalysis>
+        +extractMetadataFeatures(music: Music): Observable<MetadataFeatures>
+        +getLyricsAnalysis(musicId: number): Observable<LyricsAnalysis>
+        +getTempoAndKeyAnalysis(musicId: number): Observable<TempoKeyAnalysis>
+    }
+}
+
+package "Backend Controllers" {
+    class AdminCategoryController {
+        +adminCategoryService: AdminCategoryService
+        +categoryValidationService: CategoryValidationService
+        --
+        +getMusicsForCategorization(pageable: Pageable, filters: CategoryFilterDto): ResponseEntity<Page<AdminMusicDto>>
+        +getAllCategories(): ResponseEntity<List<CategoryDto>>
+        +categorizeMusicAsAdmin(musicId: Long, request: CategorizationRequestDto): ResponseEntity<CategorizationResultDto>
+        +bulkCategorizeMusicsAsAdmin(request: BulkCategorizationRequestDto): ResponseEntity<BulkCategorizationResultDto>
+        +createCategory(request: CreateCategoryRequestDto): ResponseEntity<CategoryDto>
+        +updateCategory(categoryId: Long, request: UpdateCategoryRequestDto): ResponseEntity<CategoryDto>
+        +deleteCategory(categoryId: Long): ResponseEntity<Void>
+        +getSuggestedCategories(musicId: Long): ResponseEntity<List<SuggestedCategoryDto>>
+        +getMusicAnalysisForCategorization(musicId: Long): ResponseEntity<MusicAnalysisDto>
+    }
+
+    class CategorySuggestionController {
+        +categorySuggestionService: CategorySuggestionService
+        +mlCategoryService: MLCategoryService
+        --
+        +analyzeMusicForCategorization(musicId: Long): ResponseEntity<List<CategorySuggestionDto>>
+        +getMLCategorySuggestions(request: MusicFeaturesDto): ResponseEntity<List<MLCategorySuggestionDto>>
+        +submitCategorizationFeedback(feedback: CategorizationFeedbackDto): ResponseEntity<Void>
+        +retrainCategorizationModel(): ResponseEntity<ModelRetrainingStatusDto>
+    }
+}
+
+package "Backend Services" {
+    class AdminCategoryService {
+        +musicRepository: MusicRepository
+        +categoryRepository: CategoryRepository
+        +musicCategoryRepository: MusicCategoryRepository
+        +adminValidationService: AdminValidationService
+        +categorySuggestionService: CategorySuggestionService
+        +adminAuditService: AdminAuditService
+        --
+        +getMusicsForCategorization(pageable: Pageable, filters: CategoryFilterDto, adminId: Long): Page<AdminMusicDto>
+        +getAllCategories(): List<CategoryDto>
+        +categorizeMusicAsAdmin(musicId: Long, request: CategorizationRequestDto, adminId: Long): CategorizationResultDto
+        +bulkCategorizeMusicsAsAdmin(request: BulkCategorizationRequestDto, adminId: Long): BulkCategorizationResultDto
+        +createCategory(request: CreateCategoryRequestDto, adminId: Long): CategoryDto
+        +updateCategory(categoryId: Long, request: UpdateCategoryRequestDto, adminId: Long): CategoryDto
+        +deleteCategory(categoryId: Long, adminId: Long): void
+        +validateCategorizationRequest(request: CategorizationRequestDto): void
+        +buildCategorizationResult(music: Music, oldCategory: Category, newCategory: Category): CategorizationResultDto
+    }
+
+    class CategorySuggestionService {
+        +musicAnalysisService: MusicAnalysisService
+        +mlCategoryService: MLCategoryService
+        +userBehaviorService: UserBehaviorService
+        +categoryRepository: CategoryRepository
+        --
+        +analyzeMusicForCategorization(musicId: Long): List<CategorySuggestionDto>
+        +getMLBasedSuggestions(musicId: Long): List<MLCategorySuggestionDto>
+        +getUserBehaviorBasedSuggestions(musicId: Long): List<UserBehaviorSuggestionDto>
+        +getMetadataBasedSuggestions(musicId: Long): List<MetadataSuggestionDto>
+        +getGenreSimilaritySuggestions(musicId: Long): List<SimilaritySuggestionDto>
+        +combineAndRankSuggestions(suggestions: List<CategorySuggestion>): List<CategorySuggestionDto>
+        +submitCategorizationFeedback(feedback: CategorizationFeedbackDto): void
+    }
+
+    class MusicAnalysisService {
+        +audioAnalysisService: AudioAnalysisService
+        +metadataAnalysisService: MetadataAnalysisService
+        +lyricsAnalysisService: LyricsAnalysisService
+        --
+        +extractMusicFeatures(musicId: Long): MusicFeaturesDto
+        +analyzeAudioContent(audioUrl: String): AudioAnalysisDto
+        +extractMetadataFeatures(music: Music): MetadataFeaturesDto
+        +getLyricsAnalysis(musicId: Long): LyricsAnalysisDto
+        +getTempoAndKeyAnalysis(musicId: Long): TempoKeyAnalysisDto
+        +buildComprehensiveAnalysis(musicId: Long): MusicAnalysisDto
+    }
+
+    class MLCategoryService {
+        +musicFeaturesExtractor: MusicFeaturesExtractor
+        +categoryClassifier: CategoryClassifier
+        +modelTrainingService: ModelTrainingService
+        --
+        +predictCategories(musicFeatures: MusicFeatures): List<CategoryPrediction>
+        +getConfidenceScores(musicId: Long): Map<Category, Double>
+        +trainModel(trainingData: List<TrainingData>): ModelTrainingResult
+        +evaluateModel(): ModelEvaluationResult
+        +retrainWithNewData(newData: List<CategorizationFeedback>): void
+    }
+
+    class CategoryValidationService {
+        +categoryRepository: CategoryRepository
+        +musicRepository: MusicRepository
+        +adminValidationService: AdminValidationService
+        --
+        +validateCategoryExists(categoryId: Long): void
+        +validateMusicExists(musicId: Long): void
+        +validateAdminCanCategorizeMusic(musicId: Long, adminId: Long): void
+        +validateCategoryHierarchy(parentId: Long, childId: Long): void
+        +validateBulkCategorizationRequest(request: BulkCategorizationRequestDto): void
+        +checkCategoryCircularReference(categoryId: Long, parentId: Long): boolean
+    }
+
+    class AdminAuditService {
+        +adminAuditRepository: AdminAuditRepository
+        --
+        +logMusicCategorization(musicId: Long, adminId: Long, oldCategoryId: Long, newCategoryId: Long, reason: String): void
+        +logBulkCategorization(musicIds: List<Long>, adminId: Long, categoryId: Long, reason: String): void
+        +logCategoryCreation(categoryId: Long, adminId: Long, categoryData: CreateCategoryRequestDto): void
+        +logCategoryModification(categoryId: Long, adminId: Long, changes: Map<String, Object>): void
+        +logCategoryDeletion(categoryId: Long, adminId: Long, reason: String): void
+    }
+}
+
+package "Repository Layer" {
+    interface MusicRepository {
+        +findAllByDeletedFalse(pageable: Pageable): Page<Music>
+        +findByDeletedFalseAndCategoryId(categoryId: Long, pageable: Pageable): Page<Music>
+        +findByDeletedFalseAndCategoryIdIsNull(pageable: Pageable): Page<Music>
+        +findByDeletedFalseAndTitleContainingIgnoreCaseOrArtistContainingIgnoreCase(title: String, artist: String, pageable: Pageable): Page<Music>
+        +findByIdAndDeletedFalse(id: Long): Optional<Music>
+        +updateCategoryById(id: Long, categoryId: Long): int
+        +bulkUpdateCategory(musicIds: List<Long>, categoryId: Long): int
+        +countByCategoryId(categoryId: Long): long
+        +findMusicsByCategorizationStatus(status: String, pageable: Pageable): Page<Music>
+    }
+
+    interface CategoryRepository {
+        +findAll(): List<Category>
+        +findAllByActiveTrue(): List<Category>
+        +findById(id: Long): Optional<Category>
+        +findByParentId(parentId: Long): List<Category>
+        +findRootCategories(): List<Category>
+        +findByNameIgnoreCase(name: String): Optional<Category>
+        +countByParentId(parentId: Long): long
+        +existsByParentId(parentId: Long): boolean
+        +findCategoryHierarchy(): List<CategoryNode>
+        +save(category: Category): Category
+        +deleteById(id: Long): void
+    }
+
+    interface MusicCategoryRepository {
+        +findByMusicId(musicId: Long): Optional<MusicCategory>
+        +findByCategoryId(categoryId: Long): List<MusicCategory>
+        +deleteByMusicId(musicId: Long): void
+        +deleteByCategoryId(categoryId: Long): void
+        +save(musicCategory: MusicCategory): MusicCategory
+        +bulkInsert(musicCategories: List<MusicCategory>): void
+    }
+
+    interface AdminAuditRepository {
+        +save(auditLog: AdminAuditLog): AdminAuditLog
+        +findByAdminIdAndActionType(adminId: Long, actionType: String, pageable: Pageable): Page<AdminAuditLog>
+        +findByResourceTypeAndResourceId(resourceType: String, resourceId: Long): List<AdminAuditLog>
+    }
+}
+
+package "Domain Models" {
+    class Music {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +audioFileUrl: String
+        +coverImageUrl: String
+        +categoryId: Long
+        +category: Category
+        +uploadedBy: Long
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +deleted: Boolean
+        +playCount: Long
+        +likeCount: Long
+        +genres: List<String>
+        +tags: List<String>
+        +mood: String
+        +energy: String
+        +tempo: Integer
+        +key: String
+        --
+        +isUncategorized(): boolean
+        +getCategoryPath(): String
+        +getAnalysisFeatures(): MusicFeatures
+    }
+
+    class Category {
+        +id: Long
+        +name: String
+        +description: String
+        +parentId: Long
+        +parent: Category
+        +children: List<Category>
+        +level: Integer
+        +iconUrl: String
+        +colorCode: String
+        +active: Boolean
+        +musicCount: Long
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +createdBy: Long
+        --
+        +isRootCategory(): boolean
+        +hasChildren(): boolean
+        +getFullPath(): String
+        +canBeDeleted(): boolean
+    }
+
+    class MusicCategory {
+        +id: Long
+        +musicId: Long
+        +music: Music
+        +categoryId: Long
+        +category: Category
+        +categorizedBy: Long
+        +categorizedAt: LocalDateTime
+        +confidence: Double
+        +source: String
+        +reason: String
+        --
+        +isManualCategorization(): boolean
+        +isAICategorization(): boolean
+    }
+
+    class CategorySuggestion {
+        +categoryId: Long
+        +category: Category
+        +confidence: Double
+        +source: String
+        +reasoning: String
+        +features: Map<String, Object>
+        --
+        +isHighConfidence(): boolean
+        +getConfidenceLevel(): String
+    }
+
+    class AdminAuditLog {
+        +id: Long
+        +adminId: Long
+        +actionType: String
+        +resourceType: String
+        +resourceId: Long
+        +actionDetails: String
+        +ipAddress: String
+        +userAgent: String
+        +createdAt: LocalDateTime
+        --
+        +getActionDescription(): String
+    }
+}
+
+package "DTOs" {
+    class CategorizationRequestDto {
+        +musicId: Long
+        +categoryId: Long
+        +reason: String
+        +confidence: Double
+        +source: String
+    }
+
+    class BulkCategorizationRequestDto {
+        +musicIds: List<Long>
+        +categoryId: Long
+        +reason: String
+        +overrideExisting: Boolean
+    }
+
+    class CategorizationResultDto {
+        +musicId: Long
+        +musicTitle: String
+        +oldCategoryId: Long
+        +oldCategoryName: String
+        +newCategoryId: Long
+        +newCategoryName: String
+        +categorizedAt: LocalDateTime
+        +categorizedBy: Long
+        +success: Boolean
+        +message: String
+    }
+
+    class BulkCategorizationResultDto {
+        +totalCount: Integer
+        +successCount: Integer
+        +failedCount: Integer
+        +results: List<CategorizationResultDto>
+        +failedMusicIds: List<Long>
+        +processingTimeMs: Long
+    }
+
+    class CategorySuggestionDto {
+        +categoryId: Long
+        +categoryName: String
+        +confidence: Double
+        +source: String
+        +reasoning: String
+        +features: Map<String, Object>
+    }
+
+    class MusicAnalysisDto {
+        +musicId: Long
+        +audioFeatures: AudioFeaturesDto
+        +metadataFeatures: MetadataFeaturesDto
+        +lyricsFeatures: LyricsFeaturesDto
+        +suggestedCategories: List<CategorySuggestionDto>
+        +analysisTimestamp: LocalDateTime
+    }
+
+    class CreateCategoryRequestDto {
+        +name: String
+        +description: String
+        +parentId: Long
+        +iconUrl: String
+        +colorCode: String
+    }
+}
+
+' Relationships
+AdminMusicCategoryComponent --> MusicCategoryModalComponent
+AdminMusicCategoryComponent --> BulkCategorizationModalComponent
+AdminMusicCategoryComponent --> CategoryFilterComponent
+AdminMusicCategoryComponent --> MusicCategoryCardComponent
+AdminMusicCategoryComponent --> AdminCategoryService
+
+MusicCategoryModalComponent --> CategorySuggestionComponent
+MusicCategoryModalComponent --> AdminCategoryService
+MusicCategoryModalComponent --> CategorySuggestionService
+
+BulkCategorizationModalComponent --> AdminCategoryService
+
+CategorySuggestionComponent --> CategorySuggestionService
+CategorySuggestionComponent --> MusicAnalysisService
+
+CategoryManagementComponent --> AdminCategoryService
+
+AdminCategoryService --> AdminCategoryController
+CategorySuggestionService --> CategorySuggestionController
+
+AdminCategoryController --> AdminCategoryService
+CategorySuggestionController --> CategorySuggestionService
+CategorySuggestionController --> MLCategoryService
+
+AdminCategoryService --> MusicRepository
+AdminCategoryService --> CategoryRepository
+AdminCategoryService --> MusicCategoryRepository
+AdminCategoryService --> CategoryValidationService
+AdminCategoryService --> CategorySuggestionService
+AdminCategoryService --> AdminAuditService
+
+CategorySuggestionService --> MusicAnalysisService
+CategorySuggestionService --> MLCategoryService
+CategorySuggestionService --> CategoryRepository
+
+MusicAnalysisService --> MusicRepository
+
+CategoryValidationService --> CategoryRepository
+CategoryValidationService --> MusicRepository
+
+AdminAuditService --> AdminAuditRepository
+
+MusicRepository --> Music
+CategoryRepository --> Category
+MusicCategoryRepository --> MusicCategory
+AdminAuditRepository --> AdminAuditLog
+
+Music --> Category
+MusicCategory --> Music
+MusicCategory --> Category
+Category --> Category : parent/children
+
+@enduml

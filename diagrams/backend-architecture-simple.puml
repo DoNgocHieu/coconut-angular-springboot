@@ -1,0 +1,73 @@
+@startuml Coconut_Music_Backend_Architecture
+!theme aws-orange
+title Coconut Music - Kiến trúc mã nguồn Back-end
+
+skinparam rectangle {
+    BackgroundColor White
+    BorderColor Black
+    FontSize 14
+    FontName Arial
+}
+
+skinparam database {
+    BackgroundColor LightGreen
+    BorderColor DarkGreen
+    FontSize 12
+}
+
+skinparam arrow {
+    Color Black
+    FontSize 12
+    FontStyle bold
+}
+
+' Angular Frontend
+rectangle "Angular" as angular #FF6B6B {
+    **Frontend**
+    • Components
+    • Services
+    • HTTP Client
+}
+
+' Nginx
+rectangle "NGINX" as nginx #4ECDC4 {
+    **Reverse Proxy**
+    • Static Files
+    • API Gateway
+}
+
+' Spring Boot với architecture layers
+rectangle "Spring Boot" as springboot #45B7D1 {
+    rectangle "Controller" as controller #FFE66D
+    rectangle "Service" as service #FF9FF3
+    rectangle "Repository" as repository #95E1D3
+}
+
+' Database
+database "MySQL\nServer" as mysql #6BCF7F
+
+' Connections
+angular -right-> nginx : "HTTP"
+nginx -down-> springboot : "Chuyển tiếp API Request"
+controller -down-> service
+service -down-> repository
+repository -right-> mysql : "JDBC/Hibernate"
+
+' Labels on connections
+note on link #1 : "Static Files +\nAPI Requests"
+note on link #2 : "RESTful API\nEndpoints"
+note on link #4 : "SQL Queries\nData Persistence"
+
+' Architecture description
+note bottom of springboot : "**Kiến trúc phân lớp MVC**\n• Controller: REST endpoints\n• Service: Business logic\n• Repository: Data access"
+
+note right of mysql : "**Database Features**\n• 10 Tables\n• 15 Foreign Keys\n• 6 Unique Constraints\n• InnoDB Engine"
+
+' Additional components
+rectangle "Firebase\nStorage" as firebase #FF8A80
+springboot -.-> firebase : "File Storage"
+angular -.-> firebase : "Media Streaming"
+
+note bottom of firebase : "**Media Files**\n• Audio files (.mp3)\n• Images (.jpg, .png)\n• CDN Distribution"
+
+@enduml

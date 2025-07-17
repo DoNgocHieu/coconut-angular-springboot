@@ -1,0 +1,25 @@
+@startuml test-syntax
+!theme plain
+
+actor Admin
+participant Service
+
+== Test ==
+Admin -> Service: test
+loop test
+    Service -> Service: action
+end
+
+alt test
+    Service -> Service: action1
+else test2
+    Service -> Service: action2
+end
+
+par test
+    Service -> Service: action1
+else
+    Service -> Service: action2
+end
+
+@enduml

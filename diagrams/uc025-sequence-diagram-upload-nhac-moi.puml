@@ -1,0 +1,154 @@
+@startuml UC025-Sequence-Diagram-Upload-Nhac-Moi
+!theme plain
+
+title Biểu đồ trình tự - UC025: Upload nhạc mới (Admin)
+
+actor Admin
+participant "AdminMusicUI" as UI
+participant "AdminMusicController" as Controller
+participant "AdminMusicService" as AdminService
+participant "MusicFileProcessor" as FileProcessor
+participant "FileStorageService" as FileService
+participant "MusicRepository" as MusicRepo
+participant "CategoryRepository" as CategoryRepo
+participant "ArtistRepository" as ArtistRepo
+database "Database" as DB
+participant "FileSystem" as FS
+
+Admin -> UI: Access admin music upload page
+activate UI
+
+UI -> UI: showUploadForm()
+Admin -> UI: Fill music info and select files
+UI -> UI: validateForm(musicData, audioFile, imageFile)
+
+alt Client validation failed
+    UI --> Admin: Show validation errors
+else Client validation passed
+    UI -> UI: showUploadProgress()
+    UI -> Controller: POST /api/admin/music/upload (multipart form data)
+    activate Controller
+
+    Controller -> Controller: validateAdminPermission(currentUser)
+    Controller -> AdminService: uploadMusic(musicCreateRequest)
+    activate AdminService
+
+    ' Validate audio file
+    AdminService -> FileProcessor: validateAudioFile(audioFile)
+    activate FileProcessor
+
+    alt Invalid audio format
+        FileProcessor --> AdminService: InvalidFileException
+        AdminService --> Controller: BadRequestException("Invalid audio file format")
+        Controller --> UI: 400 Bad Request
+        UI --> Admin: "File âm thanh không hợp lệ"
+    else Valid audio format
+        FileProcessor -> FileProcessor: checkFileSize(audioFile)
+
+        alt File too large (> 50MB)
+            FileProcessor --> AdminService: FileSizeException
+            AdminService --> Controller: BadRequestException("File size exceeds limit")
+            Controller --> UI: 400 Bad Request
+            UI --> Admin: "File quá lớn (tối đa 50MB)"
+        else File size acceptable
+            ' Extract metadata
+            FileProcessor -> FileProcessor: extractMetadata(audioFile)
+            FileProcessor --> AdminService: MusicMetadata
+            deactivate FileProcessor
+
+            ' Validate category
+            AdminService -> CategoryRepo: findById(categoryId)
+            activate CategoryRepo
+            CategoryRepo -> DB: SELECT * FROM categories WHERE id = ?
+            DB --> CategoryRepo: Optional<Category>
+            CategoryRepo --> AdminService: category
+            deactivate CategoryRepo
+
+            alt Category not found
+                AdminService --> Controller: ResourceNotFoundException("Category not found")
+                Controller --> UI: 404 Not Found
+                UI --> Admin: "Thể loại không tồn tại"
+            else Category valid
+                ' Process artist
+                AdminService -> ArtistRepo: findByName(artistName)
+                activate ArtistRepo
+                ArtistRepo -> DB: SELECT * FROM artists WHERE name = ?
+                DB --> ArtistRepo: Optional<Artist>
+                ArtistRepo --> AdminService: Optional<Artist>
+                deactivate ArtistRepo
+
+                alt Artist not exists
+                    AdminService -> AdminService: createNewArtist(artistName)
+                    AdminService -> ArtistRepo: save(newArtist)
+                    activate ArtistRepo
+                    ArtistRepo -> DB: INSERT INTO artists (name, created_at)
+                    DB --> ArtistRepo: savedArtist
+                    ArtistRepo --> AdminService: artist
+                    deactivate ArtistRepo
+                end
+
+                ' Store audio file
+                AdminService -> FileService: storeMusicFile(audioFile)
+                activate FileService
+                FileService -> FileService: generateUniqueFileName(audioFile.originalName)
+                FileService -> FS: saveFile(audioFile, filePath)
+                activate FS
+                FS --> FileService: success
+                deactivate FS
+                FileService --> AdminService: audioFilePath
+                deactivate FileService
+
+                ' Store image file (if provided)
+                alt Image file provided
+                    AdminService -> FileService: storeImageFile(imageFile)
+                    activate FileService
+                    FileService -> FS: saveFile(imageFile, imagePath)
+                    activate FS
+                    FS --> FileService: success
+                    deactivate FS
+                    FileService --> AdminService: imageFilePath
+                    deactivate FileService
+                end
+
+                ' Create music entity
+                AdminService -> AdminService: createMusicEntity(request, metadata, filePaths)
+
+                ' Save to database
+                AdminService -> MusicRepo: save(music)
+                activate MusicRepo
+                MusicRepo -> DB: INSERT INTO music (title, artist, file_path, category_id, ...)
+                DB --> MusicRepo: savedMusic
+                MusicRepo --> AdminService: savedMusic
+                deactivate MusicRepo
+
+                ' Generate additional processing (async)
+                AdminService -> AdminService: schedulePostProcessing(musicId)
+
+                AdminService --> Controller: MusicDto
+                deactivate AdminService
+
+                Controller --> UI: 201 Created + MusicDto
+                deactivate Controller
+
+                UI -> UI: hideUploadProgress()
+                UI -> UI: showSuccessMessage("Nhạc đã được upload thành công")
+                UI -> UI: addMusicToList(newMusic)
+                UI --> Admin: "Upload thành công: '{musicTitle}'"
+                deactivate UI
+            end
+        end
+    end
+end
+
+== Post-processing (Async) ==
+
+note over AdminService
+  Background processing:
+  1. Generate waveform visualization
+  2. Create multiple quality versions
+  3. Update search index
+  4. Generate thumbnail from audio
+  5. Virus scan validation
+end note
+
+@enduml

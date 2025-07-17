@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="vi">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Use Case Diagram - Coconut Music</title>
+		<style>
+			body {
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+				margin: 0;
+				padding: 20px;
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				min-height: 100vh;
+			}
+
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				background: white;
+				border-radius: 15px;
+				box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+				padding: 30px;
+			}
+
+			.title {
+				text-align: center;
+				color: #333;
+				margin-bottom: 30px;
+				font-size: 28px;
+				font-weight: bold;
+			}
+
+			.diagram-container {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				gap: 30px;
+			}
+
+			.actor {
+				text-align: center;
+				padding: 20px;
+				border-radius: 15px;
+				box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+				min-width: 150px;
+			}
+
+			.user-actor {
+				background: linear-gradient(135deg, #667eea, #764ba2);
+				color: white;
+			}
+
+			.admin-actor {
+				background: linear-gradient(135deg, #f093fb, #f5576c);
+				color: white;
+			}
+
+			.actor-icon {
+				font-size: 48px;
+				margin-bottom: 10px;
+			}
+
+			.actor-name {
+				font-size: 18px;
+				font-weight: bold;
+				margin-bottom: 5px;
+			}
+
+			.actor-desc {
+				font-size: 12px;
+				opacity: 0.9;
+			}
+
+			.use-cases {
+				flex: 1;
+				padding: 20px;
+			}
+
+			.use-case-group {
+				margin-bottom: 25px;
+			}
+
+			.group-title {
+				font-size: 18px;
+				font-weight: bold;
+				color: #333;
+				margin-bottom: 15px;
+				padding-bottom: 5px;
+				border-bottom: 2px solid #eee;
+			}
+
+			.use-case {
+				background: #f8f9fa;
+				border: 2px solid #e9ecef;
+				border-radius: 25px;
+				padding: 10px 20px;
+				margin: 8px 0;
+				display: inline-block;
+				margin-right: 10px;
+				transition: all 0.3s ease;
+				cursor: pointer;
+			}
+
+			.use-case:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+				border-color: #667eea;
+			}
+
+			.user-case {
+				background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+				border-color: #2196f3;
+			}
+
+			.admin-case {
+				background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+				border-color: #ff9800;
+			}
+
+			.system-case {
+				background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+				border-color: #9c27b0;
+			}
+
+			.connections {
+				margin-top: 30px;
+				padding: 20px;
+				background: #f8f9fa;
+				border-radius: 10px;
+			}
+
+			.connection-title {
+				font-weight: bold;
+				color: #333;
+				margin-bottom: 10px;
+			}
+
+			.connection-line {
+				margin: 5px 0;
+				padding: 5px 10px;
+				border-left: 3px solid #667eea;
+				background: white;
+				border-radius: 5px;
+			}
+
+			@media (max-width: 768px) {
+				.diagram-container {
+					flex-direction: column;
+				}
+
+				.actor {
+					margin-bottom: 20px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1 class="title">
+				🎵 Use Case Diagram - Hệ thống Coconut Music 🎵
+			</h1>
+
+			<div class="diagram-container">
+				<!-- User Actor -->
+				<div class="actor user-actor">
+					<div class="actor-icon">👤</div>
+					<div class="actor-name">User</div>
+					<div class="actor-desc">Người dùng</div>
+				</div>
+
+				<!-- Use Cases -->
+				<div class="use-cases">
+					<!-- Authentication -->
+					<div class="use-case-group">
+						<div class="group-title">🔐 Authentication</div>
+						<div class="use-case user-case">Đăng ký</div>
+						<div class="use-case user-case">Đăng nhập</div>
+						<div class="use-case user-case">Đăng xuất</div>
+					</div>
+
+					<!-- Music Functions -->
+					<div class="use-case-group">
+						<div class="group-title">🎶 Chức năng nhạc</div>
+						<div class="use-case user-case">Nghe nhạc</div>
+						<div class="use-case user-case">Tìm kiếm bài hát</div>
+						<div class="use-case user-case">Tạo playlist</div>
+						<div class="use-case user-case">Quản lý playlist</div>
+						<div class="use-case user-case">Thêm yêu thích</div>
+						<div class="use-case user-case">Xem lịch sử</div>
+						<div class="use-case user-case">Cập nhật profile</div>
+					</div>
+
+					<!-- Admin Functions -->
+					<div class="use-case-group">
+						<div class="group-title">⚙️ Chức năng quản trị</div>
+						<div class="use-case admin-case">Quản lý nhạc</div>
+						<div class="use-case admin-case">Upload nhạc</div>
+						<div class="use-case admin-case">Xóa nhạc</div>
+						<div class="use-case admin-case">
+							Quản lý người dùng
+						</div>
+						<div class="use-case admin-case">Xem thống kê</div>
+						<div class="use-case admin-case">Quản lý thể loại</div>
+						<div class="use-case admin-case">Quản lý nghệ sĩ</div>
+						<div class="use-case admin-case">Phân quyền</div>
+					</div>
+
+					<!-- System Functions -->
+					<div class="use-case-group">
+						<div class="group-title">🔧 Chức năng hệ thống</div>
+						<div class="use-case system-case">
+							Xác thực đăng nhập
+						</div>
+						<div class="use-case system-case">
+							Gửi email xác thực
+						</div>
+						<div class="use-case system-case">Lưu lịch sử nghe</div>
+					</div>
+				</div>
+
+				<!-- Admin Actor -->
+				<div class="actor admin-actor">
+					<div class="actor-icon">👑</div>
+					<div class="actor-name">Admin</div>
+					<div class="actor-desc">Quản trị viên</div>
+				</div>
+			</div>
+
+			<!-- Connections -->
+			<div class="connections">
+				<div class="connection-title">
+					🔗 Mối quan hệ trong hệ thống:
+				</div>
+				<div class="connection-line">
+					👤 User có thể thực hiện tất cả chức năng cơ bản (xanh
+					dương)
+				</div>
+				<div class="connection-line">
+					👑 Admin kế thừa tất cả quyền của User + thêm quyền quản trị
+					(cam)
+				</div>
+				<div class="connection-line">
+					🔧 Hệ thống tự động thực hiện các chức năng hỗ trợ (tím)
+				</div>
+				<div class="connection-line">
+					📝 Include: Đăng nhập → Xác thực, Đăng ký → Gửi email
+				</div>
+				<div class="connection-line">
+					📝 Extend: Upload/Xóa nhạc → Quản lý nhạc
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// Add interactive hover effects
+			document.querySelectorAll('.use-case').forEach((useCase) => {
+				useCase.addEventListener('mouseenter', function () {
+					this.style.transform = 'scale(1.05) translateY(-2px)';
+				});
+
+				useCase.addEventListener('mouseleave', function () {
+					this.style.transform = 'scale(1) translateY(0)';
+				});
+			});
+		</script>
+	</body>
+</html>

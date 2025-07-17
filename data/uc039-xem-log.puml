@@ -1,0 +1,9 @@
+@startuml UC039-Xem-Log
+!theme plain
+
+actor Admin
+usecase "Xem log hệ thống" as UC039
+
+Admin --> UC039
+
+@enduml

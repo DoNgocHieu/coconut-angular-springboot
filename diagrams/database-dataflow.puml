@@ -1,0 +1,115 @@
+@startuml Coconut_Music_Data_Flow
+!theme aws-orange
+title Coconut Music Platform - Data Flow & Business Logic Diagram
+
+!define ENTITY(name,desc,color) rectangle name as "desc" <<color>>
+!define FLOW(from,to,desc) from --> to : desc
+
+' Define main entities with business context
+ENTITY(User, "👤 USER\n・Login/Register\n・Profile Management\n・Role: Admin/Regular", LightBlue)
+
+ENTITY(Music, "🎵 MUSIC\n・Audio Content\n・Metadata\n・Play Tracking\n・Like System", LightGreen)
+
+ENTITY(Artist, "🎤 ARTIST\n・Creator Profile\n・Biography\n・Music Portfolio", LightCyan)
+
+ENTITY(Category, "📂 CATEGORY\n・Genre Classification\n・Music Organization\n・Filtering System", LightYellow)
+
+ENTITY(Playlist, "🎧 PLAYLIST\n・User Collections\n・Public/Private\n・Music Ordering", LightPink)
+
+ENTITY(Interaction, "💫 USER INTERACTIONS\n・Favorites\n・History\n・Playlist Management", Orange)
+
+ENTITY(Admin, "⚙️ ADMIN FUNCTIONS\n・Content Management\n・User Management\n・System Analytics", Red)
+
+ENTITY(Banner, "🎪 MARKETING\n・Promotional Content\n・App Banners\n・Navigation Links", Purple)
+
+' Data flows
+FLOW(User, Music, "Upload/Stream")
+FLOW(User, Playlist, "Create/Manage")
+FLOW(User, Interaction, "Like/Play/Favorite")
+FLOW(User, Admin, "Admin Actions")
+
+FLOW(Artist, Music, "Create Content")
+FLOW(Category, Music, "Classify/Organize")
+
+FLOW(Music, Playlist, "Add to Collection")
+FLOW(Music, Interaction, "Track Engagement")
+
+FLOW(Playlist, Interaction, "User Favorites")
+
+FLOW(Admin, Music, "Content Moderation")
+FLOW(Admin, Artist, "Artist Management")
+FLOW(Admin, Category, "Category Management")
+FLOW(Admin, User, "User Management")
+FLOW(Admin, Banner, "Marketing Management")
+
+' Business logic notes
+note top of User : "**👤 USER BUSINESS LOGIC**\n\
+• Registration with email verification\n\
+• Password reset functionality\n\
+• Admin privileges for content management\n\
+• Profile customization with avatars\n\
+• Social features (favorites, playlists)"
+
+note top of Music : "**🎵 MUSIC BUSINESS LOGIC**\n\
+• 5 content types: NEW_MUSIC, TRENDING,\n  TOP_VIEW, VN_LOFI, FAVORITE\n\
+• Play count tracking for analytics\n\
+• Like system for user engagement\n\
+• File storage on Firebase\n\
+• Duration tracking for streaming"
+
+note right of Interaction : "**💫 INTERACTION PATTERNS**\n\
+• **Favorites**: User ↔ Music (unique pairs)\n\
+• **History**: Complete play tracking\n\
+• **Playlist Favorites**: User ↔ Playlist\n\
+• **Playlist Content**: Ordered music lists\n\
+• **Social Sharing**: Public playlist discovery"
+
+note bottom of Admin : "**⚙️ ADMIN CAPABILITIES**\n\
+• User role management\n\
+• Content approval/moderation\n\
+• Analytics dashboard\n\
+• Artist profile management\n\
+• Category organization\n\
+• Banner/marketing control"
+
+' Data integrity constraints
+package "🔒 DATA INTEGRITY" {
+    rectangle "UNIQUE CONSTRAINTS" as UC #LightGray
+    note top of UC : "- User email & username\n- Category names\n- User-Music favorites (no duplicates)\n- User-Playlist favorites (no duplicates)\n- Playlist-Music pairs (no duplicates)"
+
+    rectangle "FOREIGN KEY CONSTRAINTS" as FK #LightGray
+    note top of FK : "- Music → Artist (required)\n- Music → Category (required)\n- Music → User (uploader)\n- Playlist → User (owner)\n- All junction tables → parent entities"
+
+    rectangle "BUSINESS RULES" as BR #LightGray
+    note top of BR : "- Only verified users can upload\n- Admin users have full access\n- Public playlists are discoverable\n- Play history is permanent\n- Soft delete for user content"
+}
+
+' System analytics
+package "📊 SYSTEM ANALYTICS" {
+    rectangle "TRACKING METRICS" as TM #LightSalmon
+    note top of TM : "- Music play counts\n- User engagement rates\n- Popular artists & categories\n- Playlist creation trends\n- User retention metrics"
+
+    rectangle "CONTENT INSIGHTS" as CI #LightSalmon
+    note top of CI : "- Most played songs\n- Trending categories\n- User favorite patterns\n- Playlist popularity\n- Upload frequency"
+}
+
+' Connect analytics to entities
+Music --> TM
+User --> TM
+Playlist --> CI
+Artist --> CI
+Category --> CI
+
+' Legend for data flow
+legend bottom right
+    |= Symbol |= Meaning |
+    | → | Data Flow Direction |
+    | 👤 | User-related Entity |
+    | 🎵 | Content Entity |
+    | 💫 | Interaction Entity |
+    | ⚙️ | Admin Function |
+    | 🔒 | Data Constraint |
+    | 📊 | Analytics |
+endlegend
+
+@enduml

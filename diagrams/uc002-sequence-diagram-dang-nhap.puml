@@ -1,0 +1,96 @@
+@startuml UC002-Sequence-Diagram-Dang-Nhap
+!theme plain
+
+title Biểu đồ trình tự - UC002: Đăng nhập
+
+actor User
+participant "LoginUI" as UI
+participant "LoginController" as Controller
+participant "AuthService" as AuthService
+participant "UserRepository" as UserRepo
+participant "JwtTokenProvider" as JwtProvider
+participant "PasswordEncoder" as PasswordEncoder
+database "Database" as DB
+
+User -> UI: Nhập username/email và password
+activate UI
+
+UI -> UI: Validate form
+UI -> Controller: POST /api/auth/login(LoginRequest)
+activate Controller
+
+Controller -> AuthService: authenticate(LoginRequest)
+activate AuthService
+
+' Validate input
+AuthService -> AuthService: validateInput(request)
+
+alt Input không hợp lệ
+    AuthService --> Controller: BadRequestException("Invalid input")
+    Controller --> UI: 400 Bad Request
+    UI --> User: "Vui lòng điền đầy đủ thông tin"
+else Input hợp lệ
+    ' Find user
+    AuthService -> UserRepo: findByUsernameOrEmail(usernameOrEmail)
+    activate UserRepo
+    UserRepo -> DB: SELECT * FROM users WHERE username = ? OR email = ?
+    DB --> UserRepo: User result
+    UserRepo --> AuthService: Optional<User>
+    deactivate UserRepo
+
+    alt User không tồn tại
+        AuthService --> Controller: BadRequestException("Invalid credentials")
+        Controller --> UI: 400 Bad Request
+        UI --> User: "Tài khoản hoặc mật khẩu không đúng"
+    else User tồn tại
+        ' Check password
+        AuthService -> PasswordEncoder: matches(rawPassword, encodedPassword)
+        activate PasswordEncoder
+        PasswordEncoder --> AuthService: boolean result
+        deactivate PasswordEncoder
+
+        alt Password không đúng
+            AuthService --> Controller: BadRequestException("Invalid credentials")
+            Controller --> UI: 400 Bad Request
+            UI --> User: "Tài khoản hoặc mật khẩu không đúng"
+        else Password đúng
+            ' Check if user is enabled
+            AuthService -> AuthService: checkUserStatus(user)
+
+            alt User bị khóa
+                AuthService --> Controller: BadRequestException("Account disabled")
+                Controller --> UI: 400 Bad Request
+                UI --> User: "Tài khoản đã bị khóa"
+            else User hoạt động bình thường
+                ' Generate JWT token
+                AuthService -> JwtProvider: generateToken(username)
+                activate JwtProvider
+                JwtProvider -> JwtProvider: createJwtToken(username, roles)
+                JwtProvider --> AuthService: JWT token
+                deactivate JwtProvider
+
+                ' Get expiration time
+                AuthService -> JwtProvider: getExpirationTime()
+                activate JwtProvider
+                JwtProvider --> AuthService: expirationTime
+                deactivate JwtProvider
+
+                ' Create response
+                AuthService -> AuthService: createAuthResponse(token, user, expirationTime)
+                AuthService --> Controller: AuthResponse
+                deactivate AuthService
+
+                Controller --> UI: 200 OK + AuthResponse
+                deactivate Controller
+
+                UI -> UI: storeToken(token)
+                UI -> UI: storeUserInfo(user)
+                UI --> User: "Đăng nhập thành công"
+                UI -> UI: redirect to homepage
+                deactivate UI
+            end
+        end
+    end
+end
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC002-Dang-Nhap
+!theme plain
+
+actor User
+usecase "Đăng nhập" as UC002
+
+User --> UC002
+
+@enduml

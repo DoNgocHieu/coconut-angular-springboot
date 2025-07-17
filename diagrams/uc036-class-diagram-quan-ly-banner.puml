@@ -1,0 +1,315 @@
+@startuml UC036-Class-Diagram-Quan-Ly-Banner
+!theme plain
+
+title Biểu đồ lớp - UC036: Quản lý banner/quảng cáo (Admin)
+
+class AdminBannerController {
+    + getAllBanners(page: int, size: int, status: String): ResponseEntity<Page<BannerDto>>
+    + getBannerById(id: Long): ResponseEntity<BannerDto>
+    + createBanner(request: CreateBannerRequest): ResponseEntity<BannerDto>
+    + updateBanner(id: Long, request: UpdateBannerRequest): ResponseEntity<BannerDto>
+    + deleteBanner(id: Long): ResponseEntity<ApiResponse>
+    + uploadBannerImage(id: Long, file: MultipartFile): ResponseEntity<ApiResponse>
+    + deleteBannerImage(id: Long): ResponseEntity<ApiResponse>
+    + toggleBannerStatus(id: Long): ResponseEntity<ApiResponse>
+    + reorderBanners(request: ReorderBannersRequest): ResponseEntity<ApiResponse>
+    + getBannerStatistics(): ResponseEntity<BannerStatsDto>
+    + previewBanner(id: Long): ResponseEntity<BannerPreviewDto>
+}
+
+class AdminBannerService {
+    + getAllBanners(pageable: Pageable, status: BannerStatus): Page<Banner>
+    + getBannerById(id: Long): Banner
+    + createBanner(request: CreateBannerRequest): Banner
+    + updateBanner(id: Long, request: UpdateBannerRequest): Banner
+    + deleteBanner(id: Long): void
+    + uploadBannerImage(id: Long, file: MultipartFile): String
+    + deleteBannerImage(id: Long): void
+    + toggleBannerStatus(id: Long): boolean
+    + reorderBanners(orderMappings: Map<Long, Integer>): void
+    + getBannerStatistics(): BannerStatsDto
+    + validateBannerDeletion(id: Long): void
+    + getActiveBannersForDisplay(): List<Banner>
+    + trackBannerView(bannerId: Long): void
+    + trackBannerClick(bannerId: Long): void
+}
+
+class Banner {
+    - Long id
+    - String title
+    - String description
+    - String imageUrl
+    - String linkUrl
+    - BannerType type
+    - BannerStatus status
+    - int displayOrder
+    - LocalDateTime startDate
+    - LocalDateTime endDate
+    - boolean isActive
+    - int viewCount
+    - int clickCount
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - User createdBy
+    - User updatedBy
+    + getId(): Long
+    + getTitle(): String
+    + getImageUrl(): String
+    + getLinkUrl(): String
+    + getType(): BannerType
+    + getStatus(): BannerStatus
+    + isCurrentlyActive(): boolean
+}
+
+enum BannerType {
+    HOMEPAGE_SLIDER
+    SIDEBAR_AD
+    CATEGORY_BANNER
+    PROMOTION_POPUP
+    FOOTER_AD
+    MOBILE_BANNER
+}
+
+enum BannerStatus {
+    DRAFT
+    SCHEDULED
+    ACTIVE
+    PAUSED
+    EXPIRED
+    DELETED
+}
+
+class BannerRepository {
+    + save(banner: Banner): Banner
+    + saveAll(banners: List<Banner>): List<Banner>
+    + findById(id: Long): Optional<Banner>
+    + findAll(pageable: Pageable): Page<Banner>
+    + findByStatus(status: BannerStatus, pageable: Pageable): Page<Banner>
+    + findByTypeAndStatusOrderByDisplayOrderAsc(type: BannerType, status: BannerStatus): List<Banner>
+    + findByIsActiveTrueAndStartDateBeforeAndEndDateAfterOrderByDisplayOrderAsc(start: LocalDateTime, end: LocalDateTime): List<Banner>
+    + findMaxDisplayOrderByType(type: BannerType): Optional<Integer>
+    + countByStatus(status: BannerStatus): Long
+    + countByType(type: BannerType): Long
+    + deleteById(id: Long): void
+    + findByCreatedByOrderByCreatedAtDesc(user: User): List<Banner>
+}
+
+class BannerViewRepository {
+    + save(bannerView: BannerView): BannerView
+    + countByBannerIdAndViewDateBetween(bannerId: Long, start: LocalDateTime, end: LocalDateTime): Long
+    + findViewStatsByBannerId(bannerId: Long): List<Object[]>
+}
+
+class BannerClickRepository {
+    + save(bannerClick: BannerClick): BannerClick
+    + countByBannerIdAndClickDateBetween(bannerId: Long, start: LocalDateTime, end: LocalDateTime): Long
+    + findClickStatsByBannerId(bannerId: Long): List<Object[]>
+}
+
+class BannerView {
+    - Long id
+    - Banner banner
+    - String userIp
+    - String userAgent
+    - LocalDateTime viewDate
+    - String referrer
+    + getId(): Long
+    + getBanner(): Banner
+    + getViewDate(): LocalDateTime
+}
+
+class BannerClick {
+    - Long id
+    - Banner banner
+    - String userIp
+    - String userAgent
+    - LocalDateTime clickDate
+    - String referrer
+    + getId(): Long
+    + getBanner(): Banner
+    + getClickDate(): LocalDateTime
+}
+
+class FileStorageService {
+    + storeBannerImage(file: MultipartFile, bannerId: Long): String
+    + deleteBannerImage(fileName: String): void
+    + validateBannerImageFile(file: MultipartFile): void
+    + resizeBannerImage(file: MultipartFile, type: BannerType): byte[]
+    + generateBannerImageUrl(fileName: String): String
+}
+
+class BannerSchedulerService {
+    + scheduleActivation(banner: Banner): void
+    + scheduleDeactivation(banner: Banner): void
+    + cancelScheduledTasks(bannerId: Long): void
+    + processExpiredBanners(): void
+    + activateScheduledBanners(): void
+}
+
+class CreateBannerRequest {
+    + String title
+    + String description
+    + String linkUrl
+    + BannerType type
+    + LocalDateTime startDate
+    + LocalDateTime endDate
+    + int displayOrder
+}
+
+class UpdateBannerRequest {
+    + String title
+    + String description
+    + String linkUrl
+    + BannerType type
+    + BannerStatus status
+    + LocalDateTime startDate
+    + LocalDateTime endDate
+    + int displayOrder
+    + boolean isActive
+}
+
+class ReorderBannersRequest {
+    + Map<Long, Integer> orderMappings
+}
+
+class BannerDto {
+    + Long id
+    + String title
+    + String description
+    + String imageUrl
+    + String linkUrl
+    + BannerType type
+    + BannerStatus status
+    + int displayOrder
+    + LocalDateTime startDate
+    + LocalDateTime endDate
+    + boolean isActive
+    + int viewCount
+    + int clickCount
+    + LocalDateTime createdAt
+    + String createdByUsername
+    + boolean canEdit
+    + boolean canDelete
+    + boolean isExpired
+    + String statusDisplay
+}
+
+class BannerStatsDto {
+    + Long totalBanners
+    + Long activeBanners
+    + Long scheduledBanners
+    + Long expiredBanners
+    + Map<BannerType, Long> bannersByType
+    + Map<BannerStatus, Long> bannersByStatus
+    + List<BannerPerformanceDto> topPerformingBanners
+    + Long totalViews
+    + Long totalClicks
+    + Double averageCTR
+}
+
+class BannerPerformanceDto {
+    + Long bannerId
+    + String title
+    + BannerType type
+    + int viewCount
+    + int clickCount
+    + Double ctr
+    + LocalDateTime lastActivity
+}
+
+class BannerPreviewDto {
+    + Long id
+    + String title
+    + String description
+    + String imageUrl
+    + String linkUrl
+    + BannerType type
+    + String previewHtml
+    + Map<String, String> cssStyles
+}
+
+class User {
+    - Long id
+    - String username
+    - String email
+    - UserRole role
+}
+
+class BannerMapper {
+    + toDto(banner: Banner): BannerDto
+    + toDtoList(banners: List<Banner>): List<BannerDto>
+    + toEntity(request: CreateBannerRequest): Banner
+    + updateEntityFromRequest(banner: Banner, request: UpdateBannerRequest): Banner
+    + toStatsDto(statistics: BannerStatistics): BannerStatsDto
+    + toPreviewDto(banner: Banner): BannerPreviewDto
+}
+
+class BannerValidationService {
+    + validateBannerTitle(title: String): List<String>
+    + validateBannerDescription(description: String): List<String>
+    + validateLinkUrl(linkUrl: String): boolean
+    + validateDateRange(startDate: LocalDateTime, endDate: LocalDateTime): boolean
+    + validateDisplayOrder(order: int, type: BannerType): boolean
+    + validateBannerImageFile(file: MultipartFile): void
+    + validateBannerDeletion(bannerId: Long): void
+    + validateBannerExists(bannerId: Long): Banner
+}
+
+' Relationships
+AdminBannerController --> AdminBannerService : uses
+AdminBannerController --> CreateBannerRequest : receives
+AdminBannerController --> UpdateBannerRequest : receives
+AdminBannerController --> ReorderBannersRequest : receives
+AdminBannerController --> BannerDto : returns
+AdminBannerController --> BannerStatsDto : returns
+
+AdminBannerService --> BannerRepository : uses
+AdminBannerService --> BannerViewRepository : uses
+AdminBannerService --> BannerClickRepository : uses
+AdminBannerService --> FileStorageService : uses
+AdminBannerService --> BannerSchedulerService : uses
+AdminBannerService --> BannerMapper : uses
+AdminBannerService --> BannerValidationService : uses
+
+BannerRepository --> Banner : manages
+BannerViewRepository --> BannerView : manages
+BannerClickRepository --> BannerClick : manages
+Banner --> BannerType : has
+Banner --> BannerStatus : has
+Banner --> User : created by
+BannerView --> Banner : references
+BannerClick --> Banner : references
+
+BannerMapper --> Banner : maps
+BannerMapper --> BannerDto : creates
+
+note right of AdminBannerService
+  Business rules:
+  - Only ADMIN can manage banners
+  - Scheduled activation/deactivation
+  - Click/view tracking
+  - Image optimization per type
+  - Display order management
+  - Date range validation
+end note
+
+note bottom of Banner
+  Banner constraints:
+  - Title: 1-200 characters
+  - Description: max 1000 characters
+  - Valid URL format for links
+  - Start date before end date
+  - Image size varies by type
+  - Display order per type
+end note
+
+note left of BannerValidationService
+  Validation rules:
+  - Date range validation
+  - URL format checking
+  - Image size/format validation
+  - Display order uniqueness
+  - Deletion impact analysis
+end note
+
+@enduml

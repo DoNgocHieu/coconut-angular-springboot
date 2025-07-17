@@ -1,0 +1,9 @@
+@startuml UC011-Cap-Nhat-Profile
+!theme plain
+
+actor User
+usecase "Cập nhật profile" as UC011
+
+User --> UC011
+
+@enduml

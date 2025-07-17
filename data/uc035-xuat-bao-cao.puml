@@ -1,0 +1,9 @@
+@startuml UC035-Xuat-Bao-Cao
+!theme plain
+
+actor Admin
+usecase "Xuất báo cáo" as UC035
+
+Admin --> UC035
+
+@enduml

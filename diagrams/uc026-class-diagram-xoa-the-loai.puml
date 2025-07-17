@@ -1,0 +1,443 @@
+@startuml UC026-Class-Diagram-Xoa-The-Loai
+!theme plain
+
+title Biểu đồ lớp - UC026: Xóa thể loại
+
+package "Frontend Components" {
+    class CategoryManagementComponent {
+        +categories: CategoryDto[]
+        +selectedCategories: CategoryDto[]
+        +searchFilters: CategorySearchFilters
+        +sortOptions: CategorySortOptions
+        +bulkDeleteMode: boolean
+        +deletionProgress: DeletionProgress
+
+        +ngOnInit(): void
+        +loadCategories(): void
+        +onCategorySelect(category: CategoryDto): void
+        +openDeleteConfirmation(category: CategoryDto): void
+        +openBulkDeleteConfirmation(): void
+        +toggleBulkDeleteMode(): void
+        +onDeletionCompleted(result: DeletionResult): void
+        +refreshCategoryList(): void
+        +showDeleteSuccessMessage(result: DeletionResult): void
+        +handleDeletionError(error: any): void
+    }
+
+    class CategoryDeleteConfirmComponent {
+        +categoryToDelete: CategoryDto
+        +deletionOptions: CategoryDeletionOptions
+        +impactAnalysis: DeletionImpactAnalysis
+        +validationResult: DeletionValidationResult
+        +isDeleting: boolean
+        +deletionProgress: DeletionProgress
+        +showAdvancedOptions: boolean
+
+        +ngOnInit(): void
+        +open(category: CategoryDto): void
+        +loadDeletionImpact(): void
+        +onDeletionOptionChange(): void
+        +onReassignCategorySelect(category: CategoryDto): void
+        +validateDeletionOptions(): boolean
+        +confirmDeletion(): void
+        +cancelDeletion(): void
+        +close(): void
+    }
+
+    class BulkCategoryDeleteComponent {
+        +categoriesToDelete: CategoryDto[]
+        +bulkDeletionOptions: BulkDeletionOptions
+        +bulkImpactAnalysis: BulkDeletionImpact
+        +deletionProgress: BulkDeletionProgress
+        +validationResults: BulkValidationResult[]
+        +isProcessing: boolean
+
+        +ngOnInit(): void
+        +open(categories: CategoryDto[]): void
+        +analyzeBulkDeletionImpact(): void
+        +onBulkOptionsChange(): void
+        +validateBulkDeletion(): boolean
+        +executeBulkDeletion(): void
+        +trackDeletionProgress(): void
+        +close(): void
+    }
+
+    class CategoryRecoveryComponent {
+        +deletedCategories: DeletedCategoryDto[]
+        +recoveryFilters: RecoveryFilters
+        +selectedForRecovery: DeletedCategoryDto[]
+        +recoveryProgress: RecoveryProgress
+
+        +ngOnInit(): void
+        +loadDeletedCategories(): void
+        +onRecoverySelect(category: DeletedCategoryDto): void
+        +previewRecovery(category: DeletedCategoryDto): void
+        +executeRecovery(): void
+        +permanentlyDelete(): void
+    }
+
+    class DeletionConfirmationModalComponent {
+        +title: string
+        +message: string
+        +impactSummary: ImpactSummary
+        +confirmButtonText: string
+        +cancelButtonText: string
+        +isDestructive: boolean
+        +requiresReason: boolean
+        +deletionReason: string
+
+        +open(config: ConfirmationConfig): void
+        +onConfirm(): void
+        +onCancel(): void
+        +validateInputs(): boolean
+        +close(): void
+    }
+}
+
+package "Frontend Services" {
+    class CategoryDeletionService {
+        +deleteCategory(categoryId: number, options: CategoryDeletionOptions): Observable<DeletionResult>
+        +bulkDeleteCategories(categoryIds: number[], options: BulkDeletionOptions): Observable<BulkDeletionResult>
+        +validateCategoryDeletion(categoryId: number): Observable<DeletionValidationResult>
+        +analyzeDeletionImpact(categoryId: number): Observable<DeletionImpactAnalysis>
+        +getBulkDeletionImpact(categoryIds: number[]): Observable<BulkDeletionImpact>
+        +getDeletedCategories(filters: RecoveryFilters): Observable<DeletedCategoryDto[]>
+        +recoverCategory(categoryId: number, options: RecoveryOptions): Observable<RecoveryResult>
+        +permanentlyDeleteCategory(categoryId: number): Observable<void>
+        +trackDeletionProgress(operationId: string): Observable<DeletionProgress>
+    }
+
+    class CategoryValidationService {
+        +validateCategoryDeletion(categoryId: number): Observable<DeletionValidationResult>
+        +validateBulkDeletion(categoryIds: number[]): Observable<BulkValidationResult[]>
+        +checkCircularReferences(categoryIds: number[]): Observable<CircularReferenceCheck>
+        +validateReassignmentCategory(targetCategoryId: number, sourceCategories: number[]): Observable<ReassignmentValidation>
+        +checkDeletionConstraints(categoryId: number): Observable<ConstraintCheckResult>
+        +validateRecoveryOptions(categoryId: number, options: RecoveryOptions): Observable<RecoveryValidation>
+    }
+
+    class CategoryBackupService {
+        +createDeletionBackup(categoryId: number): Observable<BackupResult>
+        +createBulkDeletionBackup(categoryIds: number[]): Observable<BulkBackupResult>
+        +restoreFromBackup(backupId: string): Observable<RestoreResult>
+        +listDeletionBackups(filters: BackupFilters): Observable<DeletionBackup[]>
+        +validateBackupIntegrity(backupId: string): Observable<BackupValidation>
+        +cleanupExpiredBackups(): Observable<CleanupResult>
+    }
+
+    class CategoryNotificationService {
+        +notifyDeletionStart(categoryName: string): void
+        +notifyDeletionProgress(progress: DeletionProgress): void
+        +notifyDeletionCompleted(result: DeletionResult): void
+        +notifyDeletionError(error: DeletionError): void
+        +notifyBulkDeletionCompleted(result: BulkDeletionResult): void
+        +notifyRecoveryCompleted(result: RecoveryResult): void
+        +showUndoNotification(deletionId: string): void
+    }
+}
+
+package "Backend Controllers" {
+    class CategoryDeletionController {
+        +deleteCategory(categoryId: Long, options: CategoryDeletionOptionsDto, adminId: Long): ResponseEntity<DeletionResultDto>
+        +bulkDeleteCategories(request: BulkDeletionRequestDto, adminId: Long): ResponseEntity<BulkDeletionResultDto>
+        +validateCategoryDeletion(categoryId: Long): ResponseEntity<DeletionValidationResultDto>
+        +analyzeDeletionImpact(categoryId: Long): ResponseEntity<DeletionImpactAnalysisDto>
+        +getBulkDeletionImpact(categoryIds: List<Long>): ResponseEntity<BulkDeletionImpactDto>
+        +trackDeletionProgress(operationId: String): ResponseEntity<DeletionProgressDto>
+        +cancelDeletion(operationId: String): ResponseEntity<CancellationResultDto>
+    }
+
+    class CategoryRecoveryController {
+        +getDeletedCategories(filters: RecoveryFiltersDto, pageable: Pageable): ResponseEntity<Page<DeletedCategoryDto>>
+        +previewRecovery(categoryId: Long): ResponseEntity<RecoveryPreviewDto>
+        +recoverCategory(categoryId: Long, options: RecoveryOptionsDto, adminId: Long): ResponseEntity<RecoveryResultDto>
+        +permanentlyDeleteCategory(categoryId: Long, adminId: Long): ResponseEntity<Void>
+        +bulkRecoverCategories(request: BulkRecoveryRequestDto, adminId: Long): ResponseEntity<BulkRecoveryResultDto>
+        +getDeletionHistory(categoryId: Long): ResponseEntity<List<DeletionHistoryDto>>
+    }
+
+    class CategoryBackupController {
+        +createDeletionBackup(categoryId: Long, adminId: Long): ResponseEntity<BackupResultDto>
+        +listDeletionBackups(filters: BackupFiltersDto, pageable: Pageable): ResponseEntity<Page<DeletionBackupDto>>
+        +restoreFromBackup(backupId: String, adminId: Long): ResponseEntity<RestoreResultDto>
+        +downloadBackup(backupId: String): ResponseEntity<Resource>
+        +validateBackupIntegrity(backupId: String): ResponseEntity<BackupValidationDto>
+    }
+}
+
+package "Backend Services" {
+    class CategoryDeletionService_BE {
+        +deleteCategory(categoryId: Long, options: CategoryDeletionOptions, adminId: Long): DeletionResult
+        +bulkDeleteCategories(categoryIds: List<Long>, options: BulkDeletionOptions, adminId: Long): BulkDeletionResult
+        +softDeleteCategory(categoryId: Long, adminId: Long): Category
+        +hardDeleteCategory(categoryId: Long, adminId: Long): void
+        +validateDeletionPermissions(categoryId: Long, adminId: Long): void
+        +executeDeletionPlan(deletionPlan: DeletionPlan): DeletionResult
+        +createDeletionOperation(options: DeletionOptions): DeletionOperation
+        +trackDeletionProgress(operationId: String): DeletionProgress
+        +handleDeletionRollback(operationId: String): RollbackResult
+    }
+
+    class CategoryValidationService_BE {
+        +validateCategoryDeletion(categoryId: Long): DeletionValidationResult
+        +checkDeletionConstraints(categoryId: Long): List<DeletionConstraint>
+        +validateCascadeDeletion(categoryId: Long): CascadeValidationResult
+        +checkCircularReferences(categoryIds: List<Long>): CircularReferenceResult
+        +validateReassignmentTarget(targetId: Long, sourceIds: List<Long>): ReassignmentValidation
+        +checkUserPermissions(categoryId: Long, adminId: Long): PermissionCheckResult
+        +validateBulkDeletionLimits(categoryIds: List<Long>): BulkLimitValidation
+        +checkDeletionImpact(categoryId: Long): DeletionImpactResult
+    }
+
+    class CategoryHierarchyService {
+        +getChildCategories(parentId: Long): List<Category>
+        +getAllDescendants(categoryId: Long): List<Category>
+        +reorganizeHierarchyAfterDeletion(deletedCategoryId: Long, newParentId: Long): void
+        +validateHierarchyIntegrity(): HierarchyValidationResult
+        +buildDeletionHierarchy(categoryId: Long): CategoryHierarchy
+        +moveChildrenToParent(deletedCategoryId: Long, newParentId: Long): HierarchyMoveResult
+        +updateHierarchyLevels(affectedCategories: List<Category>): void
+        +repairHierarchyInconsistencies(): RepairResult
+    }
+
+    class CategoryContentService {
+        +getMusicCountByCategory(categoryId: Long): Long
+        +reassignMusicToCategory(fromCategoryId: Long, toCategoryId: Long): MusicReassignmentResult
+        +deleteOrphanedMusic(categoryId: Long): List<Music>
+        +backupCategoryContent(categoryId: Long): ContentBackup
+        +validateContentReassignment(fromId: Long, toId: Long): ContentValidationResult
+        +archiveCategoryContent(categoryId: Long): ArchivalResult
+        +restoreCategoryContent(categoryId: Long, backup: ContentBackup): RestoreResult
+    }
+
+    class CategoryBackupService_BE {
+        +createDeletionBackup(categoryId: Long): DeletionBackup
+        +createBulkDeletionBackup(categoryIds: List<Long>): BulkDeletionBackup
+        +restoreFromBackup(backupId: String): RestoreResult
+        +validateBackupIntegrity(backupId: String): BackupValidation
+        +scheduleBackupCleanup(): void
+        +exportBackupData(backupId: String): BackupExport
+        +importBackupData(backupData: BackupImport): ImportResult
+        +generateBackupReport(backupId: String): BackupReport
+    }
+
+    class CategoryAuditService {
+        +logCategoryDeletion(categoryId: Long, adminId: Long, options: DeletionOptions): AuditLog
+        +logBulkDeletion(categoryIds: List<Long>, adminId: Long, result: BulkDeletionResult): AuditLog
+        +logCategoryRecovery(categoryId: Long, adminId: Long): AuditLog
+        +logPermanentDeletion(categoryId: Long, adminId: Long, reason: String): AuditLog
+        +getDeletionAuditTrail(categoryId: Long): List<AuditLog>
+        +generateDeletionReport(filters: AuditFilters): DeletionReport
+        +trackDeletionMetrics(): DeletionMetrics
+        +alertOnSuspiciousDeletions(adminId: Long, deletionCount: Integer): void
+    }
+
+    class CategoryNotificationService_BE {
+        +notifyStakeholders(categoryId: Long, deletionType: DeletionType): void
+        +sendDeletionConfirmation(adminId: Long, deletionResult: DeletionResult): void
+        +alertOnDeletionFailure(categoryId: Long, error: DeletionError): void
+        +notifyContentCreators(categoryId: Long, affectedContent: List<Content>): void
+        +sendBulkDeletionSummary(adminId: Long, result: BulkDeletionResult): void
+        +scheduleUndoNotification(deletionId: String, timeWindow: Duration): void
+    }
+}
+
+package "Repository Layer" {
+    class CategoryRepository {
+        +findById(id: Long): Optional<Category>
+        +findAllByDeletedFalse(): List<Category>
+        +findAllByDeletedTrue(): List<Category>
+        +findByParentId(parentId: Long): List<Category>
+        +findAllDescendants(categoryId: Long): List<Category>
+        +findCategoriesWithMusicCount(): List<CategoryWithCount>
+        +softDeleteById(id: Long, deletedBy: Long): void
+        +hardDeleteById(id: Long): void
+        +updateParentIdForChildren(oldParentId: Long, newParentId: Long): void
+        +countByParentId(parentId: Long): Long
+        +findOrphanedCategories(): List<Category>
+        +bulkSoftDelete(ids: List<Long>, deletedBy: Long): void
+        +findDeletedCategoriesWithRecoveryInfo(filters: RecoveryFilters): Page<DeletedCategoryInfo>
+    }
+
+    class MusicRepository {
+        +countByCategoryId(categoryId: Long): Long
+        +findByCategoryId(categoryId: Long): List<Music>
+        +updateCategoryId(oldCategoryId: Long, newCategoryId: Long): void
+        +softDeleteByCategoryId(categoryId: Long, deletedBy: Long): void
+        +findOrphanedMusic(): List<Music>
+        +findMusicRequiringReassignment(categoryId: Long): List<Music>
+        +bulkUpdateCategory(musicIds: List<Long>, newCategoryId: Long): void
+        +archiveMusicByCategory(categoryId: Long): List<ArchivedMusic>
+    }
+
+    class PlaylistRepository {
+        +findPlaylistsUsingCategory(categoryId: Long): List<Playlist>
+        +updateCategoryReferencesInPlaylists(oldCategoryId: Long, newCategoryId: Long): void
+        +removeDeletedCategoryFromPlaylists(categoryId: Long): void
+        +findPlaylistsAffectedByDeletion(categoryIds: List<Long>): List<PlaylistImpact>
+    }
+
+    class DeletionBackupRepository {
+        +save(backup: DeletionBackup): DeletionBackup
+        +findById(backupId: String): Optional<DeletionBackup>
+        +findByAdminIdAndCreatedAtAfter(adminId: Long, date: LocalDateTime): List<DeletionBackup>
+        +findExpiredBackups(expiredBefore: LocalDateTime): List<DeletionBackup>
+        +deleteExpiredBackups(expiredBefore: LocalDateTime): void
+        +findBackupsForCategory(categoryId: Long): List<DeletionBackup>
+        +countBackupsByAdmin(adminId: Long): Long
+        +findLargestBackups(limit: Integer): List<DeletionBackup>
+    }
+
+    class AuditLogRepository {
+        +save(auditLog: AuditLog): AuditLog
+        +findByResourceIdAndActionType(resourceId: Long, actionType: ActionType): List<AuditLog>
+        +findDeletionAuditsByAdmin(adminId: Long, dateRange: DateRange): List<AuditLog>
+        +findSuspiciousDeletionPatterns(adminId: Long, timeWindow: Duration): List<AuditLog>
+        +generateDeletionMetrics(dateRange: DateRange): DeletionMetrics
+        +findBulkDeletionOperations(filters: AuditFilters): List<BulkOperationAudit>
+    }
+}
+
+package "Data Models" {
+    class CategoryDeletionOptions {
+        +deletionType: DeletionType
+        +reassignChildrenTo: Long
+        +reassignMusicTo: Long
+        +deleteChildren: boolean
+        +deleteMusic: boolean
+        +createBackup: boolean
+        +reason: String
+        +forceDelete: boolean
+        +cascadeDepth: Integer
+    }
+
+    class DeletionImpactAnalysis {
+        +categoryId: Long
+        +categoryName: String
+        +childCategoriesCount: Integer
+        +totalMusicCount: Long
+        +playlistReferences: Integer
+        +userPlaylists: Integer
+        +estimatedDuration: Duration
+        +riskLevel: RiskLevel
+        +warnings: List<String>
+        +recommendations: List<String>
+    }
+
+    class DeletionValidationResult {
+        +isValid: boolean
+        +canDelete: boolean
+        +constraints: List<DeletionConstraint>
+        +warnings: List<ValidationWarning>
+        +errors: List<ValidationError>
+        +requiredActions: List<RequiredAction>
+        +alternativeOptions: List<AlternativeOption>
+    }
+
+    class DeletionResult {
+        +operationId: String
+        +categoryId: Long
+        +success: boolean
+        +deletionType: DeletionType
+        +affectedMusic: Integer
+        +affectedChildren: Integer
+        +backupId: String
+        +duration: Duration
+        +errors: List<String>
+        +rollbackAvailable: boolean
+    }
+
+    class BulkDeletionOptions {
+        +operationName: String
+        +deletionStrategy: BulkDeletionStrategy
+        +batchSize: Integer
+        +maxConcurrency: Integer
+        +stopOnError: boolean
+        +createMasterBackup: boolean
+        +notifyStakeholders: boolean
+        +reason: String
+    }
+
+    class DeletionProgress {
+        +operationId: String
+        +status: OperationStatus
+        +currentCategory: String
+        +processedCount: Integer
+        +totalCount: Integer
+        +percentage: Double
+        +estimatedTimeRemaining: Duration
+        +lastUpdate: LocalDateTime
+        +errors: List<String>
+        +canCancel: boolean
+    }
+
+    enum DeletionType {
+        SOFT_DELETE
+        HARD_DELETE
+        ARCHIVE
+        REASSIGN_AND_DELETE
+    }
+
+    enum RiskLevel {
+        LOW
+        MEDIUM
+        HIGH
+        CRITICAL
+    }
+
+    enum OperationStatus {
+        PENDING
+        IN_PROGRESS
+        COMPLETED
+        FAILED
+        CANCELLED
+        ROLLED_BACK
+    }
+}
+
+' Relationships
+CategoryManagementComponent --> CategoryDeletionService
+CategoryManagementComponent --> CategoryDeleteConfirmComponent
+CategoryManagementComponent --> BulkCategoryDeleteComponent
+CategoryManagementComponent --> CategoryRecoveryComponent
+
+CategoryDeleteConfirmComponent --> CategoryDeletionService
+CategoryDeleteConfirmComponent --> CategoryValidationService
+CategoryDeleteConfirmComponent --> DeletionConfirmationModalComponent
+
+BulkCategoryDeleteComponent --> CategoryDeletionService
+BulkCategoryDeleteComponent --> CategoryValidationService
+BulkCategoryDeleteComponent --> CategoryNotificationService
+
+CategoryRecoveryComponent --> CategoryDeletionService
+CategoryRecoveryComponent --> CategoryBackupService
+
+CategoryDeletionService --> CategoryDeletionController
+CategoryValidationService --> CategoryDeletionController
+CategoryBackupService --> CategoryBackupController
+
+CategoryDeletionController --> CategoryDeletionService_BE
+CategoryDeletionController --> CategoryValidationService_BE
+CategoryDeletionController --> CategoryAuditService
+
+CategoryRecoveryController --> CategoryDeletionService_BE
+CategoryRecoveryController --> CategoryBackupService_BE
+
+CategoryDeletionService_BE --> CategoryValidationService_BE
+CategoryDeletionService_BE --> CategoryHierarchyService
+CategoryDeletionService_BE --> CategoryContentService
+CategoryDeletionService_BE --> CategoryBackupService_BE
+CategoryDeletionService_BE --> CategoryAuditService
+CategoryDeletionService_BE --> CategoryNotificationService_BE
+
+CategoryDeletionService_BE --> CategoryRepository
+CategoryContentService --> MusicRepository
+CategoryContentService --> PlaylistRepository
+CategoryBackupService_BE --> DeletionBackupRepository
+CategoryAuditService --> AuditLogRepository
+
+CategoryDeletionOptions --> DeletionType
+DeletionImpactAnalysis --> RiskLevel
+DeletionProgress --> OperationStatus
+
+@enduml

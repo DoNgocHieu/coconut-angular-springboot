@@ -1,0 +1,9 @@
+@startuml UC037-Backup-Du-Lieu
+!theme plain
+
+actor Admin
+usecase "Backup dữ liệu" as UC037
+
+Admin --> UC037
+
+@enduml

@@ -1,0 +1,616 @@
+@startuml UC027-Class-Diagram-Quan-Ly-Nghe-Si
+!theme plain
+
+title Biểu đồ lớp - UC027: Quản lý nghệ sĩ
+
+package "Frontend Components" {
+    class ArtistManagementComponent {
+        +artists: ArtistDto[]
+        +selectedArtists: ArtistDto[]
+        +searchFilters: ArtistSearchFilters
+        +sortOptions: ArtistSortOptions
+        +pagination: PaginationState
+        +isLoading: boolean
+        +bulkSelectMode: boolean
+        +totalArtists: number
+
+        +ngOnInit(): void
+        +loadArtists(): void
+        +onSearchChange(query: string): void
+        +onFilterChange(filters: ArtistSearchFilters): void
+        +onSortChange(sort: ArtistSortOptions): void
+        +onPageChange(page: number): void
+        +onArtistSelect(artist: ArtistDto): void
+        +openCreateModal(): void
+        +openEditModal(artist: ArtistDto): void
+        +openDeleteConfirmation(artist: ArtistDto): void
+        +toggleBulkSelect(): void
+        +bulkDeleteSelected(): void
+        +exportArtists(): void
+        +importArtists(): void
+        +refreshArtistList(): void
+    }
+
+    class ArtistEditModalComponent {
+        +artist: ArtistDto
+        +artistForm: FormGroup
+        +isEditMode: boolean
+        +isSubmitting: boolean
+        +imageFiles: File[]
+        +imagePreviewUrls: string[]
+        +genreOptions: GenreDto[]
+        +countryOptions: CountryDto[]
+        +validationErrors: ValidationErrors
+
+        +ngOnInit(): void
+        +open(artist?: ArtistDto): void
+        +initializeForm(): void
+        +onImageSelect(files: FileList): void
+        +onImageRemove(index: number): void
+        +validateArtistName(): void
+        +onGenreSelect(genres: GenreDto[]): void
+        +onCountrySelect(country: CountryDto): void
+        +onSubmit(): void
+        +onCancel(): void
+        +close(): void
+    }
+
+    class ArtistDetailsComponent {
+        +artist: ArtistDto
+        +artistMusic: MusicDto[]
+        +artistAlbums: AlbumDto[]
+        +artistStats: ArtistStatsDto
+        +relatedArtists: ArtistDto[]
+        +followers: FollowerDto[]
+        +isFollowing: boolean
+        +activeTab: string
+
+        +ngOnInit(): void
+        +loadArtistDetails(artistId: number): void
+        +loadArtistMusic(): void
+        +loadArtistAlbums(): void
+        +loadArtistStats(): void
+        +loadRelatedArtists(): void
+        +toggleFollow(): void
+        +playArtistMusic(): void
+        +onTabChange(tab: string): void
+        +shareArtist(): void
+    }
+
+    class ArtistSearchComponent {
+        +searchQuery: string
+        +searchFilters: ArtistSearchFilters
+        +searchResults: ArtistDto[]
+        +recentSearches: string[]
+        +suggestedArtists: ArtistDto[]
+        +isSearching: boolean
+        +hasSearched: boolean
+
+        +ngOnInit(): void
+        +onSearch(query: string): void
+        +onFilterApply(filters: ArtistSearchFilters): void
+        +onAdvancedSearch(): void
+        +clearSearch(): void
+        +saveSearchQuery(query: string): void
+        +loadRecentSearches(): void
+        +onSuggestionClick(artist: ArtistDto): void
+    }
+
+    class ArtistImportComponent {
+        +importFile: File
+        +importPreview: ArtistImportPreview[]
+        +importOptions: ImportOptions
+        +importProgress: ImportProgress
+        +validationErrors: ImportValidationError[]
+        +isImporting: boolean
+
+        +ngOnInit(): void
+        +onFileSelect(file: File): void
+        +previewImport(): void
+        +validateImportData(): void
+        +resolveConflicts(): void
+        +startImport(): void
+        +cancelImport(): void
+        +downloadTemplate(): void
+        +close(): void
+    }
+
+    class BulkArtistActionComponent {
+        +selectedArtists: ArtistDto[]
+        +bulkActions: BulkAction[]
+        +actionProgress: BulkActionProgress
+        +isProcessing: boolean
+
+        +ngOnInit(): void
+        +open(artists: ArtistDto[]): void
+        +onActionSelect(action: BulkAction): void
+        +configureBulkAction(): void
+        +executeBulkAction(): void
+        +trackProgress(): void
+        +close(): void
+    }
+}
+
+package "Frontend Services" {
+    class ArtistService {
+        +getAllArtists(filters: ArtistSearchFilters, pageable: Pageable): Observable<Page<ArtistDto>>
+        +getArtistById(id: number): Observable<ArtistDto>
+        +createArtist(request: CreateArtistRequest): Observable<ArtistDto>
+        +updateArtist(id: number, request: UpdateArtistRequest): Observable<ArtistDto>
+        +deleteArtist(id: number): Observable<void>
+        +bulkDeleteArtists(ids: number[]): Observable<BulkActionResult>
+        +searchArtists(query: string, filters: ArtistSearchFilters): Observable<ArtistDto[]>
+        +getArtistStats(id: number): Observable<ArtistStatsDto>
+        +followArtist(id: number): Observable<void>
+        +unfollowArtist(id: number): Observable<void>
+        +getFollowedArtists(): Observable<ArtistDto[]>
+        +getPopularArtists(limit: number): Observable<ArtistDto[]>
+        +getNewArtists(limit: number): Observable<ArtistDto[]>
+    }
+
+    class ArtistValidationService {
+        +validateArtistName(name: string, excludeId?: number): Observable<ValidationResult>
+        +validateArtistEmail(email: string, excludeId?: number): Observable<ValidationResult>
+        +validateSocialMediaUrls(urls: SocialMediaUrls): Observable<ValidationResult>
+        +validateArtistGenres(genres: number[]): Observable<ValidationResult>
+        +validateArtistImages(images: File[]): Observable<ValidationResult>
+        +validateCreateArtistRequest(request: CreateArtistRequest): Observable<ValidationResult>
+        +validateUpdateArtistRequest(id: number, request: UpdateArtistRequest): Observable<ValidationResult>
+    }
+
+    class ArtistImageService {
+        +uploadArtistImages(artistId: number, images: File[]): Observable<ImageUploadResult>
+        +deleteArtistImage(artistId: number, imageId: string): Observable<void>
+        +updateImageOrder(artistId: number, imageOrders: ImageOrder[]): Observable<void>
+        +getImageUploadProgress(uploadId: string): Observable<UploadProgress>
+        +compressImage(image: File): Observable<File>
+        +generateImageThumbnails(image: File): Observable<ImageThumbnails>
+    }
+
+    class ArtistImportService {
+        +previewImport(file: File): Observable<ArtistImportPreview[]>
+        +validateImportData(data: ArtistImportData[]): Observable<ImportValidationResult>
+        +importArtists(data: ArtistImportData[], options: ImportOptions): Observable<ImportResult>
+        +getImportProgress(importId: string): Observable<ImportProgress>
+        +downloadImportTemplate(): Observable<Blob>
+        +cancelImport(importId: string): Observable<void>
+    }
+
+    class ArtistExportService {
+        +exportArtists(filters: ArtistSearchFilters, format: ExportFormat): Observable<Blob>
+        +exportArtistDetails(artistId: number, format: ExportFormat): Observable<Blob>
+        +getExportProgress(exportId: string): Observable<ExportProgress>
+        +cancelExport(exportId: string): Observable<void>
+    }
+
+    class ArtistNotificationService {
+        +notifyArtistCreated(artist: ArtistDto): void
+        +notifyArtistUpdated(artist: ArtistDto): void
+        +notifyArtistDeleted(artistName: string): void
+        +notifyBulkActionCompleted(result: BulkActionResult): void
+        +notifyImportCompleted(result: ImportResult): void
+        +notifyExportCompleted(fileName: string): void
+        +notifyFollowStatusChanged(artist: ArtistDto, isFollowing: boolean): void
+    }
+}
+
+package "Backend Controllers" {
+    class ArtistController {
+        +getAllArtists(filters: ArtistFiltersDto, pageable: Pageable): ResponseEntity<Page<ArtistDto>>
+        +getArtistById(id: Long): ResponseEntity<ArtistDto>
+        +createArtist(request: CreateArtistRequestDto, adminId: Long): ResponseEntity<ArtistDto>
+        +updateArtist(id: Long, request: UpdateArtistRequestDto, adminId: Long): ResponseEntity<ArtistDto>
+        +deleteArtist(id: Long, adminId: Long): ResponseEntity<Void>
+        +bulkDeleteArtists(request: BulkDeleteRequestDto, adminId: Long): ResponseEntity<BulkActionResultDto>
+        +searchArtists(query: String, filters: ArtistFiltersDto): ResponseEntity<List<ArtistDto>>
+        +getArtistStats(id: Long): ResponseEntity<ArtistStatsDto>
+        +getPopularArtists(limit: Integer): ResponseEntity<List<ArtistDto>>
+        +getNewArtists(limit: Integer): ResponseEntity<List<ArtistDto>>
+    }
+
+    class ArtistImageController {
+        +uploadArtistImages(artistId: Long, images: MultipartFile[], adminId: Long): ResponseEntity<ImageUploadResultDto>
+        +deleteArtistImage(artistId: Long, imageId: String, adminId: Long): ResponseEntity<Void>
+        +updateImageOrder(artistId: Long, request: UpdateImageOrderRequestDto, adminId: Long): ResponseEntity<Void>
+        +getArtistImages(artistId: Long): ResponseEntity<List<ArtistImageDto>>
+        +getImageUploadProgress(uploadId: String): ResponseEntity<UploadProgressDto>
+    }
+
+    class ArtistFollowController {
+        +followArtist(artistId: Long, userId: Long): ResponseEntity<Void>
+        +unfollowArtist(artistId: Long, userId: Long): ResponseEntity<Void>
+        +getFollowedArtists(userId: Long, pageable: Pageable): ResponseEntity<Page<ArtistDto>>
+        +getArtistFollowers(artistId: Long, pageable: Pageable): ResponseEntity<Page<UserDto>>
+        +checkFollowStatus(artistId: Long, userId: Long): ResponseEntity<Boolean>
+    }
+
+    class ArtistImportController {
+        +previewImport(file: MultipartFile): ResponseEntity<List<ArtistImportPreviewDto>>
+        +validateImportData(data: List<ArtistImportDataDto>): ResponseEntity<ImportValidationResultDto>
+        +importArtists(request: ImportArtistsRequestDto, adminId: Long): ResponseEntity<ImportResultDto>
+        +getImportProgress(importId: String): ResponseEntity<ImportProgressDto>
+        +downloadImportTemplate(): ResponseEntity<Resource>
+        +cancelImport(importId: String): ResponseEntity<Void>
+    }
+
+    class ArtistExportController {
+        +exportArtists(filters: ArtistFiltersDto, format: ExportFormat, adminId: Long): ResponseEntity<Resource>
+        +exportArtistDetails(artistId: Long, format: ExportFormat, adminId: Long): ResponseEntity<Resource>
+        +getExportProgress(exportId: String): ResponseEntity<ExportProgressDto>
+        +cancelExport(exportId: String): ResponseEntity<Void>
+    }
+}
+
+package "Backend Services" {
+    class ArtistService_BE {
+        +getAllArtists(filters: ArtistFilters, pageable: Pageable): Page<Artist>
+        +getArtistById(id: Long): Artist
+        +createArtist(request: CreateArtistRequest, adminId: Long): Artist
+        +updateArtist(id: Long, request: UpdateArtistRequest, adminId: Long): Artist
+        +deleteArtist(id: Long, adminId: Long): void
+        +bulkDeleteArtists(ids: List<Long>, adminId: Long): BulkActionResult
+        +searchArtists(query: String, filters: ArtistFilters): List<Artist>
+        +getArtistStats(id: Long): ArtistStats
+        +getPopularArtists(limit: Integer): List<Artist>
+        +getNewArtists(limit: Integer): List<Artist>
+        +incrementArtistViewCount(id: Long): void
+        +updateArtistRating(id: Long): void
+    }
+
+    class ArtistValidationService_BE {
+        +validateArtistName(name: String, excludeId: Long): ValidationResult
+        +validateArtistEmail(email: String, excludeId: Long): ValidationResult
+        +validateSocialMediaUrls(urls: SocialMediaUrls): ValidationResult
+        +validateArtistGenres(genreIds: List<Long>): ValidationResult
+        +validateCreateArtistRequest(request: CreateArtistRequest): ValidationResult
+        +validateUpdateArtistRequest(id: Long, request: UpdateArtistRequest): ValidationResult
+        +checkArtistExists(id: Long): void
+        +validateArtistDeletionConstraints(id: Long): ValidationResult
+    }
+
+    class ArtistImageService_BE {
+        +uploadArtistImages(artistId: Long, images: List<MultipartFile>, adminId: Long): ImageUploadResult
+        +deleteArtistImage(artistId: Long, imageId: String, adminId: Long): void
+        +updateImageOrder(artistId: Long, imageOrders: List<ImageOrder>, adminId: Long): void
+        +getArtistImages(artistId: Long): List<ArtistImage>
+        +processImageUpload(image: MultipartFile): ProcessedImage
+        +generateImageVariants(originalImage: File): ImageVariants
+        +validateImageFile(image: MultipartFile): ValidationResult
+    }
+
+    class ArtistFollowService {
+        +followArtist(artistId: Long, userId: Long): void
+        +unfollowArtist(artistId: Long, userId: Long): void
+        +getFollowedArtists(userId: Long, pageable: Pageable): Page<Artist>
+        +getArtistFollowers(artistId: Long, pageable: Pageable): Page<User>
+        +checkFollowStatus(artistId: Long, userId: Long): boolean
+        +getFollowersCount(artistId: Long): Long
+        +getFollowingCount(userId: Long): Long
+        +notifyNewFollower(artistId: Long, userId: Long): void
+    }
+
+    class ArtistImportService_BE {
+        +previewImport(file: MultipartFile): List<ArtistImportPreview>
+        +validateImportData(data: List<ArtistImportData>): ImportValidationResult
+        +importArtists(data: List<ArtistImportData>, options: ImportOptions, adminId: Long): ImportResult
+        +parseImportFile(file: MultipartFile): List<ArtistImportData>
+        +resolveImportConflicts(data: List<ArtistImportData>, options: ImportOptions): List<ArtistImportData>
+        +createArtistFromImportData(data: ArtistImportData): Artist
+        +trackImportProgress(importId: String): ImportProgress
+    }
+
+    class ArtistExportService_BE {
+        +exportArtists(filters: ArtistFilters, format: ExportFormat, adminId: Long): ExportResult
+        +exportArtistDetails(artistId: Long, format: ExportFormat, adminId: Long): ExportResult
+        +generateExportFile(artists: List<Artist>, format: ExportFormat): File
+        +trackExportProgress(exportId: String): ExportProgress
+        +scheduleExportCleanup(): void
+    }
+
+    class ArtistSearchService {
+        +searchArtists(query: String, filters: ArtistFilters): List<Artist>
+        +searchArtistsByName(name: String): List<Artist>
+        +searchArtistsByGenre(genreId: Long): List<Artist>
+        +getArtistSuggestions(query: String, limit: Integer): List<Artist>
+        +indexArtistForSearch(artist: Artist): void
+        +removeArtistFromSearchIndex(artistId: Long): void
+        +updateSearchIndex(): void
+    }
+
+    class ArtistRecommendationService {
+        +getRecommendedArtists(userId: Long, limit: Integer): List<Artist>
+        +getSimilarArtists(artistId: Long, limit: Integer): List<Artist>
+        +getTrendingArtists(limit: Integer): List<Artist>
+        +getArtistsByUserPreferences(userId: Long): List<Artist>
+        +updateRecommendationModel(): void
+    }
+
+    class ArtistAuditService {
+        +logArtistCreation(artistId: Long, adminId: Long, artistData: Artist): AuditLog
+        +logArtistUpdate(artistId: Long, adminId: Long, changes: ArtistChanges): AuditLog
+        +logArtistDeletion(artistId: Long, adminId: Long, reason: String): AuditLog
+        +logBulkAction(action: BulkAction, adminId: Long, result: BulkActionResult): AuditLog
+        +logImageUpload(artistId: Long, adminId: Long, imageData: ImageUploadResult): AuditLog
+        +getArtistAuditTrail(artistId: Long): List<AuditLog>
+        +generateArtistReport(filters: AuditFilters): ArtistAuditReport
+    }
+}
+
+package "Repository Layer" {
+    class ArtistRepository {
+        +findById(id: Long): Optional<Artist>
+        +findAll(pageable: Pageable): Page<Artist>
+        +findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Artist>
+        +findByGenresContaining(genre: Genre): List<Artist>
+        +findByCountry(country: String): List<Artist>
+        +findByActiveTrue(pageable: Pageable): Page<Artist>
+        +findTopByOrderByFollowersCountDesc(limit: Integer): List<Artist>
+        +findByCreatedAtAfter(date: LocalDateTime): List<Artist>
+        +save(artist: Artist): Artist
+        +delete(artist: Artist): void
+        +existsByNameIgnoreCase(name: String): boolean
+        +existsByEmailIgnoreCase(email: String): boolean
+        +countByActiveTrue(): Long
+        +findArtistWithStats(id: Long): Optional<ArtistWithStats>
+    }
+
+    class ArtistImageRepository {
+        +findByArtistId(artistId: Long): List<ArtistImage>
+        +findByArtistIdAndImageId(artistId: Long, imageId: String): Optional<ArtistImage>
+        +save(artistImage: ArtistImage): ArtistImage
+        +delete(artistImage: ArtistImage): void
+        +updateImageOrder(artistId: Long, imageOrders: List<ImageOrder>): void
+        +deleteByArtistId(artistId: Long): void
+        +countByArtistId(artistId: Long): Integer
+    }
+
+    class ArtistFollowRepository {
+        +findByUserIdAndArtistId(userId: Long, artistId: Long): Optional<ArtistFollow>
+        +findByUserId(userId: Long, pageable: Pageable): Page<ArtistFollow>
+        +findByArtistId(artistId: Long, pageable: Pageable): Page<ArtistFollow>
+        +save(artistFollow: ArtistFollow): ArtistFollow
+        +delete(artistFollow: ArtistFollow): void
+        +existsByUserIdAndArtistId(userId: Long, artistId: Long): boolean
+        +countByArtistId(artistId: Long): Long
+        +countByUserId(userId: Long): Long
+        +deleteByArtistId(artistId: Long): void
+    }
+
+    class ArtistGenreRepository {
+        +findByArtistId(artistId: Long): List<ArtistGenre>
+        +findByGenreId(genreId: Long): List<ArtistGenre>
+        +save(artistGenre: ArtistGenre): ArtistGenre
+        +delete(artistGenre: ArtistGenre): void
+        +deleteByArtistId(artistId: Long): void
+        +deleteByArtistIdAndGenreId(artistId: Long, genreId: Long): void
+    }
+
+    class MusicRepository {
+        +findByArtistId(artistId: Long): List<Music>
+        +countByArtistId(artistId: Long): Long
+        +findTopByArtistIdOrderByViewCountDesc(artistId: Long, limit: Integer): List<Music>
+        +updateArtistIdToNull(artistId: Long): void
+        +reassignArtist(oldArtistId: Long, newArtistId: Long): void
+    }
+}
+
+package "Data Models" {
+    class Artist {
+        +id: Long
+        +name: String
+        +email: String
+        +biography: String
+        +country: String
+        +birthDate: LocalDate
+        +debutDate: LocalDate
+        +website: String
+        +socialMediaUrls: SocialMediaUrls
+        +profileImageUrl: String
+        +backgroundImageUrl: String
+        +followersCount: Long
+        +songsCount: Long
+        +albumsCount: Long
+        +viewCount: Long
+        +rating: Double
+        +active: Boolean
+        +verified: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +createdBy: Long
+        +updatedBy: Long
+    }
+
+    class ArtistDto {
+        +id: Long
+        +name: String
+        +email: String
+        +biography: String
+        +country: String
+        +birthDate: LocalDate
+        +debutDate: LocalDate
+        +website: String
+        +socialMediaUrls: SocialMediaUrls
+        +profileImageUrl: String
+        +backgroundImageUrl: String
+        +images: List<ArtistImageDto>
+        +genres: List<GenreDto>
+        +followersCount: Long
+        +songsCount: Long
+        +albumsCount: Long
+        +viewCount: Long
+        +rating: Double
+        +active: Boolean
+        +verified: Boolean
+        +isFollowing: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class CreateArtistRequest {
+        +name: String
+        +email: String
+        +biography: String
+        +country: String
+        +birthDate: LocalDate
+        +debutDate: LocalDate
+        +website: String
+        +socialMediaUrls: SocialMediaUrls
+        +genreIds: List<Long>
+        +images: List<MultipartFile>
+        +active: Boolean
+    }
+
+    class UpdateArtistRequest {
+        +name: String
+        +email: String
+        +biography: String
+        +country: String
+        +birthDate: LocalDate
+        +debutDate: LocalDate
+        +website: String
+        +socialMediaUrls: SocialMediaUrls
+        +genreIds: List<Long>
+        +active: Boolean
+    }
+
+    class ArtistSearchFilters {
+        +name: String
+        +country: String
+        +genreIds: List<Long>
+        +verified: Boolean
+        +active: Boolean
+        +createdDateFrom: LocalDate
+        +createdDateTo: LocalDate
+        +followersCountMin: Long
+        +followersCountMax: Long
+        +sortBy: String
+        +sortDirection: String
+    }
+
+    class ArtistStatsDto {
+        +totalSongs: Long
+        +totalAlbums: Long
+        +totalViews: Long
+        +totalFollowers: Long
+        +averageRating: Double
+        +monthlyStreams: Long
+        +topSongs: List<MusicDto>
+        +recentActivity: List<ActivityDto>
+        +growthMetrics: GrowthMetrics
+    }
+
+    class SocialMediaUrls {
+        +facebook: String
+        +instagram: String
+        +twitter: String
+        +youtube: String
+        +spotify: String
+        +appleMusic: String
+        +soundcloud: String
+    }
+
+    class ArtistImage {
+        +id: String
+        +artistId: Long
+        +originalUrl: String
+        +thumbnailUrl: String
+        +mediumUrl: String
+        +largeUrl: String
+        +fileSize: Long
+        +mimeType: String
+        +order: Integer
+        +createdAt: LocalDateTime
+        +createdBy: Long
+    }
+
+    class ArtistFollow {
+        +id: Long
+        +userId: Long
+        +artistId: Long
+        +followedAt: LocalDateTime
+    }
+
+    class ImportOptions {
+        +skipDuplicates: Boolean
+        +updateExisting: Boolean
+        +validateOnly: Boolean
+        +batchSize: Integer
+        +notifyOnCompletion: Boolean
+    }
+
+    class ImportResult {
+        +importId: String
+        +totalRecords: Integer
+        +successCount: Integer
+        +failureCount: Integer
+        +skippedCount: Integer
+        +errors: List<ImportError>
+        +warnings: List<ImportWarning>
+        +duration: Duration
+        +completedAt: LocalDateTime
+    }
+
+    enum ExportFormat {
+        CSV
+        XLSX
+        JSON
+        PDF
+    }
+
+    enum BulkActionType {
+        DELETE
+        ACTIVATE
+        DEACTIVATE
+        VERIFY
+        UNVERIFY
+        UPDATE_GENRE
+        UPDATE_COUNTRY
+    }
+}
+
+' Relationships
+ArtistManagementComponent --> ArtistService
+ArtistManagementComponent --> ArtistEditModalComponent
+ArtistManagementComponent --> BulkArtistActionComponent
+ArtistManagementComponent --> ArtistImportComponent
+
+ArtistEditModalComponent --> ArtistService
+ArtistEditModalComponent --> ArtistValidationService
+ArtistEditModalComponent --> ArtistImageService
+
+ArtistDetailsComponent --> ArtistService
+ArtistDetailsComponent --> ArtistFollowService
+
+ArtistSearchComponent --> ArtistService
+ArtistSearchComponent --> ArtistSearchService
+
+ArtistImportComponent --> ArtistImportService
+BulkArtistActionComponent --> ArtistService
+
+ArtistService --> ArtistController
+ArtistValidationService --> ArtistController
+ArtistImageService --> ArtistImageController
+ArtistImportService --> ArtistImportController
+
+ArtistController --> ArtistService_BE
+ArtistController --> ArtistValidationService_BE
+ArtistImageController --> ArtistImageService_BE
+ArtistFollowController --> ArtistFollowService
+ArtistImportController --> ArtistImportService_BE
+
+ArtistService_BE --> ArtistRepository
+ArtistService_BE --> ArtistAuditService
+ArtistImageService_BE --> ArtistImageRepository
+ArtistFollowService --> ArtistFollowRepository
+ArtistSearchService --> ArtistRepository
+
+ArtistRepository --> Artist
+ArtistImageRepository --> ArtistImage
+ArtistFollowRepository --> ArtistFollow
+
+Artist --> SocialMediaUrls
+ArtistDto --> SocialMediaUrls
+CreateArtistRequest --> SocialMediaUrls
+UpdateArtistRequest --> SocialMediaUrls
+
+@enduml

@@ -1,0 +1,9 @@
+@startuml UC016-Them-Nhac-Vao-Playlist
+!theme plain
+
+actor User
+usecase "Thêm nhạc vào playlist" as UC016
+
+User --> UC016
+
+@enduml

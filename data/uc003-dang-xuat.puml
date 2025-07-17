@@ -1,0 +1,9 @@
+@startuml UC003-Dang-Xuat
+!theme plain
+
+actor User
+usecase "Đăng xuất" as UC003
+
+User --> UC003
+
+@enduml

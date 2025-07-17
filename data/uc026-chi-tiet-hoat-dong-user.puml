@@ -1,0 +1,9 @@
+@startuml UC026-Chi-Tiet-Hoat-Dong-User
+!theme plain
+
+actor Admin
+usecase "Xem chi tiết hoạt động user" as UC026
+
+Admin --> UC026
+
+@enduml

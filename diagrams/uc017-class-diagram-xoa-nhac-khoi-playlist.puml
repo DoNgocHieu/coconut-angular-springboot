@@ -1,0 +1,476 @@
+@startuml UC017-Class-Diagram-Xoa-Nhac-Khoi-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC017: Xóa nhạc khỏi playlist
+
+package "Frontend Layer" {
+    class PlaylistDetailComponent {
+        +playlist: PlaylistDto
+        +playlistMusics: PlaylistMusicDto[]
+        +isOwner: boolean
+        +isEditing: boolean
+        +selectedMusicIds: number[]
+        +currentPage: number
+        +totalPages: number
+        +isLoading: boolean
+        +ngOnInit(): void
+        +loadPlaylistDetail(): void
+        +loadPlaylistMusics(): void
+        +toggleEditMode(): void
+        +selectMusic(musicId: number): void
+        +selectAllMusics(): void
+        +removeSelectedMusics(): void
+        +removeSingleMusic(musicId: number): void
+        +playMusic(musicId: number): void
+        +addToFavorites(musicId: number): void
+        +sharePlaylist(): void
+        +loadNextPage(): void
+    }
+
+    class MusicItemComponent {
+        +music: PlaylistMusicDto
+        +index: number
+        +isOwner: boolean
+        +isEditMode: boolean
+        +isSelected: boolean
+        +showOptions: boolean
+        +canRemove: boolean
+        +onPlayMusic(): void
+        +onRemoveMusic(): void
+        +onSelectMusic(): void
+        +onShowOptions(): void
+        +onAddToFavorites(): void
+        +onShowMusicDetail(): void
+        +formatDuration(): string
+        +formatPosition(): string
+    }
+
+    class RemoveConfirmModalComponent {
+        +musicToRemove: PlaylistMusicDto
+        +musicsToRemove: PlaylistMusicDto[]
+        +isMultipleRemoval: boolean
+        +playlistName: string
+        +isRemoving: boolean
+        +onConfirmRemove(): void
+        +onCancelRemove(): void
+        +close(): void
+        +getConfirmationMessage(): string
+    }
+
+    class BulkActionsComponent {
+        +selectedCount: number
+        +totalCount: number
+        +isVisible: boolean
+        +actions: ActionDto[]
+        +onRemoveSelected(): void
+        +onSelectAll(): void
+        +onClearSelection(): void
+        +onCancel(): void
+        +getSelectedInfo(): string
+    }
+
+    class PlaylistStatsComponent {
+        +playlist: PlaylistDto
+        +originalMusicCount: number
+        +currentMusicCount: number
+        +removedCount: number
+        +totalDuration: number
+        +updateStats(newCount: number, newDuration: number): void
+        +showChanges(): boolean
+        +getStatsText(): string
+    }
+
+    class UndoSnackbarComponent {
+        +recentlyRemoved: PlaylistMusicDto[]
+        +undoTimeLeft: number
+        +isVisible: boolean
+        +onUndo(): void
+        +onDismiss(): void
+        +startCountdown(): void
+        +getMessage(): string
+    }
+}
+
+package "Backend Controller Layer" {
+    class PlaylistController {
+        -playlistService: PlaylistService
+        +getPlaylistDetail(playlistId: Long): ResponseEntity<PlaylistDetailDto>
+        +removeMusicFromPlaylist(playlistId: Long, musicId: Long): ResponseEntity<Void>
+        +removeMusicsBulk(playlistId: Long, request: BulkRemoveRequestDto): ResponseEntity<BulkRemoveResultDto>
+        +undoRemoveMusic(playlistId: Long, request: UndoRemoveRequestDto): ResponseEntity<Void>
+        +getPlaylistMusics(playlistId: Long, pageable: Pageable): ResponseEntity<Page<PlaylistMusicDto>>
+    }
+}
+
+package "Service Layer" {
+    class PlaylistService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -playlistMapper: PlaylistMapper
+        -playlistValidationService: PlaylistValidationService
+        -playlistStatsService: PlaylistStatsService
+        -undoService: UndoService
+        +getPlaylistDetail(playlistId: Long, userId: Long): PlaylistDetailDto
+        +removeMusicFromPlaylist(playlistId: Long, musicId: Long, userId: Long): void
+        +removeMusicsBulk(playlistId: Long, musicIds: List<Long>, userId: Long): BulkRemoveResultDto
+        +undoRemoveMusic(playlistId: Long, undoData: UndoDataDto, userId: Long): void
+        +reorderAfterRemoval(playlistId: Long, removedPosition: Integer): void
+        +updatePlaylistStats(playlistId: Long): void
+        +validatePlaylistOwnership(playlistId: Long, userId: Long): void
+        +canRemoveMusic(playlistId: Long, musicId: Long, userId: Long): boolean
+    }
+
+    class PlaylistValidationService {
+        +validatePlaylistExists(playlistId: Long): void
+        +validatePlaylistOwnership(playlistId: Long, userId: Long): void
+        +validateMusicInPlaylist(playlistId: Long, musicId: Long): void
+        +validateBulkRemoveRequest(request: BulkRemoveRequestDto): List<String>
+        +validateUndoRequest(request: UndoRemoveRequestDto): List<String>
+        +validateUserCanRemove(playlistId: Long, userId: Long): void
+        +validatePlaylistNotEmpty(playlistId: Long): void
+    }
+
+    class PlaylistStatsService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        +recalculatePlaylistStats(playlistId: Long): void
+        +updateMusicCount(playlistId: Long): Integer
+        +updateTotalDuration(playlistId: Long): Integer
+        +getPlaylistMetrics(playlistId: Long): PlaylistMetricsDto
+        +updatePlaylistAfterRemoval(playlistId: Long, removedDuration: Integer): void
+    }
+
+    class UndoService {
+        -undoRepository: UndoActionRepository
+        +createUndoAction(playlistId: Long, removedMusics: List<PlaylistMusic>, userId: Long): UndoActionDto
+        +executeUndo(undoId: Long, userId: Long): void
+        +cleanupExpiredUndos(): void
+        +canUndo(undoId: Long, userId: Long): boolean
+        +getUndoData(undoId: Long): UndoDataDto
+        +markUndoAsUsed(undoId: Long): void
+    }
+}
+
+package "Repository Layer" {
+    interface PlaylistRepository {
+        +findByIdAndDeletedFalse(id: Long): Optional<Playlist>
+        +findByIdAndUserIdAndDeletedFalse(id: Long, userId: Long): Optional<Playlist>
+        +updatePlaylistStats(id: Long, musicCount: Integer, totalDuration: Integer): void
+        +incrementMusicCount(id: Long, increment: Integer): void
+        +decrementMusicCount(id: Long, decrement: Integer): void
+    }
+
+    interface PlaylistMusicRepository {
+        +findByPlaylistIdOrderByOrderIndex(playlistId: Long): List<PlaylistMusic>
+        +findByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): Optional<PlaylistMusic>
+        +findByPlaylistIdAndMusicIdIn(playlistId: Long, musicIds: List<Long>): List<PlaylistMusic>
+        +deleteByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): void
+        +deleteByPlaylistIdAndMusicIdIn(playlistId: Long, musicIds: List<Long>): void
+        +reorderAfterPosition(playlistId: Long, fromPosition: Integer): void
+        +reorderAfterPositions(playlistId: Long, removedPositions: List<Integer>): void
+        +countByPlaylistId(playlistId: Long): Integer
+        +sumDurationByPlaylistId(playlistId: Long): Integer
+        +findMaxOrderIndexByPlaylistId(playlistId: Long): Integer
+        +existsByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): boolean
+    }
+
+    interface UndoActionRepository {
+        +save(undoAction: UndoAction): UndoAction
+        +findByIdAndUserId(id: Long, userId: Long): Optional<UndoAction>
+        +deleteByExpiryTimeBefore(expiryTime: LocalDateTime): void
+        +findByUserIdAndUsedFalse(userId: Long): List<UndoAction>
+    }
+}
+
+package "Entity Layer" {
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -coverImageUrl: String
+        -isPublic: Boolean
+        -userId: Long
+        -musicCount: Integer
+        -totalDuration: Integer
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getUserId(): Long
+        +getMusicCount(): Integer
+        +getTotalDuration(): Integer
+        +isDeleted(): Boolean
+        +decrementMusicCount(): void
+        +updateDuration(durationChange: Integer): void
+        +markAsUpdated(): void
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+        +getAddedAt(): LocalDateTime
+        +updateOrderIndex(newIndex: Integer): void
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +getCoverImageUrl(): String
+        +isPublic(): Boolean
+        +isDeleted(): Boolean
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+        +isActive(): Boolean
+    }
+
+    class UndoAction {
+        -id: Long
+        -userId: Long
+        -actionType: UndoActionType
+        -playlistId: Long
+        -undoData: String
+        -expiryTime: LocalDateTime
+        -used: Boolean
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUserId(): Long
+        +getActionType(): UndoActionType
+        +getPlaylistId(): Long
+        +getUndoData(): String
+        +isExpired(): Boolean
+        +isUsed(): Boolean
+        +markAsUsed(): void
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -color: String
+        -imageUrl: String
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +getImageUrl(): String
+    }
+}
+
+package "DTO Layer" {
+    class PlaylistDetailDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +musicCount: Integer
+        +totalDuration: Integer
+        +musics: List<PlaylistMusicDto>
+        +owner: UserDto
+        +isOwner: Boolean
+        +canEdit: Boolean
+        +canRemove: Boolean
+        +createdAt: LocalDateTime
+        +formattedDuration: String
+    }
+
+    class PlaylistMusicDto {
+        +id: Long
+        +music: MusicDto
+        +orderIndex: Integer
+        +addedAt: LocalDateTime
+        +canRemove: Boolean
+        +canPlay: Boolean
+        +isSelected: Boolean
+        +addedAtFormatted: String
+        +positionDisplay: String
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +category: CategoryDto
+        +uploader: UserDto
+        +viewCount: Long
+        +favoriteCount: Long
+        +isFavorite: Boolean
+        +durationFormatted: String
+    }
+
+    class BulkRemoveRequestDto {
+        +playlistId: Long
+        +musicIds: List<Long>
+        +confirmationToken: String
+    }
+
+    class BulkRemoveResultDto {
+        +removedCount: Integer
+        +failedRemovals: List<Long>
+        +undoId: Long
+        +newMusicCount: Integer
+        +newTotalDuration: Integer
+        +message: String
+    }
+
+    class UndoRemoveRequestDto {
+        +undoId: Long
+        +playlistId: Long
+        +confirmationToken: String
+    }
+
+    class UndoDataDto {
+        +removedMusics: List<PlaylistMusicDto>
+        +originalPositions: Map<Long, Integer>
+        +playlistId: Long
+        +removedAt: LocalDateTime
+        +canUndo: Boolean
+        +expiryTime: LocalDateTime
+    }
+
+    class UndoActionDto {
+        +id: Long
+        +actionType: String
+        +playlistName: String
+        +removedCount: Integer
+        +expiryTime: LocalDateTime
+        +canUndo: Boolean
+        +message: String
+    }
+
+    class PlaylistMetricsDto {
+        +musicCount: Integer
+        +totalDuration: Integer
+        +averageDuration: Double
+        +genreDistribution: List<GenreStatsDto>
+        +formattedTotalDuration: String
+    }
+
+    class ActionDto {
+        +id: String
+        +label: String
+        +icon: String
+        +isDestructive: Boolean
+        +requiresConfirmation: Boolean
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+
+    class GenreStatsDto {
+        +genreName: String
+        +musicCount: Integer
+        +percentage: Double
+        +color: String
+    }
+}
+
+package "Mapper Layer" {
+    class PlaylistMapper {
+        +toDetailDto(playlist: Playlist, musics: List<PlaylistMusic>): PlaylistDetailDto
+        +toDto(playlist: Playlist): PlaylistDto
+        +setUserSpecificFlags(dto: PlaylistDetailDto, userId: Long): void
+        +formatDuration(duration: Integer): String
+    }
+
+    class PlaylistMusicMapper {
+        +toDto(playlistMusic: PlaylistMusic, music: Music): PlaylistMusicDto
+        +toDtoList(playlistMusics: List<PlaylistMusic>): List<PlaylistMusicDto>
+        +setUserSpecificFlags(dto: PlaylistMusicDto, userId: Long): void
+        +formatAddedAt(addedAt: LocalDateTime): String
+        +formatPosition(orderIndex: Integer): String
+    }
+
+    class UndoMapper {
+        +toUndoActionDto(undoAction: UndoAction): UndoActionDto
+        +toUndoDataDto(undoDataJson: String): UndoDataDto
+        +serializeUndoData(undoData: UndoDataDto): String
+        +deserializeUndoData(undoDataJson: String): UndoDataDto
+    }
+}
+
+' Relationships
+PlaylistDetailComponent --> MusicItemComponent : contains
+PlaylistDetailComponent --> RemoveConfirmModalComponent : opens
+PlaylistDetailComponent --> BulkActionsComponent : contains
+PlaylistDetailComponent --> PlaylistStatsComponent : contains
+PlaylistDetailComponent --> UndoSnackbarComponent : shows
+
+PlaylistDetailComponent --> PlaylistController : calls
+
+PlaylistController --> PlaylistService : uses
+
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> PlaylistMusicRepository : uses
+PlaylistService --> PlaylistMapper : uses
+PlaylistService --> PlaylistValidationService : uses
+PlaylistService --> PlaylistStatsService : uses
+PlaylistService --> UndoService : uses
+
+UndoService --> UndoActionRepository : uses
+UndoService --> UndoMapper : uses
+
+PlaylistRepository --> Playlist : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+UndoActionRepository --> UndoAction : manages
+
+Playlist --> User : belongs to
+PlaylistMusic --> Playlist : belongs to
+PlaylistMusic --> Music : references
+Music --> Category : belongs to
+Music --> User : uploaded by
+UndoAction --> User : belongs to
+UndoAction --> Playlist : references
+
+PlaylistMapper --> PlaylistDetailDto : creates
+PlaylistMusicMapper --> PlaylistMusicDto : creates
+UndoMapper --> UndoActionDto : creates
+
+@enduml

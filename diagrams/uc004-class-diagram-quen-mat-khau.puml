@@ -1,0 +1,71 @@
+@startuml UC004-Class-Diagram-Quen-Mat-Khau
+!theme plain
+
+title Biểu đồ lớp - UC004: Quên mật khẩu
+
+class AuthController {
+    + forgotPassword(request: ForgotPasswordRequest): ResponseEntity<ApiResponse>
+    + resetPassword(request: ResetPasswordRequest): ResponseEntity<ApiResponse>
+}
+
+class AuthService {
+    + processForgotPassword(email: String): void
+    + resetPassword(token: String, newPassword: String): void
+    + generateResetToken(user: User): String
+    + validateResetToken(token: String): User
+}
+
+class PasswordResetToken {
+    - Long id
+    - String token
+    - User user
+    - LocalDateTime expiryDate
+    - boolean used
+    + isExpired(): boolean
+    + markAsUsed(): void
+}
+
+class EmailService {
+    + sendPasswordResetEmail(user: User, resetToken: String): void
+    + buildResetEmailContent(user: User, resetLink: String): String
+}
+
+class UserRepository {
+    + findByEmail(email: String): Optional<User>
+    + save(user: User): User
+}
+
+class PasswordResetTokenRepository {
+    + save(token: PasswordResetToken): PasswordResetToken
+    + findByToken(token: String): Optional<PasswordResetToken>
+    + deleteByUser(user: User): void
+}
+
+class ForgotPasswordRequest {
+    + String email
+}
+
+class ResetPasswordRequest {
+    + String token
+    + String newPassword
+    + String confirmPassword
+}
+
+' Relationships
+AuthController --> AuthService : uses
+AuthService --> EmailService : uses
+AuthService --> UserRepository : uses
+AuthService --> PasswordResetTokenRepository : uses
+PasswordResetTokenRepository --> PasswordResetToken : manages
+AuthController --> ForgotPasswordRequest : receives
+AuthController --> ResetPasswordRequest : receives
+
+note right of PasswordResetToken
+  Security features:
+  - 24 hour expiration
+  - Single use only
+  - Cryptographically secure token
+  - Tied to specific user
+end note
+
+@enduml

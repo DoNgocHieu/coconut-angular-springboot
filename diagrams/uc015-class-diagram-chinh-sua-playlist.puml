@@ -1,0 +1,457 @@
+@startuml UC015-Class-Diagram-Chinh-Sua-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC015: Chỉnh sửa playlist
+
+package "Frontend Layer" {
+    class PlaylistEditComponent {
+        +playlist: PlaylistDto
+        +originalPlaylist: PlaylistDto
+        +playlistMusics: PlaylistMusicDto[]
+        +isLoading: boolean
+        +isEditing: boolean
+        +hasChanges: boolean
+        +form: FormGroup
+        +selectedCoverFile: File
+        +draggedMusic: PlaylistMusicDto
+        +ngOnInit(): void
+        +loadPlaylistDetails(): void
+        +initializeForm(): void
+        +onFormChange(): void
+        +onCoverImageSelect(file: File): void
+        +uploadCoverImage(): void
+        +removeCoverImage(): void
+        +onDragStart(music: PlaylistMusicDto): void
+        +onDragOver(event: DragEvent): void
+        +onDrop(event: DragEvent, targetIndex: number): void
+        +reorderMusics(oldIndex: number, newIndex: number): void
+        +saveChanges(): void
+        +resetChanges(): void
+        +canDeactivate(): boolean
+        +showUnsavedChangesModal(): void
+    }
+
+    class PlaylistFormComponent {
+        +playlist: PlaylistDto
+        +form: FormGroup
+        +isEditing: boolean
+        +maxNameLength: number
+        +maxDescriptionLength: number
+        +onFormChange(): void
+        +validatePlaylistName(): void
+        +validateDescription(): void
+        +togglePrivacy(): void
+        +resetForm(): void
+    }
+
+    class PlaylistCoverComponent {
+        +playlist: PlaylistDto
+        +selectedFile: File
+        +previewUrl: string
+        +isUploading: boolean
+        +allowedTypes: string[]
+        +maxFileSize: number
+        +onFileSelect(event: any): void
+        +onDrop(event: DragEvent): void
+        +validateFile(file: File): boolean
+        +previewImage(file: File): void
+        +uploadImage(): void
+        +removeImage(): void
+        +resetToDefault(): void
+    }
+
+    class DraggableMusicListComponent {
+        +musics: PlaylistMusicDto[]
+        +isReordering: boolean
+        +canEdit: boolean
+        +draggedIndex: number
+        +onDragStart(index: number): void
+        +onDragOver(event: DragEvent): void
+        +onDrop(event: DragEvent, targetIndex: number): void
+        +onReorderComplete(): void
+        +removeMusicFromList(musicId: number): void
+        +playMusic(musicId: number): void
+    }
+
+    class MusicItemComponent {
+        +music: PlaylistMusicDto
+        +index: number
+        +isDragging: boolean
+        +canEdit: boolean
+        +canDelete: boolean
+        +showDetails: boolean
+        +onDragStart(): void
+        +onRemove(): void
+        +onPlay(): void
+        +toggleDetails(): void
+        +formatDuration(): string
+    }
+
+    class UnsavedChangesModalComponent {
+        +hasUnsavedChanges: boolean
+        +onSave(): void
+        +onDiscard(): void
+        +onCancel(): void
+        +close(): void
+    }
+
+    class PlaylistStatsComponent {
+        +playlist: PlaylistDto
+        +totalDuration: number
+        +musicCount: number
+        +averageDuration: number
+        +topGenres: GenreStatsDto[]
+        +calculateStats(): void
+        +formatTotalDuration(): string
+        +getGenreDistribution(): void
+    }
+}
+
+package "Backend Controller Layer" {
+    class PlaylistController {
+        -playlistService: PlaylistService
+        +getPlaylistForEdit(playlistId: Long): ResponseEntity<PlaylistEditDto>
+        +updatePlaylist(playlistId: Long, request: PlaylistUpdateRequestDto): ResponseEntity<PlaylistDto>
+        +updatePlaylistCover(playlistId: Long, file: MultipartFile): ResponseEntity<String>
+        +removePlaylistCover(playlistId: Long): ResponseEntity<Void>
+        +reorderPlaylistMusics(playlistId: Long, request: ReorderRequestDto): ResponseEntity<Void>
+        +validatePlaylistName(name: String): ResponseEntity<ValidationResultDto>
+    }
+}
+
+package "Service Layer" {
+    class PlaylistService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -playlistMapper: PlaylistMapper
+        -playlistValidationService: PlaylistValidationService
+        -fileStorageService: FileStorageService
+        +getPlaylistForEdit(playlistId: Long, userId: Long): PlaylistEditDto
+        +updatePlaylist(playlistId: Long, userId: Long, request: PlaylistUpdateRequestDto): PlaylistDto
+        +updatePlaylistCover(playlistId: Long, userId: Long, file: MultipartFile): String
+        +removePlaylistCover(playlistId: Long, userId: Long): void
+        +reorderPlaylistMusics(playlistId: Long, userId: Long, orderMappings: Map<Long, Integer>): void
+        +validatePlaylistOwnership(playlistId: Long, userId: Long): void
+        +updatePlaylistMetadata(playlist: Playlist): void
+        +recalculatePlaylistStats(playlistId: Long): void
+    }
+
+    class PlaylistValidationService {
+        +validatePlaylistExists(playlistId: Long): void
+        +validatePlaylistOwnership(playlistId: Long, userId: Long): void
+        +validatePlaylistName(name: String, playlistId: Long, userId: Long): List<String>
+        +validateDescription(description: String): List<String>
+        +validateCoverImageFile(file: MultipartFile): List<String>
+        +validateReorderRequest(orderMappings: Map<Long, Integer>, playlistId: Long): List<String>
+        +validatePlaylistNotDeleted(playlistId: Long): void
+        +validateUserCanEdit(playlistId: Long, userId: Long): void
+    }
+
+    class FileStorageService {
+        +storePlaylistCover(file: MultipartFile, playlistId: Long): String
+        +deletePlaylistCover(coverUrl: String): void
+        +generatePlaylistCoverUrl(playlistId: Long, filename: String): String
+        +validateImageFile(file: MultipartFile): boolean
+        +resizePlaylistCover(file: MultipartFile): MultipartFile
+        +getDefaultPlaylistCover(): String
+    }
+
+    class PlaylistStatsService {
+        -playlistMusicRepository: PlaylistMusicRepository
+        +calculatePlaylistDuration(playlistId: Long): Integer
+        +getPlaylistGenreDistribution(playlistId: Long): List<GenreStatsDto>
+        +getPlaylistArtistStats(playlistId: Long): List<ArtistStatsDto>
+        +updatePlaylistStats(playlistId: Long): void
+        +getPlaylistMetrics(playlistId: Long): PlaylistMetricsDto
+    }
+}
+
+package "Repository Layer" {
+    interface PlaylistRepository {
+        +findByIdAndUserId(id: Long, userId: Long): Optional<Playlist>
+        +findByIdAndUserIdAndDeletedFalse(id: Long, userId: Long): Optional<Playlist>
+        +existsByNameAndUserIdAndIdNot(name: String, userId: Long, id: Long): boolean
+        +updatePlaylistInfo(id: Long, name: String, description: String, isPublic: Boolean): void
+        +updateCoverImage(id: Long, coverImageUrl: String): void
+        +updatePlaylistStats(id: Long, musicCount: Integer, totalDuration: Integer): void
+    }
+
+    interface PlaylistMusicRepository {
+        +findByPlaylistIdOrderByOrderIndex(playlistId: Long): List<PlaylistMusic>
+        +findByPlaylistIdAndMusicId(playlistId: Long, musicId: Long): Optional<PlaylistMusic>
+        +updateOrderIndex(id: Long, orderIndex: Integer): void
+        +updateOrderIndexBatch(orderMappings: Map<Long, Integer>): void
+        +countByPlaylistId(playlistId: Long): Integer
+        +sumDurationByPlaylistId(playlistId: Long): Integer
+        +findPlaylistMusicDetails(playlistId: Long): List<Object[]>
+        +reorderAfterPosition(playlistId: Long, fromPosition: Integer): void
+    }
+}
+
+package "Entity Layer" {
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -coverImageUrl: String
+        -isPublic: Boolean
+        -userId: Long
+        -musicCount: Integer
+        -totalDuration: Integer
+        -deleted: Boolean
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getDescription(): String
+        +getCoverImageUrl(): String
+        +isPublic(): Boolean
+        +getUserId(): Long
+        +getMusicCount(): Integer
+        +getTotalDuration(): Integer
+        +isDeleted(): Boolean
+        +updateInfo(name: String, description: String, isPublic: Boolean): void
+        +setCoverImage(coverImageUrl: String): void
+        +updateStats(musicCount: Integer, totalDuration: Integer): void
+        +markAsUpdated(): void
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+        +getAddedAt(): LocalDateTime
+        +setOrderIndex(orderIndex: Integer): void
+        +updatePosition(newIndex: Integer): void
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +getCoverImageUrl(): String
+        +getAudioFileUrl(): String
+        +isPublic(): Boolean
+        +isDeleted(): Boolean
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -active: Boolean
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +getAvatarUrl(): String
+        +isActive(): Boolean
+    }
+
+    class Category {
+        -id: Long
+        -name: String
+        -color: String
+        -imageUrl: String
+        -active: Boolean
+        +getId(): Long
+        +getName(): String
+        +getColor(): String
+        +getImageUrl(): String
+        +isActive(): Boolean
+    }
+}
+
+package "DTO Layer" {
+    class PlaylistEditDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +musicCount: Integer
+        +totalDuration: Integer
+        +musics: List<PlaylistMusicDto>
+        +owner: UserDto
+        +canEdit: Boolean
+        +canDelete: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class PlaylistDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +musicCount: Integer
+        +totalDuration: Integer
+        +owner: UserDto
+        +canEdit: Boolean
+        +canDelete: Boolean
+        +createdAt: LocalDateTime
+        +formattedDuration: String
+    }
+
+    class PlaylistMusicDto {
+        +id: Long
+        +music: MusicDto
+        +orderIndex: Integer
+        +addedAt: LocalDateTime
+        +canRemove: Boolean
+        +canReorder: Boolean
+        +addedAtFormatted: String
+    }
+
+    class PlaylistUpdateRequestDto {
+        +name: String
+        +description: String
+        +isPublic: Boolean
+        +coverImageUrl: String
+    }
+
+    class ReorderRequestDto {
+        +orderMappings: Map<Long, Integer>
+        +playlistId: Long
+    }
+
+    class MusicDto {
+        +id: Long
+        +title: String
+        +artist: String
+        +album: String
+        +duration: Integer
+        +coverImageUrl: String
+        +audioFileUrl: String
+        +category: CategoryDto
+        +uploader: UserDto
+        +viewCount: Long
+        +favoriteCount: Long
+        +isFavorite: Boolean
+        +durationFormatted: String
+    }
+
+    class ValidationResultDto {
+        +isValid: Boolean
+        +errors: List<String>
+        +warnings: List<String>
+    }
+
+    class GenreStatsDto {
+        +genreName: String
+        +musicCount: Integer
+        +totalDuration: Integer
+        +percentage: Double
+        +color: String
+    }
+
+    class ArtistStatsDto {
+        +artistName: String
+        +musicCount: Integer
+        +totalDuration: Integer
+        +percentage: Double
+    }
+
+    class PlaylistMetricsDto {
+        +totalDuration: Integer
+        +musicCount: Integer
+        +averageDuration: Double
+        +genreDistribution: List<GenreStatsDto>
+        +artistDistribution: List<ArtistStatsDto>
+        +formattedTotalDuration: String
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+
+    class CategoryDto {
+        +id: Long
+        +name: String
+        +color: String
+        +imageUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class PlaylistMapper {
+        +toEditDto(playlist: Playlist, musics: List<PlaylistMusic>): PlaylistEditDto
+        +toDto(playlist: Playlist): PlaylistDto
+        +toEntity(dto: PlaylistUpdateRequestDto): Playlist
+        +setUserSpecificFlags(dto: PlaylistEditDto, userId: Long): void
+        +formatDuration(duration: Integer): String
+        +toDtoList(playlists: List<Playlist>): List<PlaylistDto>
+    }
+
+    class PlaylistMusicMapper {
+        +toDto(playlistMusic: PlaylistMusic, music: Music): PlaylistMusicDto
+        +toDtoList(playlistMusics: List<PlaylistMusic>): List<PlaylistMusicDto>
+        +setUserSpecificFlags(dto: PlaylistMusicDto, userId: Long): void
+        +formatAddedAt(addedAt: LocalDateTime): String
+    }
+
+    class StatsMapper {
+        +toGenreStatsDto(genreData: Object[]): GenreStatsDto
+        +toArtistStatsDto(artistData: Object[]): ArtistStatsDto
+        +toPlaylistMetricsDto(metricsData: Object[]): PlaylistMetricsDto
+    }
+}
+
+' Relationships
+PlaylistEditComponent --> PlaylistFormComponent : contains
+PlaylistEditComponent --> PlaylistCoverComponent : contains
+PlaylistEditComponent --> DraggableMusicListComponent : contains
+PlaylistEditComponent --> PlaylistStatsComponent : contains
+PlaylistEditComponent --> UnsavedChangesModalComponent : opens
+
+DraggableMusicListComponent --> MusicItemComponent : contains
+
+PlaylistEditComponent --> PlaylistController : calls
+
+PlaylistController --> PlaylistService : uses
+
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> PlaylistMusicRepository : uses
+PlaylistService --> PlaylistMapper : uses
+PlaylistService --> PlaylistValidationService : uses
+PlaylistService --> FileStorageService : uses
+PlaylistService --> PlaylistStatsService : uses
+
+PlaylistRepository --> Playlist : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+
+Playlist --> User : belongs to
+PlaylistMusic --> Playlist : belongs to
+PlaylistMusic --> Music : references
+Music --> Category : belongs to
+Music --> User : uploaded by
+
+PlaylistMapper --> PlaylistEditDto : creates
+PlaylistMusicMapper --> PlaylistMusicDto : creates
+StatsMapper --> GenreStatsDto : creates
+
+@enduml

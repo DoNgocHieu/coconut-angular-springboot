@@ -1,0 +1,9 @@
+@startuml UC010-Danh-Muc-Nhac
+!theme plain
+
+actor User
+usecase "Xem danh mục nhạc" as UC010
+
+User --> UC010
+
+@enduml

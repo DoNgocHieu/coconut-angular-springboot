@@ -1,0 +1,494 @@
+@startuml UC018-Class-Diagram-Xoa-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC018: Xóa playlist
+
+package "Frontend Layer" {
+    class PlaylistListComponent {
+        +playlists: PlaylistDto[]
+        +userPlaylists: PlaylistDto[]
+        +currentUser: UserDto
+        +selectedPlaylist: PlaylistDto
+        +isLoading: boolean
+        +currentPage: number
+        +totalPages: number
+        +searchQuery: string
+        +sortBy: string
+        +ngOnInit(): void
+        +loadUserPlaylists(): void
+        +searchPlaylists(): void
+        +sortPlaylists(): void
+        +openDeleteModal(playlist: PlaylistDto): void
+        +confirmDelete(): void
+        +navigateToPlaylist(playlistId: number): void
+        +createNewPlaylist(): void
+        +loadNextPage(): void
+    }
+
+    class PlaylistCardComponent {
+        +playlist: PlaylistDto
+        +isOwner: boolean
+        +showActions: boolean
+        +canDelete: boolean
+        +isDeleting: boolean
+        +onPlayPlaylist(): void
+        +onEditPlaylist(): void
+        +onDeletePlaylist(): void
+        +onViewPlaylist(): void
+        +onSharePlaylist(): void
+        +toggleActions(): void
+        +formatMusicCount(): string
+        +formatDuration(): string
+        +getPlaylistImage(): string
+    }
+
+    class DeletePlaylistModalComponent {
+        +playlistToDelete: PlaylistDto
+        +confirmationText: string
+        +isDeleting: boolean
+        +isVisible: boolean
+        +errorMessage: string
+        +expectedPlaylistName: string
+        +hasConfirmedRisks: boolean
+        +open(playlist: PlaylistDto): void
+        +close(): void
+        +onConfirmDelete(): void
+        +onCancelDelete(): void
+        +validatePlaylistName(): boolean
+        +isConfirmationValid(): boolean
+        +resetForm(): void
+    }
+
+    class DeleteConfirmationComponent {
+        +dangerTitle: string
+        +warningText: string
+        +confirmationRequired: boolean
+        +expectedText: string
+        +userInput: string
+        +checkboxConfirmed: boolean
+        +isValid: boolean
+        +onInputChange(): void
+        +onCheckboxChange(): void
+        +validateInput(): boolean
+        +getValidationMessage(): string
+    }
+
+    class BulkDeleteComponent {
+        +selectedPlaylists: PlaylistDto[]
+        +isVisible: boolean
+        +isDeletingAll: boolean
+        +deletionProgress: number
+        +successCount: number
+        +errorCount: number
+        +onBulkDelete(): void
+        +onSelectAll(): void
+        +onClearSelection(): void
+        +updateProgress(): void
+        +showResults(): void
+        +close(): void
+    }
+
+    class PlaylistStatsComponent {
+        +originalCount: number
+        +currentCount: number
+        +deletedCount: number
+        +totalMusicsRemoved: number
+        +updateStats(deletedCount: number): void
+        +getStatsText(): string
+        +showChanges(): boolean
+    }
+}
+
+package "Backend Controller Layer" {
+    class PlaylistController {
+        -playlistService: PlaylistService
+        +getUserPlaylists(userId: Long, pageable: Pageable): ResponseEntity<Page<PlaylistDto>>
+        +deletePlaylist(playlistId: Long): ResponseEntity<Void>
+        +bulkDeletePlaylists(request: BulkDeleteRequestDto): ResponseEntity<BulkDeleteResultDto>
+        +validatePlaylistDeletion(playlistId: Long): ResponseEntity<DeletionValidationDto>
+        +getPlaylistDeletionImpact(playlistId: Long): ResponseEntity<DeletionImpactDto>
+    }
+}
+
+package "Service Layer" {
+    class PlaylistService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -fileStorageService: FileStorageService
+        -playlistValidationService: PlaylistValidationService
+        -playlistDeletionService: PlaylistDeletionService
+        -auditService: AuditService
+        +getUserPlaylists(userId: Long, pageable: Pageable): Page<PlaylistDto>
+        +deletePlaylist(playlistId: Long, userId: Long): void
+        +bulkDeletePlaylists(playlistIds: List<Long>, userId: Long): BulkDeleteResultDto
+        +validateDeletion(playlistId: Long, userId: Long): DeletionValidationDto
+        +getDeletionImpact(playlistId: Long): DeletionImpactDto
+        +canDeletePlaylist(playlistId: Long, userId: Long): boolean
+        +softDeletePlaylist(playlistId: Long, userId: Long): void
+        +hardDeletePlaylist(playlistId: Long, userId: Long): void
+    }
+
+    class PlaylistValidationService {
+        +validatePlaylistExists(playlistId: Long): void
+        +validatePlaylistOwnership(playlistId: Long, userId: Long): void
+        +validateUserCanDelete(playlistId: Long, userId: Long): void
+        +validateBulkDeleteRequest(request: BulkDeleteRequestDto): List<String>
+        +validatePlaylistNotSystemDefault(playlistId: Long): void
+        +checkDeletionConstraints(playlistId: Long): List<String>
+        +validateDeletionPermissions(playlistId: Long, userId: Long): void
+    }
+
+    class PlaylistDeletionService {
+        -playlistRepository: PlaylistRepository
+        -playlistMusicRepository: PlaylistMusicRepository
+        -fileStorageService: FileStorageService
+        -userActivityService: UserActivityService
+        +executePlaylistDeletion(playlistId: Long, userId: Long): void
+        +cleanupPlaylistData(playlistId: Long): void
+        +removePlaylistCover(coverImageUrl: String): void
+        +removePlaylistFiles(playlistId: Long): void
+        +updateUserStats(userId: Long): void
+        +logDeletionActivity(playlistId: Long, userId: Long): void
+        +executeBulkDeletion(playlistIds: List<Long>, userId: Long): BulkDeleteResultDto
+    }
+
+    class FileStorageService {
+        +deleteFile(fileUrl: String): boolean
+        +deletePlaylistCover(coverImageUrl: String): boolean
+        +bulkDeleteFiles(fileUrls: List<String>): List<String>
+        +validateFileExists(fileUrl: String): boolean
+        +getFileInfo(fileUrl: String): FileInfoDto
+        +cleanupOrphanedFiles(): void
+    }
+
+    class AuditService {
+        +logPlaylistDeletion(playlistId: Long, userId: Long, details: Map<String, Object>): void
+        +logBulkDeletion(userId: Long, deletedCount: Integer, details: Map<String, Object>): void
+        +getPlaylistDeletionHistory(userId: Long): List<AuditLogDto>
+        +trackUserActivity(userId: Long, action: String, details: String): void
+    }
+
+    class UserActivityService {
+        +updatePlaylistCount(userId: Long): void
+        +updateUserStats(userId: Long): void
+        +recordDeletionActivity(userId: Long, playlistId: Long): void
+        +getUserActivitySummary(userId: Long): UserActivityDto
+    }
+}
+
+package "Repository Layer" {
+    interface PlaylistRepository {
+        +findByIdAndDeletedFalse(id: Long): Optional<Playlist>
+        +findByIdAndUserIdAndDeletedFalse(id: Long, userId: Long): Optional<Playlist>
+        +findByUserIdAndDeletedFalse(userId: Long, pageable: Pageable): Page<Playlist>
+        +findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId: Long): List<Playlist>
+        +softDeleteById(id: Long): void
+        +hardDeleteById(id: Long): void
+        +bulkSoftDelete(ids: List<Long>): void
+        +bulkHardDelete(ids: List<Long>): void
+        +countByUserIdAndDeletedFalse(userId: Long): Integer
+        +existsByIdAndUserIdAndDeletedFalse(id: Long, userId: Long): boolean
+        +findPlaylistsForDeletion(userId: Long): List<Playlist>
+    }
+
+    interface PlaylistMusicRepository {
+        +findByPlaylistId(playlistId: Long): List<PlaylistMusic>
+        +deleteAllByPlaylistId(playlistId: Long): void
+        +deleteAllByPlaylistIdIn(playlistIds: List<Long>): void
+        +countByPlaylistId(playlistId: Long): Integer
+        +sumDurationByPlaylistId(playlistId: Long): Integer
+        +bulkDeleteByPlaylistIds(playlistIds: List<Long>): void
+        +findMusicCountsByPlaylistIds(playlistIds: List<Long>): List<PlaylistMusicCountDto>
+    }
+
+    interface AuditLogRepository {
+        +save(auditLog: AuditLog): AuditLog
+        +findByUserIdAndActionTypeOrderByCreatedAtDesc(userId: Long, actionType: String): List<AuditLog>
+        +findPlaylistDeletionLogs(userId: Long): List<AuditLog>
+        +deleteOldLogs(cutoffDate: LocalDateTime): void
+    }
+
+    interface UserActivityRepository {
+        +findByUserId(userId: Long): Optional<UserActivity>
+        +updatePlaylistCount(userId: Long, newCount: Integer): void
+        +incrementDeletedPlaylistCount(userId: Long): void
+        +save(userActivity: UserActivity): UserActivity
+    }
+}
+
+package "Entity Layer" {
+    class Playlist {
+        -id: Long
+        -name: String
+        -description: String
+        -coverImageUrl: String
+        -isPublic: Boolean
+        -userId: Long
+        -musicCount: Integer
+        -totalDuration: Integer
+        -deleted: Boolean
+        -deletedAt: LocalDateTime
+        -deletedBy: Long
+        -createdAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getName(): String
+        +getUserId(): Long
+        +isDeleted(): Boolean
+        +markAsDeleted(deletedBy: Long): void
+        +hardDelete(): void
+        +isOwnedBy(userId: Long): boolean
+        +canBeDeletedBy(userId: Long): boolean
+        +getDeletionInfo(): DeletionInfoDto
+    }
+
+    class PlaylistMusic {
+        -id: Long
+        -playlistId: Long
+        -musicId: Long
+        -orderIndex: Integer
+        -addedAt: LocalDateTime
+        +getId(): Long
+        +getPlaylistId(): Long
+        +getMusicId(): Long
+        +getOrderIndex(): Integer
+        +belongsToPlaylist(playlistId: Long): boolean
+    }
+
+    class Music {
+        -id: Long
+        -title: String
+        -artist: String
+        -album: String
+        -duration: Integer
+        -coverImageUrl: String
+        -audioFileUrl: String
+        -categoryId: Long
+        -userId: Long
+        -isPublic: Boolean
+        -deleted: Boolean
+        +getId(): Long
+        +getTitle(): String
+        +getArtist(): String
+        +getDuration(): Integer
+        +isDeleted(): Boolean
+    }
+
+    class User {
+        -id: Long
+        -username: String
+        -email: String
+        -displayName: String
+        -avatarUrl: String
+        -role: UserRole
+        -playlistCount: Integer
+        -active: Boolean
+        +getId(): Long
+        +getUsername(): String
+        +getDisplayName(): String
+        +isActive(): Boolean
+        +getPlaylistCount(): Integer
+        +decrementPlaylistCount(): void
+    }
+
+    class AuditLog {
+        -id: Long
+        -userId: Long
+        -actionType: String
+        -resourceType: String
+        -resourceId: Long
+        -actionDetails: String
+        -ipAddress: String
+        -userAgent: String
+        -createdAt: LocalDateTime
+        +getId(): Long
+        +getUserId(): Long
+        +getActionType(): String
+        +getResourceId(): Long
+        +getActionDetails(): String
+    }
+
+    class UserActivity {
+        -id: Long
+        -userId: Long
+        -playlistCount: Integer
+        -musicCount: Integer
+        -deletedPlaylistCount: Integer
+        -lastActivityAt: LocalDateTime
+        -updatedAt: LocalDateTime
+        +getId(): Long
+        +getUserId(): Long
+        +getPlaylistCount(): Integer
+        +getDeletedPlaylistCount(): Integer
+        +incrementDeletedCount(): void
+        +decrementPlaylistCount(): void
+    }
+}
+
+package "DTO Layer" {
+    class PlaylistDto {
+        +id: Long
+        +name: String
+        +description: String
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +musicCount: Integer
+        +totalDuration: Integer
+        +owner: UserDto
+        +isOwner: Boolean
+        +canDelete: Boolean
+        +canEdit: Boolean
+        +createdAt: LocalDateTime
+        +formattedDuration: String
+        +isDeletable: Boolean
+    }
+
+    class BulkDeleteRequestDto {
+        +playlistIds: List<Long>
+        +confirmationToken: String
+        +forceDelete: Boolean
+        +reason: String
+    }
+
+    class BulkDeleteResultDto {
+        +successCount: Integer
+        +failedCount: Integer
+        +failedPlaylistIds: List<Long>
+        +errors: List<String>
+        +totalFilesDeleted: Integer
+        +totalMusicsRemoved: Integer
+        +message: String
+    }
+
+    class DeletionValidationDto {
+        +canDelete: Boolean
+        +warnings: List<String>
+        +errors: List<String>
+        +requiredConfirmations: List<String>
+        +impact: DeletionImpactDto
+    }
+
+    class DeletionImpactDto {
+        +playlistName: String
+        +musicCount: Integer
+        +totalDuration: Integer
+        +coverImageUrl: String
+        +isPublic: Boolean
+        +hasSharedAccess: Boolean
+        +dependentPlaylists: List<String>
+        +estimatedFileSize: Long
+    }
+
+    class PlaylistMusicCountDto {
+        +playlistId: Long
+        +musicCount: Integer
+        +totalDuration: Integer
+    }
+
+    class AuditLogDto {
+        +id: Long
+        +actionType: String
+        +resourceType: String
+        +resourceName: String
+        +actionDetails: String
+        +createdAt: LocalDateTime
+        +formattedCreatedAt: String
+    }
+
+    class UserActivityDto {
+        +userId: Long
+        +totalPlaylists: Integer
+        +totalMusics: Integer
+        +deletedPlaylists: Integer
+        +lastActivityAt: LocalDateTime
+        +activitySummary: String
+    }
+
+    class DeletionInfoDto {
+        +deletedAt: LocalDateTime
+        +deletedBy: Long
+        +deletionReason: String
+        +canRestore: Boolean
+        +formattedDeletedAt: String
+    }
+
+    class FileInfoDto {
+        +fileName: String
+        +fileSize: Long
+        +fileType: String
+        +exists: Boolean
+        +lastModified: LocalDateTime
+    }
+
+    class UserDto {
+        +id: Long
+        +username: String
+        +displayName: String
+        +avatarUrl: String
+    }
+}
+
+package "Mapper Layer" {
+    class PlaylistMapper {
+        +toDto(playlist: Playlist): PlaylistDto
+        +toDtoList(playlists: List<Playlist>): List<PlaylistDto>
+        +setUserSpecificFlags(dto: PlaylistDto, userId: Long): void
+        +toDeletionImpactDto(playlist: Playlist, musicCount: Integer): DeletionImpactDto
+        +formatDuration(duration: Integer): String
+    }
+
+    class AuditLogMapper {
+        +toDto(auditLog: AuditLog): AuditLogDto
+        +toDtoList(auditLogs: List<AuditLog>): List<AuditLogDto>
+        +formatActionDetails(details: String): String
+        +formatCreatedAt(createdAt: LocalDateTime): String
+    }
+
+    class UserActivityMapper {
+        +toDto(userActivity: UserActivity): UserActivityDto
+        +formatActivitySummary(userActivity: UserActivity): String
+    }
+}
+
+' Relationships
+PlaylistListComponent --> PlaylistCardComponent : contains
+PlaylistListComponent --> DeletePlaylistModalComponent : opens
+PlaylistListComponent --> BulkDeleteComponent : contains
+PlaylistListComponent --> PlaylistStatsComponent : contains
+
+PlaylistCardComponent --> DeletePlaylistModalComponent : triggers
+DeletePlaylistModalComponent --> DeleteConfirmationComponent : contains
+
+PlaylistListComponent --> PlaylistController : calls
+
+PlaylistController --> PlaylistService : uses
+
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> PlaylistMusicRepository : uses
+PlaylistService --> PlaylistValidationService : uses
+PlaylistService --> PlaylistDeletionService : uses
+PlaylistService --> AuditService : uses
+
+PlaylistDeletionService --> FileStorageService : uses
+PlaylistDeletionService --> UserActivityService : uses
+PlaylistDeletionService --> AuditService : uses
+
+AuditService --> AuditLogRepository : uses
+UserActivityService --> UserActivityRepository : uses
+
+PlaylistRepository --> Playlist : manages
+PlaylistMusicRepository --> PlaylistMusic : manages
+AuditLogRepository --> AuditLog : manages
+UserActivityRepository --> UserActivity : manages
+
+Playlist --> User : belongs to
+PlaylistMusic --> Playlist : belongs to
+PlaylistMusic --> Music : references
+AuditLog --> User : belongs to
+UserActivity --> User : belongs to
+
+PlaylistMapper --> PlaylistDto : creates
+AuditLogMapper --> AuditLogDto : creates
+UserActivityMapper --> UserActivityDto : creates
+
+@enduml

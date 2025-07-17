@@ -1,0 +1,185 @@
+@startuml Coconut_Music_ERD_Simple
+!theme plain
+title Coconut Music Database - Entity Relationship Diagram (Simplified)
+
+' Color scheme
+skinparam entity {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+}
+
+skinparam relationship {
+    LineColor DarkBlue
+}
+
+' Define entities with key attributes
+entity "👤 USERS" as users {
+    * **id** : BIGINT <<PK>>
+    --
+    * username : VARCHAR(255) <<UNIQUE>>
+    * email : VARCHAR(255) <<UNIQUE>>
+    * password : VARCHAR(255)
+    is_admin : BIT(1)
+    is_verified : BIT(1)
+    avatar_url : VARCHAR(255)
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+}
+
+entity "🎤 ARTISTS" as artists {
+    * **id** : BIGINT <<PK>>
+    --
+    * name : VARCHAR(255)
+    bio : TEXT
+    avatar_url : VARCHAR(255)
+    is_active : BIT(1)
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+}
+
+entity "📂 CATEGORIES" as categories {
+    * **id** : BIGINT <<PK>>
+    --
+    * name : VARCHAR(255) <<UNIQUE>>
+    description : TEXT
+    image_url : VARCHAR(255)
+    is_active : BIT(1)
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+}
+
+entity "🎵 MUSIC" as music {
+    * **id** : BIGINT <<PK>>
+    --
+    * title : VARCHAR(255)
+    * file_url : VARCHAR(255)
+    * duration_seconds : INT
+    image_url : VARCHAR(255)
+    play_count : BIGINT
+    like_count : BIGINT
+    is_active : BIT(1)
+    type_music : ENUM
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+    --
+    # artist_id : BIGINT <<FK>>
+    # category_id : BIGINT <<FK>>
+    # uploaded_by : BIGINT <<FK>>
+}
+
+entity "🎧 PLAYLISTS" as playlists {
+    * **id** : BIGINT <<PK>>
+    --
+    * name : VARCHAR(255)
+    description : TEXT
+    image_url : VARCHAR(255)
+    is_public : BIT(1)
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+    --
+    # user_id : BIGINT <<FK>>
+}
+
+entity "🔗 PLAYLIST_MUSIC" as playlist_music {
+    * **id** : BIGINT <<PK>>
+    --
+    position : INT
+    added_at : DATETIME(6)
+    --
+    # playlist_id : BIGINT <<FK>>
+    # music_id : BIGINT <<FK>>
+    <<UNIQUE(playlist_id, music_id)>>
+}
+
+entity "❤️ FAVORITES" as favorites {
+    * **id** : BIGINT <<PK>>
+    --
+    created_at : DATETIME(6)
+    --
+    # user_id : BIGINT <<FK>>
+    # music_id : BIGINT <<FK>>
+    <<UNIQUE(user_id, music_id)>>
+}
+
+entity "📊 HISTORY" as history {
+    * **id** : BIGINT <<PK>>
+    --
+    played_at : DATETIME(6)
+    --
+    # user_id : BIGINT <<FK>>
+    # music_id : BIGINT <<FK>>
+}
+
+entity "💖 FAVORITE_PLAYLISTS" as favorite_playlists {
+    * **id** : BIGINT <<PK>>
+    --
+    created_at : DATETIME(6)
+    --
+    # user_id : BIGINT <<FK>>
+    # playlist_id : BIGINT <<FK>>
+    <<UNIQUE(user_id, playlist_id)>>
+}
+
+entity "🎪 BANNERS" as banners {
+    * **id** : BIGINT <<PK>>
+    --
+    * title : VARCHAR(255)
+    * image_url : VARCHAR(255)
+    link_url : VARCHAR(255)
+    is_active : BIT(1)
+    sort_order : INT
+    created_at : DATETIME(6)
+    updated_at : DATETIME(6)
+}
+
+' Relationships
+users ||--o{ playlists : "owns"
+users ||--o{ music : "uploads"
+users ||--o{ history : "listens"
+users ||--o{ favorites : "likes"
+users ||--o{ favorite_playlists : "favorites"
+
+artists ||--o{ music : "creates"
+categories ||--o{ music : "contains"
+
+playlists ||--o{ playlist_music : "contains"
+music ||--o{ playlist_music : "included_in"
+
+music ||--o{ favorites : "liked_by"
+music ||--o{ history : "played_by"
+
+playlists ||--o{ favorite_playlists : "favorited_by"
+
+' Legend
+note top : "**🗄️ COCONUT MUSIC DATABASE SCHEMA**\n\
+**Core Entities:**\n\
+• 👤 Users: Authentication & user management\n\
+• 🎵 Music: Core content with metadata\n\
+• 🎤 Artists: Music creators\n\
+• 📂 Categories: Music classification\n\
+• 🎧 Playlists: User-created collections\n\
+\n\
+**Junction Tables:**\n\
+• 🔗 Playlist_Music: Many-to-many (Playlists ↔ Music)\n\
+• ❤️ Favorites: Many-to-many (Users ↔ Music)\n\
+• 📊 History: User listening tracking\n\
+• 💖 Favorite_Playlists: Many-to-many (Users ↔ Playlists)\n\
+\n\
+**Standalone:**\n\
+• 🎪 Banners: Marketing/promotional content"
+
+note bottom : "**📊 RELATIONSHIPS SUMMARY**\n\
+• **1:N Relationships**: 8 relationships\n\
+• **M:N Relationships**: 3 relationships (via junction tables)\n\
+• **Unique Constraints**: 6 constraints\n\
+• **Foreign Keys**: 15 foreign key references\n\
+\n\
+**Key Features:**\n\
+• User role management (admin/regular)\n\
+• Music categorization & artist attribution\n\
+• Playlist creation & sharing\n\
+• User engagement tracking (favorites, history)\n\
+• Content management (banners)\n\
+• Data integrity with constraints"
+
+@enduml

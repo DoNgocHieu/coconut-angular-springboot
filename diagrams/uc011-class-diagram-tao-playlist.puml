@@ -1,0 +1,96 @@
+@startuml UC011-Class-Diagram-Tao-Playlist
+!theme plain
+
+title Biểu đồ lớp - UC011: Tạo playlist
+
+class PlaylistController {
+    + createPlaylist(request: PlaylistCreateRequest): ResponseEntity<PlaylistDto>
+    + getUserPlaylists(userId: Long): ResponseEntity<List<PlaylistDto>>
+    + updatePlaylist(id: Long, request: PlaylistUpdateRequest): ResponseEntity<PlaylistDto>
+}
+
+class PlaylistService {
+    + createPlaylist(userId: Long, request: PlaylistCreateRequest): Playlist
+    + validatePlaylistData(request: PlaylistCreateRequest): void
+    + uploadPlaylistImage(file: MultipartFile): String
+    + getUserPlaylists(userId: Long): List<Playlist>
+}
+
+class Playlist {
+    - Long id
+    - String name
+    - String description
+    - String imageUrl
+    - User user
+    - LocalDateTime createdAt
+    - LocalDateTime updatedAt
+    - boolean isPublic
+    - Set<PlaylistMusic> playlistMusics
+    + addMusic(music: Music): void
+    + removeMusic(music: Music): void
+}
+
+class PlaylistRepository {
+    + save(playlist: Playlist): Playlist
+    + findByUserId(userId: Long): List<Playlist>
+    + findByNameAndUserId(name: String, userId: Long): Optional<Playlist>
+    + countByUserId(userId: Long): Long
+}
+
+class PlaylistCreateRequest {
+    + String name
+    + String description
+    + MultipartFile image
+    + boolean isPublic
+}
+
+class PlaylistDto {
+    + Long id
+    + String name
+    + String description
+    + String imageUrl
+    + boolean isPublic
+    + int musicCount
+    + LocalDateTime createdAt
+    + UserDto user
+    + from(playlist: Playlist): PlaylistDto
+}
+
+class FileStorageService {
+    + storePlaylistImage(file: MultipartFile, userId: Long): String
+    + deleteFile(filePath: String): void
+    + validateImageFile(file: MultipartFile): boolean
+}
+
+class User {
+    - Long id
+    - String username
+    - Set<Playlist> playlists
+}
+
+' Relationships
+PlaylistController --> PlaylistService : uses
+PlaylistService --> PlaylistRepository : uses
+PlaylistService --> FileStorageService : uses
+PlaylistRepository --> Playlist : manages
+Playlist --> User : belongs to
+PlaylistController --> PlaylistCreateRequest : receives
+PlaylistController --> PlaylistDto : returns
+
+note right of PlaylistService
+  Business rules:
+  - Max 50 playlists per user
+  - Unique name per user
+  - Image size limit: 5MB
+  - Supported formats: JPG, PNG
+end note
+
+note bottom of Playlist
+  Playlist features:
+  - Public/Private visibility
+  - Custom cover image
+  - Music ordering
+  - Creation timestamp
+end note
+
+@enduml

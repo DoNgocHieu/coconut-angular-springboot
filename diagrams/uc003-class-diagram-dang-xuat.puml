@@ -1,0 +1,48 @@
+@startuml UC003-Class-Diagram-Dang-Xuat
+!theme plain
+
+title Biểu đồ lớp - UC003: Đăng xuất
+
+class AuthController {
+    + logout(): ResponseEntity<ApiResponse>
+    + invalidateToken(token: String): void
+}
+
+class AuthService {
+    + logout(token: String): void
+    + invalidateToken(token: String): void
+    + clearUserSession(username: String): void
+}
+
+class JwtTokenProvider {
+    + invalidateToken(token: String): void
+    + addToBlacklist(token: String): void
+    + isTokenBlacklisted(token: String): boolean
+}
+
+class TokenBlacklistService {
+    + addToken(token: String): void
+    + isBlacklisted(token: String): boolean
+    + cleanupExpiredTokens(): void
+}
+
+class ApiResponse {
+    + boolean success
+    + String message
+    + Object data
+}
+
+' Relationships
+AuthController --> AuthService : uses
+AuthService --> JwtTokenProvider : uses
+AuthService --> TokenBlacklistService : uses
+AuthController --> ApiResponse : returns
+
+note right of TokenBlacklistService
+  Manages blacklisted tokens:
+  - Redis cache for fast lookup
+  - Automatic cleanup of expired tokens
+  - Thread-safe operations
+end note
+
+@enduml

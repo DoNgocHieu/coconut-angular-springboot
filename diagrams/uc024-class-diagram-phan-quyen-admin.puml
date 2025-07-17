@@ -1,0 +1,668 @@
+@startuml UC024-Class-Diagram-Phan-Quyen-Admin
+!theme plain
+
+title Biểu đồ lớp - UC024: Phân quyền admin
+
+package "Frontend Components" {
+    class AdminRoleManagementComponent {
+        +adminList: AdminUser[]
+        +roles: Role[]
+        +permissions: Permission[]
+        +selectedAdmins: AdminUser[]
+        +roleFilterForm: FormGroup
+        +searchForm: FormGroup
+        +isBulkMode: boolean
+        +isLoading: boolean
+        +currentPage: number
+        +totalPages: number
+        --
+        +ngOnInit(): void
+        +loadAdminUsers(): void
+        +loadRolesAndPermissions(): void
+        +toggleBulkMode(): void
+        +selectAdmin(admin: AdminUser): void
+        +openRoleAssignmentModal(admin: AdminUser): void
+        +openBulkRoleModal(): void
+        +searchAdmins(query: string): void
+        +filterByRole(roleId: number): void
+        +onPageChange(page: number): void
+        +exportAdminReport(): void
+    }
+
+    class RoleAssignmentModalComponent {
+        +adminUser: AdminUser
+        +availableRoles: Role[]
+        +currentRoles: Role[]
+        +roleForm: FormGroup
+        +roleHistory: RoleAssignmentHistory[]
+        +isLoading: boolean
+        +showRoleDetails: boolean
+        --
+        +ngOnInit(): void
+        +loadAdminRoles(): void
+        +loadRoleHistory(): void
+        +onRoleChange(): void
+        +addRole(): void
+        +removeRole(role: Role): void
+        +confirmRoleAssignment(): void
+        +showRolePermissions(role: Role): void
+        +close(): void
+        +validateRoleAssignment(): boolean
+    }
+
+    class BulkRoleAssignmentModalComponent {
+        +selectedAdmins: AdminUser[]
+        +availableRoles: Role[]
+        +bulkRoleForm: FormGroup
+        +assignmentProgress: number
+        +isProcessing: boolean
+        +results: BulkRoleAssignmentResult
+        +operationType: string
+        --
+        +ngOnInit(): void
+        +initializeForm(): void
+        +startBulkAssignment(): void
+        +updateProgress(progress: number): void
+        +showResults(): void
+        +close(): void
+    }
+
+    class RoleManagementComponent {
+        +roles: Role[]
+        +permissions: Permission[]
+        +roleForm: FormGroup
+        +editingRole: Role
+        +isCreating: boolean
+        +permissionTree: PermissionNode[]
+        --
+        +ngOnInit(): void
+        +loadRoles(): void
+        +loadPermissions(): void
+        +createRole(): void
+        +editRole(role: Role): void
+        +deleteRole(role: Role): void
+        +updateRolePermissions(role: Role): void
+        +validateRoleData(): boolean
+        +buildPermissionTree(): void
+    }
+
+    class PermissionManagementComponent {
+        +permissions: Permission[]
+        +permissionCategories: PermissionCategory[]
+        +permissionForm: FormGroup
+        +editingPermission: Permission
+        +hierarchyView: boolean
+        --
+        +ngOnInit(): void
+        +loadPermissions(): void
+        +loadPermissionCategories(): void
+        +createPermission(): void
+        +editPermission(permission: Permission): void
+        +deletePermission(permission: Permission): void
+        +toggleHierarchyView(): void
+        +validatePermissionData(): boolean
+    }
+
+    class AdminUserCardComponent {
+        +adminUser: AdminUser
+        +canEdit: boolean
+        +isSelected: boolean
+        +showRoleInfo: boolean
+        +currentRoles: Role[]
+        --
+        +onRoleClick(): void
+        +onSelectChange(): void
+        +showRoleDetails(): void
+        +requestRoleChange(): void
+        +viewAuditLog(): void
+    }
+
+    class RolePermissionMatrixComponent {
+        +roles: Role[]
+        +permissions: Permission[]
+        +rolePermissionMatrix: Map<number, Set<number>>
+        +isEditable: boolean
+        --
+        +ngOnInit(): void
+        +loadRolePermissionMatrix(): void
+        +togglePermission(roleId: number, permissionId: number): void
+        +updateMatrix(): void
+        +exportMatrix(): void
+    }
+
+    class AdminAuditLogComponent {
+        +auditLogs: AdminAuditLog[]
+        +filterForm: FormGroup
+        +selectedAdmin: AdminUser
+        +dateRange: DateRange
+        --
+        +ngOnInit(): void
+        +loadAuditLogs(): void
+        +filterLogs(): void
+        +exportAuditReport(): void
+        +viewLogDetails(log: AdminAuditLog): void
+    }
+}
+
+package "Frontend Services" {
+    class AdminRoleService {
+        +http: HttpClient
+        --
+        +getAllAdminUsers(page: number, filters: AdminFilter): Observable<Page<AdminUser>>
+        +getAdminRoles(adminId: number): Observable<Role[]>
+        +assignRoleToAdmin(adminId: number, request: RoleAssignmentRequest): Observable<RoleAssignmentResult>
+        +removeRoleFromAdmin(adminId: number, roleId: number): Observable<void>
+        +bulkAssignRoles(request: BulkRoleAssignmentRequest): Observable<BulkRoleAssignmentResult>
+        +getAllRoles(): Observable<Role[]>
+        +getAllPermissions(): Observable<Permission[]>
+        +createRole(request: CreateRoleRequest): Observable<Role>
+        +updateRole(roleId: number, request: UpdateRoleRequest): Observable<Role>
+        +deleteRole(roleId: number): Observable<void>
+        +getRolePermissionMatrix(): Observable<RolePermissionMatrix>
+        +updateRolePermissions(roleId: number, permissions: number[]): Observable<void>
+    }
+
+    class PermissionService {
+        +http: HttpClient
+        --
+        +getAllPermissions(): Observable<Permission[]>
+        +getPermissionCategories(): Observable<PermissionCategory[]>
+        +createPermission(request: CreatePermissionRequest): Observable<Permission>
+        +updatePermission(permissionId: number, request: UpdatePermissionRequest): Observable<Permission>
+        +deletePermission(permissionId: number): Observable<void>
+        +getPermissionHierarchy(): Observable<PermissionNode[]>
+        +validatePermissionAccess(permission: string): Observable<boolean>
+    }
+
+    class AdminAuditService {
+        +http: HttpClient
+        --
+        +getAdminAuditLogs(filters: AuditLogFilter): Observable<Page<AdminAuditLog>>
+        +getAdminRoleHistory(adminId: number): Observable<RoleAssignmentHistory[]>
+        +exportAuditReport(filters: AuditLogFilter): Observable<Blob>
+        +getAdminLoginHistory(adminId: number): Observable<LoginHistory[]>
+    }
+
+    class AdminValidationService {
+        +http: HttpClient
+        --
+        +validateAdminPermission(permission: string): Observable<boolean>
+        +checkAdminRole(role: string): Observable<boolean>
+        +validateRoleAssignment(adminId: number, roleId: number): Observable<ValidationResult>
+        +checkPermissionConflicts(permissions: number[]): Observable<ConflictResult>
+    }
+}
+
+package "Backend Controllers" {
+    class AdminRoleController {
+        +adminRoleService: AdminRoleService
+        +roleValidationService: RoleValidationService
+        --
+        +getAllAdminUsers(pageable: Pageable, filters: AdminFilterDto): ResponseEntity<Page<AdminUserDto>>
+        +getAdminRoles(adminId: Long): ResponseEntity<List<RoleDto>>
+        +assignRoleToAdmin(adminId: Long, request: RoleAssignmentRequestDto): ResponseEntity<RoleAssignmentResultDto>
+        +removeRoleFromAdmin(adminId: Long, roleId: Long): ResponseEntity<Void>
+        +bulkAssignRoles(request: BulkRoleAssignmentRequestDto): ResponseEntity<BulkRoleAssignmentResultDto>
+        +getAllRoles(): ResponseEntity<List<RoleDto>>
+        +createRole(request: CreateRoleRequestDto): ResponseEntity<RoleDto>
+        +updateRole(roleId: Long, request: UpdateRoleRequestDto): ResponseEntity<RoleDto>
+        +deleteRole(roleId: Long): ResponseEntity<Void>
+        +getRolePermissionMatrix(): ResponseEntity<RolePermissionMatrixDto>
+        +updateRolePermissions(roleId: Long, permissions: List<Long>): ResponseEntity<Void>
+    }
+
+    class PermissionController {
+        +permissionService: PermissionService
+        +permissionValidationService: PermissionValidationService
+        --
+        +getAllPermissions(): ResponseEntity<List<PermissionDto>>
+        +getPermissionCategories(): ResponseEntity<List<PermissionCategoryDto>>
+        +createPermission(request: CreatePermissionRequestDto): ResponseEntity<PermissionDto>
+        +updatePermission(permissionId: Long, request: UpdatePermissionRequestDto): ResponseEntity<PermissionDto>
+        +deletePermission(permissionId: Long): ResponseEntity<Void>
+        +getPermissionHierarchy(): ResponseEntity<List<PermissionNodeDto>>
+        +validatePermissionAccess(permission: String): ResponseEntity<Boolean>
+    }
+
+    class AdminAuditController {
+        +adminAuditService: AdminAuditService
+        --
+        +getAdminAuditLogs(filters: AuditLogFilterDto, pageable: Pageable): ResponseEntity<Page<AdminAuditLogDto>>
+        +getAdminRoleHistory(adminId: Long): ResponseEntity<List<RoleAssignmentHistoryDto>>
+        +exportAuditReport(filters: AuditLogFilterDto): ResponseEntity<ByteArrayResource>
+        +getAdminLoginHistory(adminId: Long): ResponseEntity<List<LoginHistoryDto>>
+    }
+}
+
+package "Backend Services" {
+    class AdminRoleService {
+        +adminUserRepository: AdminUserRepository
+        +roleRepository: RoleRepository
+        +adminRoleRepository: AdminRoleRepository
+        +permissionRepository: PermissionRepository
+        +roleValidationService: RoleValidationService
+        +adminAuditService: AdminAuditService
+        --
+        +getAllAdminUsers(pageable: Pageable, filters: AdminFilterDto): Page<AdminUserDto>
+        +getAdminRoles(adminId: Long): List<RoleDto>
+        +assignRoleToAdmin(adminId: Long, request: RoleAssignmentRequestDto, assignedBy: Long): RoleAssignmentResultDto
+        +removeRoleFromAdmin(adminId: Long, roleId: Long, removedBy: Long): void
+        +bulkAssignRoles(request: BulkRoleAssignmentRequestDto, assignedBy: Long): BulkRoleAssignmentResultDto
+        +getAllRoles(): List<RoleDto>
+        +createRole(request: CreateRoleRequestDto, createdBy: Long): RoleDto
+        +updateRole(roleId: Long, request: UpdateRoleRequestDto, updatedBy: Long): RoleDto
+        +deleteRole(roleId: Long, deletedBy: Long): void
+        +getRolePermissionMatrix(): RolePermissionMatrixDto
+        +updateRolePermissions(roleId: Long, permissions: List<Long>, updatedBy: Long): void
+    }
+
+    class PermissionService {
+        +permissionRepository: PermissionRepository
+        +permissionCategoryRepository: PermissionCategoryRepository
+        +rolePermissionRepository: RolePermissionRepository
+        +permissionValidationService: PermissionValidationService
+        +adminAuditService: AdminAuditService
+        --
+        +getAllPermissions(): List<PermissionDto>
+        +getPermissionCategories(): List<PermissionCategoryDto>
+        +createPermission(request: CreatePermissionRequestDto, createdBy: Long): PermissionDto
+        +updatePermission(permissionId: Long, request: UpdatePermissionRequestDto, updatedBy: Long): PermissionDto
+        +deletePermission(permissionId: Long, deletedBy: Long): void
+        +getPermissionHierarchy(): List<PermissionNodeDto>
+        +validatePermissionAccess(permission: String, adminId: Long): boolean
+        +checkPermissionConflicts(permissions: List<Long>): ConflictResultDto
+    }
+
+    class RoleValidationService {
+        +roleRepository: RoleRepository
+        +adminUserRepository: AdminUserRepository
+        +permissionRepository: PermissionRepository
+        +adminRoleRepository: AdminRoleRepository
+        --
+        +validateRoleExists(roleId: Long): void
+        +validateAdminExists(adminId: Long): void
+        +validateAdminCanAssignRole(assignerId: Long, roleId: Long): void
+        +validateRoleAssignmentRequest(request: RoleAssignmentRequestDto): void
+        +checkRoleHierarchy(assignerId: Long, targetRoleId: Long): boolean
+        +validateBulkRoleAssignmentRequest(request: BulkRoleAssignmentRequestDto): void
+        +checkRoleConflicts(adminId: Long, newRoleId: Long): ConflictResultDto
+        +validateRoleDeletion(roleId: Long): void
+    }
+
+    class PermissionValidationService {
+        +permissionRepository: PermissionRepository
+        +rolePermissionRepository: RolePermissionRepository
+        +adminUserRepository: AdminUserRepository
+        --
+        +validatePermissionExists(permissionId: Long): void
+        +validatePermissionName(name: String): void
+        +validatePermissionHierarchy(parentId: Long, childId: Long): void
+        +checkPermissionCircularReference(permissionId: Long, parentId: Long): boolean
+        +validatePermissionDeletion(permissionId: Long): void
+        +checkAdminHasPermission(adminId: Long, permission: String): boolean
+    }
+
+    class AdminAuditService {
+        +adminAuditLogRepository: AdminAuditLogRepository
+        +roleAssignmentHistoryRepository: RoleAssignmentHistoryRepository
+        +adminLoginHistoryRepository: AdminLoginHistoryRepository
+        --
+        +logRoleAssignment(adminId: Long, roleId: Long, assignedBy: Long, reason: String): void
+        +logRoleRemoval(adminId: Long, roleId: Long, removedBy: Long, reason: String): void
+        +logBulkRoleAssignment(adminIds: List<Long>, roleId: Long, assignedBy: Long, reason: String): void
+        +logRoleCreation(roleId: Long, createdBy: Long, roleData: CreateRoleRequestDto): void
+        +logRoleModification(roleId: Long, updatedBy: Long, changes: Map<String, Object>): void
+        +logRoleDeletion(roleId: Long, deletedBy: Long, reason: String): void
+        +logPermissionModification(permissionId: Long, modifiedBy: Long, changes: Map<String, Object>): void
+        +getAdminAuditLogs(filters: AuditLogFilterDto, pageable: Pageable): Page<AdminAuditLogDto>
+        +getAdminRoleHistory(adminId: Long): List<RoleAssignmentHistoryDto>
+    }
+}
+
+package "Repository Layer" {
+    interface AdminUserRepository {
+        +findAll(pageable: Pageable): Page<AdminUser>
+        +findByActiveTrue(pageable: Pageable): Page<AdminUser>
+        +findByRolesContaining(role: Role, pageable: Pageable): Page<AdminUser>
+        +findByUsernameContainingIgnoreCase(username: String, pageable: Pageable): Page<AdminUser>
+        +findById(id: Long): Optional<AdminUser>
+        +existsByUsername(username: String): boolean
+        +countByRolesContaining(role: Role): long
+    }
+
+    interface RoleRepository {
+        +findAll(): List<Role>
+        +findAllByActiveTrue(): List<Role>
+        +findById(id: Long): Optional<Role>
+        +findByName(name: String): Optional<Role>
+        +findByLevel(level: Integer): List<Role>
+        +findByLevelLessThanEqual(maxLevel: Integer): List<Role>
+        +existsByName(name: String): boolean
+        +countAdminUsersByRoleId(roleId: Long): long
+        +save(role: Role): Role
+        +deleteById(id: Long): void
+    }
+
+    interface AdminRoleRepository {
+        +findByAdminUserId(adminUserId: Long): List<AdminRole>
+        +findByRoleId(roleId: Long): List<AdminRole>
+        +findByAdminUserIdAndRoleId(adminUserId: Long, roleId: Long): Optional<AdminRole>
+        +deleteByAdminUserIdAndRoleId(adminUserId: Long, roleId: Long): void
+        +save(adminRole: AdminRole): AdminRole
+        +bulkInsert(adminRoles: List<AdminRole>): void
+    }
+
+    interface PermissionRepository {
+        +findAll(): List<Permission>
+        +findAllByActiveTrue(): List<Permission>
+        +findById(id: Long): Optional<Permission>
+        +findByName(name: String): Optional<Permission>
+        +findByCategoryId(categoryId: Long): List<Permission>
+        +findByParentId(parentId: Long): List<Permission>
+        +findRootPermissions(): List<Permission>
+        +existsByName(name: String): boolean
+        +save(permission: Permission): Permission
+        +deleteById(id: Long): void
+    }
+
+    interface RolePermissionRepository {
+        +findByRoleId(roleId: Long): List<RolePermission>
+        +findByPermissionId(permissionId: Long): List<RolePermission>
+        +findByRoleIdAndPermissionId(roleId: Long, permissionId: Long): Optional<RolePermission>
+        +deleteByRoleId(roleId: Long): void
+        +deleteByPermissionId(permissionId: Long): void
+        +save(rolePermission: RolePermission): RolePermission
+        +bulkInsert(rolePermissions: List<RolePermission>): void
+    }
+
+    interface AdminAuditLogRepository {
+        +save(auditLog: AdminAuditLog): AdminAuditLog
+        +findByAdminIdAndActionType(adminId: Long, actionType: String, pageable: Pageable): Page<AdminAuditLog>
+        +findByResourceTypeAndResourceId(resourceType: String, resourceId: Long): List<AdminAuditLog>
+        +findByCreatedAtBetween(startDate: LocalDateTime, endDate: LocalDateTime, pageable: Pageable): Page<AdminAuditLog>
+    }
+
+    interface RoleAssignmentHistoryRepository {
+        +findByAdminUserId(adminUserId: Long): List<RoleAssignmentHistory>
+        +findByRoleId(roleId: Long): List<RoleAssignmentHistory>
+        +save(history: RoleAssignmentHistory): RoleAssignmentHistory
+    }
+}
+
+package "Domain Models" {
+    class AdminUser {
+        +id: Long
+        +username: String
+        +email: String
+        +fullName: String
+        +active: Boolean
+        +roles: Set<Role>
+        +lastLoginAt: LocalDateTime
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +createdBy: Long
+        --
+        +hasRole(roleName: String): boolean
+        +hasPermission(permission: String): boolean
+        +getRoleNames(): Set<String>
+        +getHighestRoleLevel(): Integer
+        +isActive(): boolean
+    }
+
+    class Role {
+        +id: Long
+        +name: String
+        +description: String
+        +level: Integer
+        +active: Boolean
+        +permissions: Set<Permission>
+        +adminUsers: Set<AdminUser>
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        +createdBy: Long
+        --
+        +hasPermission(permission: String): boolean
+        +getPermissionNames(): Set<String>
+        +canAssignTo(targetRole: Role): boolean
+        +isSystemRole(): boolean
+    }
+
+    class Permission {
+        +id: Long
+        +name: String
+        +description: String
+        +resource: String
+        +action: String
+        +categoryId: Long
+        +category: PermissionCategory
+        +parentId: Long
+        +parent: Permission
+        +children: Set<Permission>
+        +active: Boolean
+        +systemPermission: Boolean
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+        --
+        +getFullName(): String
+        +isRootPermission(): boolean
+        +hasChildren(): boolean
+        +canBeDeleted(): boolean
+    }
+
+    class AdminRole {
+        +id: Long
+        +adminUserId: Long
+        +adminUser: AdminUser
+        +roleId: Long
+        +role: Role
+        +assignedBy: Long
+        +assignedAt: LocalDateTime
+        +reason: String
+        +active: Boolean
+        --
+        +getAssignmentDuration(): Duration
+        +isCurrentlyActive(): boolean
+    }
+
+    class RolePermission {
+        +id: Long
+        +roleId: Long
+        +role: Role
+        +permissionId: Long
+        +permission: Permission
+        +grantedBy: Long
+        +grantedAt: LocalDateTime
+        +active: Boolean
+        --
+        +getGrantDuration(): Duration
+    }
+
+    class PermissionCategory {
+        +id: Long
+        +name: String
+        +description: String
+        +iconUrl: String
+        +colorCode: String
+        +sortOrder: Integer
+        +active: Boolean
+        +permissions: Set<Permission>
+        --
+        +getPermissionCount(): long
+    }
+
+    class AdminAuditLog {
+        +id: Long
+        +adminId: Long
+        +actionType: String
+        +resourceType: String
+        +resourceId: Long
+        +targetAdminId: Long
+        +actionDetails: String
+        +ipAddress: String
+        +userAgent: String
+        +successful: Boolean
+        +errorMessage: String
+        +createdAt: LocalDateTime
+        --
+        +getActionDescription(): String
+        +isSuccessful(): boolean
+    }
+
+    class RoleAssignmentHistory {
+        +id: Long
+        +adminUserId: Long
+        +roleId: Long
+        +roleName: String
+        +actionType: String
+        +assignedBy: Long
+        +assignedAt: LocalDateTime
+        +removedBy: Long
+        +removedAt: LocalDateTime
+        +reason: String
+        +active: Boolean
+        --
+        +getDuration(): Duration
+        +isCurrentAssignment(): boolean
+    }
+}
+
+package "DTOs" {
+    class RoleAssignmentRequestDto {
+        +adminId: Long
+        +roleId: Long
+        +reason: String
+        +expiresAt: LocalDateTime
+    }
+
+    class BulkRoleAssignmentRequestDto {
+        +adminIds: List<Long>
+        +roleId: Long
+        +reason: String
+        +operationType: String
+        +overrideExisting: Boolean
+    }
+
+    class RoleAssignmentResultDto {
+        +adminId: Long
+        +adminUsername: String
+        +roleId: Long
+        +roleName: String
+        +assignedAt: LocalDateTime
+        +assignedBy: Long
+        +success: Boolean
+        +message: String
+    }
+
+    class BulkRoleAssignmentResultDto {
+        +totalCount: Integer
+        +successCount: Integer
+        +failedCount: Integer
+        +results: List<RoleAssignmentResultDto>
+        +failedAdminIds: List<Long>
+        +processingTimeMs: Long
+    }
+
+    class CreateRoleRequestDto {
+        +name: String
+        +description: String
+        +level: Integer
+        +permissionIds: List<Long>
+    }
+
+    class UpdateRoleRequestDto {
+        +description: String
+        +level: Integer
+        +active: Boolean
+    }
+
+    class RolePermissionMatrixDto {
+        +roles: List<RoleDto>
+        +permissions: List<PermissionDto>
+        +matrix: Map<Long, Set<Long>>
+        +lastUpdated: LocalDateTime
+    }
+
+    class CreatePermissionRequestDto {
+        +name: String
+        +description: String
+        +resource: String
+        +action: String
+        +categoryId: Long
+        +parentId: Long
+    }
+
+    class AuditLogFilterDto {
+        +adminId: Long
+        +actionType: String
+        +resourceType: String
+        +startDate: LocalDateTime
+        +endDate: LocalDateTime
+        +successful: Boolean
+    }
+}
+
+' Relationships
+AdminRoleManagementComponent --> RoleAssignmentModalComponent
+AdminRoleManagementComponent --> BulkRoleAssignmentModalComponent
+AdminRoleManagementComponent --> AdminUserCardComponent
+AdminRoleManagementComponent --> AdminRoleService
+
+RoleAssignmentModalComponent --> AdminRoleService
+BulkRoleAssignmentModalComponent --> AdminRoleService
+
+RoleManagementComponent --> AdminRoleService
+RoleManagementComponent --> PermissionService
+RoleManagementComponent --> RolePermissionMatrixComponent
+
+PermissionManagementComponent --> PermissionService
+
+AdminAuditLogComponent --> AdminAuditService
+
+AdminRoleService --> AdminRoleController
+PermissionService --> PermissionController
+AdminAuditService --> AdminAuditController
+
+AdminRoleController --> AdminRoleService
+PermissionController --> PermissionService
+AdminAuditController --> AdminAuditService
+
+AdminRoleService --> AdminUserRepository
+AdminRoleService --> RoleRepository
+AdminRoleService --> AdminRoleRepository
+AdminRoleService --> PermissionRepository
+AdminRoleService --> RoleValidationService
+AdminRoleService --> AdminAuditService
+
+PermissionService --> PermissionRepository
+PermissionService --> PermissionCategoryRepository
+PermissionService --> RolePermissionRepository
+PermissionService --> PermissionValidationService
+
+RoleValidationService --> RoleRepository
+RoleValidationService --> AdminUserRepository
+RoleValidationService --> AdminRoleRepository
+
+PermissionValidationService --> PermissionRepository
+PermissionValidationService --> RolePermissionRepository
+
+AdminAuditService --> AdminAuditLogRepository
+AdminAuditService --> RoleAssignmentHistoryRepository
+
+AdminUserRepository --> AdminUser
+RoleRepository --> Role
+AdminRoleRepository --> AdminRole
+PermissionRepository --> Permission
+RolePermissionRepository --> RolePermission
+AdminAuditLogRepository --> AdminAuditLog
+RoleAssignmentHistoryRepository --> RoleAssignmentHistory
+
+AdminUser --> Role : many-to-many
+Role --> Permission : many-to-many
+AdminRole --> AdminUser
+AdminRole --> Role
+RolePermission --> Role
+RolePermission --> Permission
+Permission --> PermissionCategory
+Permission --> Permission : parent/children
+
+@enduml

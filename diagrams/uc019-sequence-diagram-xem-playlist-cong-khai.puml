@@ -1,0 +1,381 @@
+@startuml UC019-Sequence-Diagram-Xem-Playlist-Cong-Khai
+!theme plain
+
+title Biểu đồ tuần tự - UC019: Xem playlist công khai
+
+actor User as "Người dùng"
+participant Browser as "Browser"
+participant PublicPlaylistListComponent as "PublicPlaylistList\nComponent"
+participant PublicPlaylistCardComponent as "PublicPlaylistCard\nComponent"
+participant PublicPlaylistDetailComponent as "PublicPlaylistDetail\nComponent"
+participant ForkPlaylistModal as "ForkPlaylist\nModal"
+participant MusicPlayerComponent as "MusicPlayer\nComponent"
+participant PlaylistFiltersComponent as "PlaylistFilters\nComponent"
+participant PlaylistStatsComponent as "PlaylistStats\nComponent"
+participant PlaylistService as "PlaylistService\n(Frontend)"
+participant PublicPlaylistController as "PublicPlaylist\nController"
+participant PublicPlaylistService as "PublicPlaylist\nService"
+participant PlaylistValidationService as "Playlist\nValidationService"
+participant PlaylistForkService as "PlaylistFork\nService"
+participant PlaylistStatsService as "PlaylistStats\nService"
+participant PlaylistRepository as "Playlist\nRepository"
+participant PlaylistMusicRepository as "PlaylistMusic\nRepository"
+participant UserRepository as "User\nRepository"
+participant PlaylistForkRepository as "PlaylistFork\nRepository"
+participant UserFollowRepository as "UserFollow\nRepository"
+participant Database as "Database"
+
+== Truy cập trang playlist công khai ==
+
+User -> Browser: Truy cập trang "Public Playlists"
+Browser -> PublicPlaylistListComponent: ngOnInit()
+PublicPlaylistListComponent -> PlaylistService: getPublicPlaylists(page, sortBy, filterBy)
+PlaylistService -> PublicPlaylistController: GET /api/public-playlists?page={page}&sort={sortBy}&filter={filterBy}
+PublicPlaylistController -> PublicPlaylistService: getPublicPlaylists(pageable, sortBy, filterBy)
+
+PublicPlaylistService -> PlaylistValidationService: validatePublicPlaylistAccess()
+PlaylistValidationService --> PublicPlaylistService: Access validated
+
+PublicPlaylistService -> PlaylistRepository: findByIsPublicTrueAndDeletedFalse(pageable)
+PlaylistRepository -> Database: SELECT * FROM playlists WHERE is_public = true AND deleted = false ORDER BY created_at DESC LIMIT ? OFFSET ?
+Database --> PlaylistRepository: Page<Playlist>
+PlaylistRepository --> PublicPlaylistService: Public playlists
+
+PublicPlaylistService -> UserRepository: findActivePublicPlaylistCreators()
+UserRepository -> Database: SELECT DISTINCT u.* FROM users u JOIN playlists p ON u.id = p.user_id WHERE p.is_public = true AND p.deleted = false
+Database --> UserRepository: List<User> creators
+UserRepository --> PublicPlaylistService: Playlist owners
+
+PublicPlaylistService -> PublicPlaylistService: buildPublicPlaylistDtos(playlists, owners)
+PublicPlaylistService --> PublicPlaylistController: Page<PublicPlaylistDto>
+PublicPlaylistController --> PlaylistService: Public playlists loaded
+PlaylistService --> PublicPlaylistListComponent: Public playlists with metadata
+
+PublicPlaylistListComponent -> PlaylistFiltersComponent: initialize(sortOptions, filterOptions)
+PlaylistFiltersComponent -> PlaylistFiltersComponent: Setup sort and filter controls
+PlaylistFiltersComponent --> PublicPlaylistListComponent: Filters initialized
+
+PublicPlaylistListComponent -> PlaylistStatsComponent: loadStats()
+PlaylistStatsComponent -> PlaylistService: getPublicPlaylistStats()
+PlaylistService -> PublicPlaylistController: GET /api/public-playlists/stats
+PublicPlaylistController -> PlaylistStatsService: getPublicPlaylistStats()
+PlaylistStatsService -> PlaylistRepository: countByIsPublicTrueAndDeletedFalse()
+PlaylistRepository -> Database: SELECT COUNT(*) FROM playlists WHERE is_public = true AND deleted = false
+Database --> PlaylistRepository: Total public playlists count
+PlaylistRepository --> PlaylistStatsService: Total count
+PlaylistStatsService -> PlaylistStatsService: calculateStatistics()
+PlaylistStatsService --> PublicPlaylistController: PublicPlaylistStatsDto
+PublicPlaylistController --> PlaylistService: Statistics loaded
+PlaylistService --> PlaylistStatsComponent: Stats received
+PlaylistStatsComponent --> PublicPlaylistListComponent: Stats displayed
+
+PublicPlaylistListComponent -> PublicPlaylistListComponent: Initialize playlist cards
+PublicPlaylistListComponent --> User: Hiển thị danh sách playlist công khai với filters
+
+== Tìm kiếm và lọc playlist ==
+
+alt Tìm kiếm playlist
+    User -> PlaylistFiltersComponent: Nhập từ khóa tìm kiếm
+    PlaylistFiltersComponent -> PlaylistFiltersComponent: onSearchChange()
+    PlaylistFiltersComponent -> PublicPlaylistListComponent: searchPlaylists(query)
+
+    PublicPlaylistListComponent -> PlaylistService: searchPublicPlaylists(query, page)
+    PlaylistService -> PublicPlaylistController: GET /api/public-playlists/search?q={query}&page={page}
+    PublicPlaylistController -> PublicPlaylistService: searchPublicPlaylists(query, pageable)
+
+    PublicPlaylistService -> PlaylistRepository: findByIsPublicTrueAndDeletedFalseAndNameContainingIgnoreCase(query, pageable)
+    PlaylistRepository -> Database: SELECT * FROM playlists WHERE is_public = true AND deleted = false AND LOWER(name) LIKE LOWER(?) ORDER BY view_count DESC
+    Database --> PlaylistRepository: Search results
+    PlaylistRepository --> PublicPlaylistService: Matching playlists
+
+    PublicPlaylistService -> PublicPlaylistService: buildSearchResultDtos(playlists)
+    PublicPlaylistService --> PublicPlaylistController: Search results
+    PublicPlaylistController --> PlaylistService: Search completed
+    PlaylistService --> PublicPlaylistListComponent: Updated playlist list
+    PublicPlaylistListComponent -> PublicPlaylistListComponent: Update UI with search results
+    PublicPlaylistListComponent --> User: Hiển thị kết quả tìm kiếm
+end
+
+alt Sắp xếp playlist
+    User -> PlaylistFiltersComponent: Chọn tùy chọn sắp xếp (Most Popular/Recent/Most Forked)
+    PlaylistFiltersComponent -> PlaylistFiltersComponent: onSortChange()
+    PlaylistFiltersComponent -> PublicPlaylistListComponent: sortPlaylists(sortBy)
+
+    PublicPlaylistListComponent -> PlaylistService: getPublicPlaylists(page, newSortBy, filterBy)
+    PlaylistService -> PublicPlaylistController: GET with updated sort parameter
+    PublicPlaylistController -> PublicPlaylistService: getPublicPlaylists with new sort
+
+    alt Sort by popularity
+        PublicPlaylistService -> PlaylistRepository: findPopularPublicPlaylists(pageable)
+        PlaylistRepository -> Database: SELECT * FROM playlists WHERE is_public = true AND deleted = false ORDER BY view_count DESC, fork_count DESC
+    else Sort by recent
+        PublicPlaylistService -> PlaylistRepository: findRecentPublicPlaylists(pageable)
+        PlaylistRepository -> Database: SELECT * FROM playlists WHERE is_public = true AND deleted = false ORDER BY created_at DESC
+    else Sort by most forked
+        PublicPlaylistService -> PlaylistRepository: findByIsPublicTrueAndDeletedFalse(pageable)
+        PlaylistRepository -> Database: SELECT * FROM playlists WHERE is_public = true AND deleted = false ORDER BY fork_count DESC
+    end
+
+    Database --> PlaylistRepository: Sorted results
+    PlaylistRepository --> PublicPlaylistService: Sorted playlists
+    PublicPlaylistService --> PublicPlaylistController: Sorted results
+    PublicPlaylistController --> PlaylistService: Sorted playlists received
+    PlaylistService --> PublicPlaylistListComponent: Updated sorted list
+    PublicPlaylistListComponent --> User: Hiển thị danh sách đã sắp xếp
+end
+
+== Xem chi tiết playlist ==
+
+alt Xem chi tiết playlist công khai
+    User -> PublicPlaylistCardComponent: Click vào playlist card
+    PublicPlaylistCardComponent -> PublicPlaylistCardComponent: onViewDetail()
+    PublicPlaylistCardComponent -> Browser: navigate to playlist detail page
+
+    Browser -> PublicPlaylistDetailComponent: ngOnInit()
+    PublicPlaylistDetailComponent -> PlaylistService: getPublicPlaylistDetail(playlistId)
+    PlaylistService -> PublicPlaylistController: GET /api/public-playlists/{playlistId}
+    PublicPlaylistController -> PublicPlaylistService: getPublicPlaylistDetail(playlistId, userId)
+
+    PublicPlaylistService -> PlaylistValidationService: validatePlaylistIsPublic(playlistId)
+    PlaylistValidationService -> PlaylistRepository: findByIdAndIsPublicTrueAndDeletedFalse(playlistId)
+    PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND is_public = true AND deleted = false
+    Database --> PlaylistRepository: Public playlist data
+    PlaylistRepository --> PlaylistValidationService: Playlist exists and is public
+    PlaylistValidationService --> PublicPlaylistService: Validation passed
+
+    PublicPlaylistService -> PlaylistMusicRepository: findByPlaylistIdOrderByOrderIndex(playlistId)
+    PlaylistMusicRepository -> Database: SELECT pm.*, m.* FROM playlist_musics pm JOIN musics m ON pm.music_id = m.id WHERE pm.playlist_id = ? ORDER BY pm.order_index
+    Database --> PlaylistMusicRepository: Playlist musics with details
+    PlaylistMusicRepository --> PublicPlaylistService: Playlist music list
+
+    PublicPlaylistService -> UserRepository: findByIdAndActiveTrueAndDeletedFalse(playlist.userId)
+    UserRepository -> Database: SELECT * FROM users WHERE id = ? AND active = true AND deleted = false
+    Database --> UserRepository: Playlist owner info
+    UserRepository --> PublicPlaylistService: Owner details
+
+    PublicPlaylistService -> PlaylistStatsService: incrementPlaylistViewCount(playlistId)
+    PlaylistStatsService -> PlaylistRepository: incrementViewCount(playlistId)
+    PlaylistRepository -> Database: UPDATE playlists SET view_count = view_count + 1 WHERE id = ?
+    Database --> PlaylistRepository: View count updated
+    PlaylistRepository --> PlaylistStatsService: View count incremented
+    PlaylistStatsService --> PublicPlaylistService: View count updated
+
+    PublicPlaylistService -> PublicPlaylistService: buildPublicPlaylistDetailDto(playlist, musics, owner, userId)
+    PublicPlaylistService --> PublicPlaylistController: PublicPlaylistDetailDto
+    PublicPlaylistController --> PlaylistService: Playlist detail loaded
+    PlaylistService --> PublicPlaylistDetailComponent: Detailed playlist data
+
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: Initialize music player
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: Setup fork and follow buttons
+    PublicPlaylistDetailComponent --> User: Hiển thị chi tiết playlist với danh sách nhạc
+end
+
+== Phát nhạc từ playlist ==
+
+alt Phát tất cả từ playlist
+    User -> PublicPlaylistDetailComponent: Click "Play All"
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: playAllFromStart()
+    PublicPlaylistDetailComponent -> MusicPlayerComponent: loadPlaylist(playlistMusics, 0)
+
+    MusicPlayerComponent -> MusicPlayerComponent: Initialize audio player
+    MusicPlayerComponent -> MusicPlayerComponent: loadMusicAtIndex(0)
+    MusicPlayerComponent -> MusicPlayerComponent: onPlay()
+    MusicPlayerComponent --> PublicPlaylistDetailComponent: Playback started
+    PublicPlaylistDetailComponent --> User: Bắt đầu phát nhạc từ bài đầu tiên
+end
+
+alt Phát bài hát cụ thể
+    User -> PublicPlaylistDetailComponent: Click play trên bài hát cụ thể
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: playMusicAtIndex(selectedIndex)
+    PublicPlaylistDetailComponent -> MusicPlayerComponent: loadPlaylist(playlistMusics, selectedIndex)
+
+    MusicPlayerComponent -> MusicPlayerComponent: loadMusicAtIndex(selectedIndex)
+    MusicPlayerComponent -> MusicPlayerComponent: onPlay()
+    MusicPlayerComponent --> PublicPlaylistDetailComponent: Playback started from selected song
+    PublicPlaylistDetailComponent --> User: Phát bài hát đã chọn
+end
+
+== Fork (Sao chép) playlist ==
+
+alt Fork playlist về tài khoản cá nhân
+    User -> PublicPlaylistDetailComponent: Click "Fork Playlist"
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: Kiểm tra user đã đăng nhập
+
+    alt User đã đăng nhập
+        PublicPlaylistDetailComponent -> ForkPlaylistModal: open(playlist)
+        ForkPlaylistModal -> ForkPlaylistModal: Load original playlist info
+        ForkPlaylistModal -> ForkPlaylistModal: generateSuggestedName()
+        ForkPlaylistModal --> User: Hiển thị modal fork với tên đề xuất
+
+        User -> ForkPlaylistModal: Nhập tên playlist mới và mô tả
+        ForkPlaylistModal -> ForkPlaylistModal: validatePlaylistName()
+        ForkPlaylistModal -> ForkPlaylistModal: Validate form data
+
+        User -> ForkPlaylistModal: Click "Fork Playlist"
+        ForkPlaylistModal -> ForkPlaylistModal: onConfirmFork()
+        ForkPlaylistModal -> PublicPlaylistDetailComponent: confirmFork(forkRequest)
+
+        PublicPlaylistDetailComponent -> PlaylistService: forkPlaylist(playlistId, forkRequest)
+        PlaylistService -> PublicPlaylistController: POST /api/public-playlists/{playlistId}/fork
+        PublicPlaylistController -> PlaylistForkService: forkPlaylist(originalPlaylistId, request, userId)
+
+        PlaylistForkService -> PlaylistValidationService: validateForkPermissions(playlistId, userId)
+        PlaylistValidationService -> PlaylistValidationService: validatePlaylistIsPublic(playlistId)
+        PlaylistValidationService -> PlaylistValidationService: validateUserCanAccessPlaylist(playlistId, userId)
+        PlaylistValidationService -> PlaylistValidationService: checkForkNameAvailability(newName, userId)
+        PlaylistValidationService --> PlaylistForkService: Fork validation passed
+
+        PlaylistForkService -> PlaylistRepository: findByIdAndIsPublicTrueAndDeletedFalse(originalPlaylistId)
+        PlaylistRepository -> Database: SELECT * FROM playlists WHERE id = ? AND is_public = true AND deleted = false
+        Database --> PlaylistRepository: Original playlist data
+        PlaylistRepository --> PlaylistForkService: Original playlist entity
+
+        PlaylistForkService -> PlaylistForkService: createForkedPlaylist(originalPlaylist, request, userId)
+        PlaylistForkService -> PlaylistRepository: save(newPlaylist)
+        PlaylistRepository -> Database: INSERT INTO playlists (name, description, user_id, is_public, created_at) VALUES (?, ?, ?, ?, NOW())
+        Database --> PlaylistRepository: New playlist created with ID
+        PlaylistRepository --> PlaylistForkService: Forked playlist saved
+
+        PlaylistForkService -> PlaylistMusicRepository: findByPlaylistIdOrderByOrderIndex(originalPlaylistId)
+        PlaylistMusicRepository -> Database: SELECT * FROM playlist_musics WHERE playlist_id = ? ORDER BY order_index
+        Database --> PlaylistMusicRepository: Original playlist musics
+        PlaylistMusicRepository --> PlaylistForkService: Music list to copy
+
+        PlaylistForkService -> PlaylistForkService: copyPlaylistMusics(originalPlaylistId, newPlaylistId)
+
+        loop Sao chép từng bài hát
+            PlaylistForkService -> PlaylistMusicRepository: save(new PlaylistMusic with newPlaylistId)
+            PlaylistMusicRepository -> Database: INSERT INTO playlist_musics (playlist_id, music_id, order_index, added_at) VALUES (?, ?, ?, NOW())
+            Database --> PlaylistMusicRepository: Music copied to new playlist
+        end
+
+        PlaylistForkService -> PlaylistForkRepository: save(playlistFork)
+        PlaylistForkRepository -> Database: INSERT INTO playlist_forks (original_playlist_id, forked_playlist_id, user_id, fork_reason, created_at)
+        Database --> PlaylistForkRepository: Fork relationship recorded
+        PlaylistForkRepository --> PlaylistForkService: Fork history saved
+
+        PlaylistForkService -> PlaylistStatsService: updatePlaylistForkCount(originalPlaylistId)
+        PlaylistStatsService -> PlaylistRepository: incrementForkCount(originalPlaylistId)
+        PlaylistRepository -> Database: UPDATE playlists SET fork_count = fork_count + 1 WHERE id = ?
+        Database --> PlaylistRepository: Fork count updated
+        PlaylistRepository --> PlaylistStatsService: Statistics updated
+        PlaylistStatsService --> PlaylistForkService: Fork count incremented
+
+        PlaylistForkService -> PlaylistForkService: buildForkedPlaylistDto(forkedPlaylist)
+        PlaylistForkService --> PublicPlaylistController: PlaylistDto
+        PublicPlaylistController --> PlaylistService: Fork completed successfully
+        PlaylistService --> PublicPlaylistDetailComponent: Forked playlist created
+
+        PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: updateForkButton()
+        PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: showSuccessMessage("Playlist đã được sao chép thành công")
+
+        ForkPlaylistModal -> ForkPlaylistModal: close()
+        ForkPlaylistModal --> PublicPlaylistDetailComponent: Modal closed
+        PublicPlaylistDetailComponent --> User: Hiển thị thông báo thành công và cập nhật UI
+
+    else User chưa đăng nhập
+        PublicPlaylistDetailComponent --> User: Hiển thị thông báo "Vui lòng đăng nhập để fork playlist"
+        PublicPlaylistDetailComponent -> Browser: redirect to login page
+    end
+end
+
+== Follow người tạo playlist ==
+
+alt Follow/Unfollow playlist owner
+    User -> PublicPlaylistDetailComponent: Click "Follow" trên thông tin owner
+    PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: followOwner()
+
+    PublicPlaylistDetailComponent -> PlaylistService: followUser(ownerId)
+    PlaylistService -> PublicPlaylistController: POST /api/users/{ownerId}/follow
+    PublicPlaylistController -> PublicPlaylistService: followUser(followerId, followeeId)
+
+    PublicPlaylistService -> UserFollowRepository: findByFollowerIdAndFolloweeId(currentUserId, ownerId)
+    UserFollowRepository -> Database: SELECT * FROM user_follows WHERE follower_id = ? AND followee_id = ?
+    Database --> UserFollowRepository: Existing follow relationship or null
+    UserFollowRepository --> PublicPlaylistService: Follow status
+
+    alt Not currently following
+        PublicPlaylistService -> UserFollowRepository: save(new UserFollow)
+        UserFollowRepository -> Database: INSERT INTO user_follows (follower_id, followee_id, created_at) VALUES (?, ?, NOW())
+        Database --> UserFollowRepository: Follow relationship created
+        UserFollowRepository --> PublicPlaylistService: User followed successfully
+
+        PublicPlaylistService -> UserRepository: incrementFollowerCount(ownerId)
+        UserRepository -> Database: UPDATE users SET follower_count = follower_count + 1 WHERE id = ?
+        Database --> UserRepository: Follower count updated
+        UserRepository --> PublicPlaylistService: Statistics updated
+
+        PublicPlaylistService --> PublicPlaylistController: Follow successful
+        PublicPlaylistController --> PlaylistService: User followed
+        PlaylistService --> PublicPlaylistDetailComponent: Follow status updated
+        PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: Update follow button to "Following"
+        PublicPlaylistDetailComponent --> User: Hiển thị "Đang following" và cập nhật số follower
+
+    else Already following
+        PublicPlaylistService -> UserFollowRepository: deleteByFollowerIdAndFolloweeId(currentUserId, ownerId)
+        UserFollowRepository -> Database: DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?
+        Database --> UserFollowRepository: Follow relationship removed
+        UserFollowRepository --> PublicPlaylistService: Unfollowed successfully
+
+        PublicPlaylistService -> UserRepository: decrementFollowerCount(ownerId)
+        UserRepository -> Database: UPDATE users SET follower_count = follower_count - 1 WHERE id = ?
+        Database --> UserRepository: Follower count updated
+        UserRepository --> PublicPlaylistService: Statistics updated
+
+        PublicPlaylistService --> PublicPlaylistController: Unfollow successful
+        PublicPlaylistController --> PlaylistService: User unfollowed
+        PlaylistService --> PublicPlaylistDetailComponent: Follow status updated
+        PublicPlaylistDetailComponent -> PublicPlaylistDetailComponent: Update follow button to "Follow"
+        PublicPlaylistDetailComponent --> User: Hiển thị "Follow" và cập nhật số follower
+    end
+end
+
+== Xử lý lỗi ==
+
+alt Lỗi playlist không công khai
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistIsPublic fails
+    PlaylistValidationService --> PublicPlaylistService: throw NotFoundException("Playlist is not public")
+    PublicPlaylistService --> PublicPlaylistController: 404 Not Found
+    PublicPlaylistController --> PlaylistService: Error response
+    PlaylistService --> PublicPlaylistDetailComponent: Playlist not accessible
+    PublicPlaylistDetailComponent --> User: "Playlist không tồn tại hoặc đã được đặt riêng tư"
+end
+
+alt Lỗi playlist không tồn tại
+    PlaylistValidationService -> PlaylistValidationService: validatePlaylistExists fails
+    PlaylistValidationService --> PublicPlaylistService: throw NotFoundException("Playlist not found")
+    PublicPlaylistService --> PublicPlaylistController: 404 Not Found
+    PublicPlaylistController --> PlaylistService: Error response
+    PlaylistService --> PublicPlaylistDetailComponent: Playlist not found
+    PublicPlaylistDetailComponent --> User: "Playlist không tồn tại"
+end
+
+alt Lỗi user chưa đăng nhập khi fork
+    PlaylistValidationService -> PlaylistValidationService: validateForkPermissions fails
+    PlaylistValidationService --> PlaylistForkService: throw UnauthorizedException("Login required")
+    PlaylistForkService --> PublicPlaylistController: 401 Unauthorized
+    PublicPlaylistController --> PlaylistService: Authentication required
+    PlaylistService --> ForkPlaylistModal: Authentication error
+    ForkPlaylistModal --> User: "Vui lòng đăng nhập để sao chép playlist"
+    ForkPlaylistModal -> Browser: redirect to login page
+end
+
+alt Lỗi tên playlist đã tồn tại
+    PlaylistValidationService -> PlaylistValidationService: checkForkNameAvailability fails
+    PlaylistValidationService --> PlaylistForkService: throw BadRequestException("Playlist name already exists")
+    PlaylistForkService --> PublicPlaylistController: 400 Bad Request
+    PublicPlaylistController --> PlaylistService: Name conflict error
+    PlaylistService --> ForkPlaylistModal: Name validation error
+    ForkPlaylistModal --> User: "Tên playlist đã tồn tại, vui lòng chọn tên khác"
+end
+
+alt Lỗi kết nối database
+    Database --> PlaylistRepository: Connection timeout
+    PlaylistRepository --> PublicPlaylistService: DatabaseConnectionException
+    PublicPlaylistService --> PublicPlaylistController: 500 Internal Server Error
+    PublicPlaylistController --> PlaylistService: Server error
+    PlaylistService --> PublicPlaylistListComponent: Server error
+    PublicPlaylistListComponent --> User: "Có lỗi kết nối, vui lòng thử lại sau"
+end
+
+@enduml

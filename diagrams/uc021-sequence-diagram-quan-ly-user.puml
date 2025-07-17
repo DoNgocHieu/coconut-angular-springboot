@@ -1,0 +1,157 @@
+@startuml UC021-Sequence-Diagram-Quan-Ly-User
+!theme plain
+
+title Biểu đồ tuần tự - UC021: Quản lý người dùng (Admin)
+
+actor Admin
+participant "Angular\nAdmin Panel" as Client
+participant "AdminUser\nController" as Controller
+participant "AdminUser\nService" as Service
+participant "User\nRepository" as UserRepo
+participant "User\nMapper" as Mapper
+database "MySQL\nDatabase" as DB
+
+Admin -> Client: Navigate to "Quản lý người dùng"
+activate Client
+
+Client -> Client: Check admin role
+alt Admin authenticated
+    Client -> Controller: GET /api/admin/users?page=0&size=20&search=""
+    activate Controller
+
+    Controller -> Controller: Verify admin role from JWT
+    Controller -> Controller: Create Pageable object
+
+    Controller -> Service: getAllUsers(pageable, search)
+    activate Service
+
+    alt search empty
+        Service -> UserRepo: findAll(pageable)
+        activate UserRepo
+        UserRepo -> DB: SELECT * FROM users\nWHERE deleted_at IS NULL\nORDER BY created_at DESC\nLIMIT 20 OFFSET 0
+        DB --> UserRepo: Page<User> with metadata
+        UserRepo --> Service: Page<User>
+        deactivate UserRepo
+    else search provided
+        Service -> UserRepo: findByUsernameContainingOrEmailContaining(search, search, pageable)
+        activate UserRepo
+        UserRepo -> DB: SELECT * FROM users\nWHERE (username LIKE '%search%' OR email LIKE '%search%')\nAND deleted_at IS NULL\nORDER BY created_at DESC\nLIMIT 20 OFFSET 0
+        DB --> UserRepo: Page<User> with search results
+        UserRepo --> Service: Page<User>
+        deactivate UserRepo
+    end
+
+    Service -> Mapper: toDtoList(users)
+    activate Mapper
+    Mapper -> Mapper: Convert each User to UserDto\nwith playlist/favorite counts
+    Mapper --> Service: List<UserDto>
+    deactivate Mapper
+
+    Service --> Controller: Page<UserDto>
+    deactivate Service
+
+    Controller --> Client: 200 OK\nPage<UserDto> with user list
+    deactivate Controller
+
+    Client -> Client: Display users in data table
+    Client --> Admin: User list with actions displayed
+
+    ' Admin wants to ban a user
+    Admin -> Client: Click "Ban" for specific user
+    Client -> Client: Open ban dialog
+    Admin -> Client: Enter ban reason and duration (7 days)
+    Admin -> Client: Confirm ban action
+
+    Client -> Controller: POST /api/admin/users/123/ban\n{reason: "Vi phạm quy định", banDurationDays: 7}
+    activate Controller
+
+    Controller -> Controller: Validate admin role
+    Controller -> Controller: Validate ban request
+
+    Controller -> Service: banUser(userId=123, reason, duration)
+    activate Service
+
+    ' Check user exists and not admin
+    Service -> UserRepo: findById(123)
+    activate UserRepo
+    UserRepo -> DB: SELECT * FROM users WHERE id = 123 AND deleted_at IS NULL
+    DB --> UserRepo: User entity
+    UserRepo --> Service: User
+    deactivate UserRepo
+
+    Service -> Service: Check user.role != ADMIN
+    alt user is not admin
+        Service -> Service: Calculate bannedUntil = now() + 7 days
+        Service -> Service: Update user.status = BANNED
+        Service -> Service: Set user.banReason and bannedUntil
+
+        Service -> UserRepo: save(user)
+        activate UserRepo
+        UserRepo -> DB: UPDATE users SET\nstatus = 'BANNED',\nban_reason = 'Vi phạm quy định',\nbanned_until = ?,\nupdated_at = NOW()\nWHERE id = 123
+        DB --> UserRepo: user updated
+        UserRepo --> Service: User entity
+        deactivate UserRepo
+
+        Service --> Controller: void (success)
+        deactivate Service
+
+        Controller --> Client: 200 OK\n{"message": "Đã cấm người dùng thành công"}
+        deactivate Controller
+
+        Client -> Client: Update user status in table
+        Client -> Client: Show success notification
+        Client --> Admin: "Đã cấm người dùng trong 7 ngày"
+
+    else user is admin
+        Service --> Controller: throw CannotBanAdminException
+        Controller --> Client: 403 Forbidden\n{"error": "Không thể cấm quản trị viên"}
+        Client --> Admin: Show error message
+    end
+
+    ' Admin requests user statistics
+    Admin -> Client: Click "Thống kê"
+    Client -> Controller: GET /api/admin/users/statistics
+    activate Controller
+
+    Controller -> Service: getUserStatistics()
+    activate Service
+
+    ' Get various counts
+    Service -> UserRepo: countByStatus(ACTIVE)
+    activate UserRepo
+    UserRepo -> DB: SELECT COUNT(*) FROM users WHERE status = 'ACTIVE' AND deleted_at IS NULL
+    DB --> UserRepo: count = 1250
+    UserRepo --> Service: 1250
+    deactivate UserRepo
+
+    Service -> UserRepo: countByStatus(BANNED)
+    activate UserRepo
+    UserRepo -> DB: SELECT COUNT(*) FROM users WHERE status = 'BANNED' AND deleted_at IS NULL
+    DB --> UserRepo: count = 15
+    UserRepo --> Service: 15
+    deactivate UserRepo
+
+    Service -> UserRepo: countByCreatedAtBetween(thisMonthStart, now)
+    activate UserRepo
+    UserRepo -> DB: SELECT COUNT(*) FROM users\nWHERE created_at >= ? AND created_at <= ?\nAND deleted_at IS NULL
+    DB --> UserRepo: count = 45
+    UserRepo --> Service: 45
+    deactivate UserRepo
+
+    Service -> Service: Build UserStatsDto with all statistics
+    Service --> Controller: UserStatsDto
+    deactivate Service
+
+    Controller --> Client: 200 OK\nUserStatsDto
+    deactivate Controller
+
+    Client -> Client: Display statistics dashboard
+    Client --> Admin: "Tổng: 1265 người dùng, Hoạt động: 1250, Bị cấm: 15"
+
+else Not admin
+    Client --> Admin: "Không có quyền truy cập"
+end
+
+deactivate Client
+
+@enduml

@@ -1,0 +1,538 @@
+@startuml UC027-Sequence-Diagram-Quan-Ly-Nghe-Si
+!theme plain
+
+title Biểu đồ tuần tự - UC027: Quản lý nghệ sĩ
+
+actor Admin as "Admin"
+participant Browser as "Browser"
+participant ArtistManagementComponent as "ArtistManagement\nComponent"
+participant ArtistEditModalComponent as "ArtistEditModal\nComponent"
+participant ArtistDetailsComponent as "ArtistDetails\nComponent"
+participant ArtistImportComponent as "ArtistImport\nComponent"
+participant BulkArtistActionComponent as "BulkArtistAction\nComponent"
+participant ArtistService as "Artist\nService (Frontend)"
+participant ArtistValidationService as "ArtistValidation\nService (Frontend)"
+participant ArtistImageService as "ArtistImage\nService (Frontend)"
+participant ArtistImportService as "ArtistImport\nService (Frontend)"
+participant ArtistController as "Artist\nController"
+participant ArtistImageController as "ArtistImage\nController"
+participant ArtistImportController as "ArtistImport\nController"
+participant ArtistService_BE as "Artist\nService"
+participant ArtistValidationService_BE as "ArtistValidation\nService"
+participant ArtistImageService_BE as "ArtistImage\nService"
+participant ArtistFollowService as "ArtistFollow\nService"
+participant ArtistImportService_BE as "ArtistImport\nService"
+participant ArtistSearchService as "ArtistSearch\nService"
+participant ArtistAuditService as "ArtistAudit\nService"
+participant ArtistRepository as "Artist\nRepository"
+participant ArtistImageRepository as "ArtistImage\nRepository"
+participant ArtistFollowRepository as "ArtistFollow\nRepository"
+participant MusicRepository as "Music\nRepository"
+participant FileStorageService as "FileStorage\nService"
+participant Database as "Database"
+
+== Truy cập trang quản lý nghệ sĩ ==
+
+Admin -> Browser: Truy cập trang "Artist Management"
+Browser -> ArtistManagementComponent: ngOnInit()
+ArtistManagementComponent -> ArtistService: getAllArtists(filters, pageable)
+ArtistService -> ArtistController: GET /api/admin/artists?page={page}&size={size}&filters={filters}
+ArtistController -> ArtistService_BE: getAllArtists(filters, pageable)
+
+ArtistService_BE -> ArtistRepository: findAll(pageable)
+ArtistRepository -> Database: SELECT a.*, COUNT(m.id) as songs_count, COUNT(af.user_id) as followers_count FROM artists a LEFT JOIN musics m ON a.id = m.artist_id AND m.deleted = false LEFT JOIN artist_follows af ON a.id = af.artist_id WHERE a.active = true GROUP BY a.id ORDER BY a.created_at DESC
+Database --> ArtistRepository: Artists with statistics
+ArtistRepository --> ArtistService_BE: Page<Artist> with stats
+
+ArtistService_BE -> ArtistService_BE: buildArtistDtos(artists)
+ArtistService_BE --> ArtistController: Page<ArtistDto>
+ArtistController --> ArtistService: Artists loaded
+ArtistService --> ArtistManagementComponent: Artists with statistics
+
+ArtistManagementComponent --> Admin: Hiển thị danh sách nghệ sĩ với thống kê
+
+== Tạo nghệ sĩ mới ==
+
+Admin -> ArtistManagementComponent: Click "Create New Artist"
+ArtistManagementComponent -> ArtistEditModalComponent: open()
+ArtistEditModalComponent -> ArtistEditModalComponent: ngOnInit()
+ArtistEditModalComponent -> ArtistEditModalComponent: initializeForm()
+
+ArtistEditModalComponent --> Admin: Hiển thị modal tạo nghệ sĩ mới
+
+Admin -> ArtistEditModalComponent: Nhập artist name
+ArtistEditModalComponent -> ArtistValidationService: validateArtistName(name)
+ArtistValidationService -> ArtistController: GET /api/admin/artists/validate-name?name={name}
+ArtistController -> ArtistValidationService_BE: validateArtistName(name)
+
+ArtistValidationService_BE -> ArtistRepository: existsByNameIgnoreCase(name)
+ArtistRepository -> Database: SELECT COUNT(*) FROM artists WHERE LOWER(name) = LOWER(?) AND active = true
+Database --> ArtistRepository: Name existence check
+ArtistRepository --> ArtistValidationService_BE: Name availability result
+
+ArtistValidationService_BE -> ArtistValidationService_BE: buildValidationResult(nameAvailable)
+ArtistValidationService_BE --> ArtistController: ValidationResult
+ArtistController --> ArtistValidationService: Name validation result
+ArtistValidationService --> ArtistEditModalComponent: Name validation received
+
+Admin -> ArtistEditModalComponent: Nhập email, biography, country, etc.
+ArtistEditModalComponent -> ArtistValidationService: validateArtistEmail(email)
+' Similar validation flow for email
+
+Admin -> ArtistEditModalComponent: Select genres
+ArtistEditModalComponent -> ArtistService: getAllGenres()
+ArtistService --> ArtistEditModalComponent: Available genres
+
+Admin -> ArtistEditModalComponent: Upload artist images
+ArtistEditModalComponent -> ArtistEditModalComponent: onImageSelect(files)
+ArtistEditModalComponent -> ArtistImageService: validateImageFiles(files)
+ArtistImageService -> ArtistImageService: validateFileTypes(files)
+ArtistImageService -> ArtistImageService: validateFileSizes(files)
+ArtistImageService --> ArtistEditModalComponent: Image validation result
+
+ArtistEditModalComponent -> ArtistEditModalComponent: generateImagePreviews(files)
+
+Admin -> ArtistEditModalComponent: Nhập social media URLs
+ArtistEditModalComponent -> ArtistValidationService: validateSocialMediaUrls(urls)
+ArtistValidationService --> ArtistEditModalComponent: URL validation result
+
+Admin -> ArtistEditModalComponent: Click "Create Artist"
+ArtistEditModalComponent -> ArtistEditModalComponent: validateForm()
+ArtistEditModalComponent -> ArtistService: createArtist(createRequest)
+ArtistService -> ArtistController: POST /api/admin/artists
+ArtistController -> ArtistService_BE: createArtist(request, adminId)
+
+ArtistService_BE -> ArtistValidationService_BE: validateCreateArtistRequest(request)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateArtistName(request.name)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateArtistEmail(request.email)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateSocialMediaUrls(request.socialMediaUrls)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateArtistGenres(request.genreIds)
+ArtistValidationService_BE --> ArtistService_BE: Creation validation passed
+
+ArtistService_BE -> ArtistRepository: save(newArtist)
+ArtistRepository -> Database: INSERT INTO artists (name, email, biography, country, birth_date, debut_date, website, social_media_urls, active, verified, created_at, created_by)
+Database --> ArtistRepository: New artist created
+ArtistRepository --> ArtistService_BE: Artist entity
+
+alt Upload images if provided
+    ArtistService_BE -> ArtistImageService_BE: uploadArtistImages(artistId, images, adminId)
+    ArtistImageService_BE -> ArtistImageService_BE: processImages(images)
+
+    loop For each image
+        ArtistImageService_BE -> FileStorageService: saveFile(processedImage, "artist-images")
+        FileStorageService -> FileStorageService: generateUniqueFileName()
+        FileStorageService -> FileStorageService: saveToStorage(image, path)
+        FileStorageService --> ArtistImageService_BE: Image URLs (original, thumbnail, medium, large)
+
+        ArtistImageService_BE -> ArtistImageRepository: save(artistImage)
+        ArtistImageRepository -> Database: INSERT INTO artist_images (artist_id, original_url, thumbnail_url, medium_url, large_url, file_size, mime_type, order_index, created_at, created_by)
+        Database --> ArtistImageRepository: Image saved
+        ArtistImageRepository --> ArtistImageService_BE: Image entity
+    end
+
+    ArtistImageService_BE --> ArtistService_BE: Images uploaded successfully
+end
+
+ArtistService_BE -> ArtistService_BE: assignGenresToArtist(artistId, genreIds)
+ArtistService_BE -> ArtistAuditService: logArtistCreation(artistId, adminId, artistData)
+ArtistAuditService -> Database: INSERT INTO audit_logs (admin_id, action_type, resource_type, resource_id, action_details, created_at)
+Database --> ArtistAuditService: Creation logged
+ArtistAuditService --> ArtistService_BE: Audit log created
+
+ArtistService_BE -> ArtistService_BE: buildArtistDto(artist)
+ArtistService_BE --> ArtistController: ArtistDto
+ArtistController --> ArtistService: Artist created successfully
+ArtistService --> ArtistEditModalComponent: Artist creation completed
+
+ArtistEditModalComponent -> ArtistEditModalComponent: close()
+ArtistEditModalComponent --> ArtistManagementComponent: Modal closed
+ArtistManagementComponent -> ArtistManagementComponent: addArtistToList(newArtist)
+ArtistManagementComponent -> ArtistManagementComponent: showSuccessMessage("Nghệ sĩ mới đã được tạo thành công")
+ArtistManagementComponent --> Admin: Danh sách cập nhật với nghệ sĩ mới
+
+== Chỉnh sửa nghệ sĩ ==
+
+Admin -> ArtistManagementComponent: Click "Edit" trên artist card
+ArtistManagementComponent -> ArtistEditModalComponent: open(artist)
+ArtistEditModalComponent -> ArtistEditModalComponent: ngOnInit()
+ArtistEditModalComponent -> ArtistEditModalComponent: initializeForm(artist)
+
+ArtistEditModalComponent -> ArtistService: getArtistById(artistId)
+ArtistService -> ArtistController: GET /api/admin/artists/{artistId}
+ArtistController -> ArtistService_BE: getArtistById(artistId)
+
+ArtistService_BE -> ArtistValidationService_BE: checkArtistExists(artistId)
+ArtistValidationService_BE -> ArtistRepository: findById(artistId)
+ArtistRepository -> Database: SELECT * FROM artists WHERE id = ? AND active = true
+Database --> ArtistRepository: Artist details
+ArtistRepository --> ArtistValidationService_BE: Artist entity
+ArtistValidationService_BE --> ArtistService_BE: Artist exists validation passed
+
+ArtistService_BE -> ArtistImageService_BE: getArtistImages(artistId)
+ArtistImageService_BE -> ArtistImageRepository: findByArtistId(artistId)
+ArtistImageRepository -> Database: SELECT * FROM artist_images WHERE artist_id = ? ORDER BY order_index
+Database --> ArtistImageRepository: Artist images
+ArtistImageRepository --> ArtistImageService_BE: Image list
+ArtistImageService_BE --> ArtistService_BE: Artist images loaded
+
+ArtistService_BE -> ArtistService_BE: buildDetailedArtistDto(artist, images)
+ArtistService_BE --> ArtistController: ArtistDto
+ArtistController --> ArtistService: Artist details loaded
+ArtistService --> ArtistEditModalComponent: Artist data received
+
+ArtistEditModalComponent -> ArtistEditModalComponent: populateForm(artist)
+ArtistEditModalComponent --> Admin: Hiển thị modal chỉnh sửa với dữ liệu hiện tại
+
+Admin -> ArtistEditModalComponent: Thay đổi artist information
+ArtistEditModalComponent -> ArtistEditModalComponent: onFormChange()
+ArtistEditModalComponent -> ArtistValidationService: validateArtistName(newName, artistId)
+' Similar validation flow as create mode
+
+Admin -> ArtistEditModalComponent: Upload new images
+ArtistEditModalComponent -> ArtistImageService: uploadArtistImages(artistId, newImages)
+ArtistImageService -> ArtistImageController: POST /api/admin/artists/{artistId}/images
+ArtistImageController -> ArtistImageService_BE: uploadArtistImages(artistId, images, adminId)
+
+ArtistImageService_BE -> ArtistImageService_BE: validateImageFiles(images)
+ArtistImageService_BE -> ArtistImageService_BE: processImages(images)
+
+loop For each new image
+    ArtistImageService_BE -> FileStorageService: saveFile(processedImage, "artist-images")
+    FileStorageService --> ArtistImageService_BE: Image URLs
+
+    ArtistImageService_BE -> ArtistImageRepository: save(artistImage)
+    ArtistImageRepository --> ArtistImageService_BE: Image saved
+end
+
+ArtistImageService_BE -> ArtistImageService_BE: buildImageUploadResult(uploadedImages)
+ArtistImageService_BE --> ArtistImageController: ImageUploadResult
+ArtistImageController --> ArtistImageService: Images uploaded
+ArtistImageService --> ArtistEditModalComponent: New images uploaded
+
+Admin -> ArtistEditModalComponent: Remove existing image
+ArtistEditModalComponent -> ArtistImageService: deleteArtistImage(artistId, imageId)
+ArtistImageService -> ArtistImageController: DELETE /api/admin/artists/{artistId}/images/{imageId}
+ArtistImageController -> ArtistImageService_BE: deleteArtistImage(artistId, imageId, adminId)
+
+ArtistImageService_BE -> ArtistImageRepository: findByArtistIdAndImageId(artistId, imageId)
+ArtistImageRepository --> ArtistImageService_BE: Image to delete
+
+ArtistImageService_BE -> FileStorageService: deleteFile(image.originalUrl)
+ArtistImageService_BE -> FileStorageService: deleteFile(image.thumbnailUrl)
+ArtistImageService_BE -> FileStorageService: deleteFile(image.mediumUrl)
+ArtistImageService_BE -> FileStorageService: deleteFile(image.largeUrl)
+FileStorageService --> ArtistImageService_BE: Files deleted
+
+ArtistImageService_BE -> ArtistImageRepository: delete(artistImage)
+ArtistImageRepository -> Database: DELETE FROM artist_images WHERE artist_id = ? AND id = ?
+Database --> ArtistImageRepository: Image deleted
+ArtistImageRepository --> ArtistImageService_BE: Image deletion completed
+
+ArtistImageService_BE --> ArtistImageController: Image deleted successfully
+ArtistImageController --> ArtistImageService: Image deletion completed
+ArtistImageService --> ArtistEditModalComponent: Image removed
+
+Admin -> ArtistEditModalComponent: Click "Save Changes"
+ArtistEditModalComponent -> ArtistEditModalComponent: validateForm()
+ArtistEditModalComponent -> ArtistService: updateArtist(artistId, updateRequest)
+ArtistService -> ArtistController: PUT /api/admin/artists/{artistId}
+ArtistController -> ArtistService_BE: updateArtist(artistId, request, adminId)
+
+ArtistService_BE -> ArtistValidationService_BE: validateUpdateArtistRequest(artistId, request)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateArtistName(request.name, artistId)
+ArtistValidationService_BE -> ArtistValidationService_BE: validateArtistEmail(request.email, artistId)
+ArtistValidationService_BE --> ArtistService_BE: Update validation passed
+
+ArtistService_BE -> ArtistRepository: findById(artistId)
+ArtistRepository --> ArtistService_BE: Current artist data
+
+ArtistService_BE -> ArtistAuditService: logArtistUpdate(artistId, adminId, changes)
+ArtistAuditService -> Database: INSERT INTO audit_logs (update details)
+Database --> ArtistAuditService: Update logged
+ArtistAuditService --> ArtistService_BE: Audit log created
+
+ArtistService_BE -> ArtistRepository: save(updatedArtist)
+ArtistRepository -> Database: UPDATE artists SET name = ?, email = ?, biography = ?, country = ?, birth_date = ?, debut_date = ?, website = ?, social_media_urls = ?, updated_at = NOW(), updated_by = ? WHERE id = ?
+Database --> ArtistRepository: Artist updated
+ArtistRepository --> ArtistService_BE: Update completed
+
+ArtistService_BE -> ArtistService_BE: updateArtistGenres(artistId, newGenreIds)
+ArtistService_BE -> ArtistService_BE: buildArtistDto(updatedArtist)
+ArtistService_BE --> ArtistController: ArtistDto
+ArtistController --> ArtistService: Artist updated successfully
+ArtistService --> ArtistEditModalComponent: Artist update completed
+
+ArtistEditModalComponent -> ArtistEditModalComponent: close()
+ArtistEditModalComponent --> ArtistManagementComponent: Modal closed
+ArtistManagementComponent -> ArtistManagementComponent: updateArtistInList(updatedArtist)
+ArtistManagementComponent -> ArtistManagementComponent: showSuccessMessage("Nghệ sĩ đã được cập nhật thành công")
+ArtistManagementComponent --> Admin: Danh sách cập nhật với thông báo thành công
+
+== Xem chi tiết nghệ sĩ ==
+
+Admin -> ArtistManagementComponent: Click "View Details" trên artist card
+ArtistManagementComponent -> ArtistDetailsComponent: open(artistId)
+ArtistDetailsComponent -> ArtistDetailsComponent: ngOnInit()
+ArtistDetailsComponent -> ArtistDetailsComponent: loadArtistDetails(artistId)
+
+ArtistDetailsComponent -> ArtistService: getArtistById(artistId)
+ArtistService -> ArtistController: GET /api/admin/artists/{artistId}
+' Similar flow as edit mode for getting artist details
+
+ArtistDetailsComponent -> ArtistService: getArtistStats(artistId)
+ArtistService -> ArtistController: GET /api/admin/artists/{artistId}/stats
+ArtistController -> ArtistService_BE: getArtistStats(artistId)
+
+ArtistService_BE -> MusicRepository: countByArtistId(artistId)
+MusicRepository -> Database: SELECT COUNT(*) FROM musics WHERE artist_id = ? AND deleted = false
+Database --> MusicRepository: Songs count
+MusicRepository --> ArtistService_BE: Songs count
+
+ArtistService_BE -> ArtistFollowRepository: countByArtistId(artistId)
+ArtistFollowRepository -> Database: SELECT COUNT(*) FROM artist_follows WHERE artist_id = ?
+Database --> ArtistFollowRepository: Followers count
+ArtistFollowRepository --> ArtistService_BE: Followers count
+
+ArtistService_BE -> MusicRepository: findTopByArtistIdOrderByViewCountDesc(artistId, 5)
+MusicRepository --> ArtistService_BE: Top songs
+
+ArtistService_BE -> ArtistService_BE: buildArtistStats(statistics)
+ArtistService_BE --> ArtistController: ArtistStatsDto
+ArtistController --> ArtistService: Artist stats loaded
+ArtistService --> ArtistDetailsComponent: Artist statistics received
+
+ArtistDetailsComponent -> ArtistService: getArtistMusic(artistId)
+ArtistService -> ArtistController: GET /api/admin/artists/{artistId}/music
+ArtistController -> ArtistService_BE: getArtistMusic(artistId)
+
+ArtistService_BE -> MusicRepository: findByArtistId(artistId)
+MusicRepository -> Database: SELECT * FROM musics WHERE artist_id = ? AND deleted = false ORDER BY created_at DESC
+Database --> MusicRepository: Artist's music
+MusicRepository --> ArtistService_BE: Music list
+
+ArtistService_BE -> ArtistService_BE: buildMusicDtos(musicList)
+ArtistService_BE --> ArtistController: List<MusicDto>
+ArtistController --> ArtistService: Artist music loaded
+ArtistService --> ArtistDetailsComponent: Artist music received
+
+ArtistDetailsComponent --> Admin: Hiển thị chi tiết nghệ sĩ với thống kê và danh sách nhạc
+
+== Tìm kiếm nghệ sĩ ==
+
+Admin -> ArtistManagementComponent: Enter search query
+ArtistManagementComponent -> ArtistService: searchArtists(query, filters)
+ArtistService -> ArtistController: GET /api/admin/artists/search?q={query}&filters={filters}
+ArtistController -> ArtistSearchService: searchArtists(query, filters)
+
+ArtistSearchService -> ArtistRepository: findByNameContainingIgnoreCase(query, pageable)
+ArtistRepository -> Database: SELECT a.*, COUNT(m.id) as songs_count, COUNT(af.user_id) as followers_count FROM artists a LEFT JOIN musics m ON a.id = m.artist_id LEFT JOIN artist_follows af ON a.id = af.artist_id WHERE LOWER(a.name) LIKE LOWER(?) AND a.active = true GROUP BY a.id ORDER BY a.followers_count DESC
+Database --> ArtistRepository: Search results
+ArtistRepository --> ArtistSearchService: Matching artists
+
+ArtistSearchService -> ArtistSearchService: applySearchFilters(artists, filters)
+ArtistSearchService -> ArtistSearchService: rankSearchResults(artists, query)
+ArtistSearchService --> ArtistController: List<Artist>
+ArtistController --> ArtistService: Search results
+ArtistService --> ArtistManagementComponent: Search results received
+
+ArtistManagementComponent -> ArtistManagementComponent: updateArtistList(searchResults)
+ArtistManagementComponent --> Admin: Hiển thị kết quả tìm kiếm
+
+== Xóa nghệ sĩ ==
+
+Admin -> ArtistManagementComponent: Click "Delete" trên artist card
+ArtistManagementComponent -> ArtistManagementComponent: openDeleteConfirmation(artist)
+
+ArtistManagementComponent --> Admin: Hiển thị confirmation dialog
+
+Admin -> ArtistManagementComponent: Confirm deletion
+ArtistManagementComponent -> ArtistService: deleteArtist(artistId)
+ArtistService -> ArtistController: DELETE /api/admin/artists/{artistId}
+ArtistController -> ArtistService_BE: deleteArtist(artistId, adminId)
+
+ArtistService_BE -> ArtistValidationService_BE: validateArtistDeletionConstraints(artistId)
+ArtistValidationService_BE -> MusicRepository: countByArtistId(artistId)
+MusicRepository --> ArtistValidationService_BE: Associated music count
+
+ArtistValidationService_BE -> ArtistValidationService_BE: checkDeletionConstraints(musicCount)
+ArtistValidationService_BE --> ArtistService_BE: Deletion validation passed
+
+ArtistService_BE -> ArtistAuditService: logArtistDeletion(artistId, adminId, "Admin deletion")
+ArtistAuditService --> ArtistService_BE: Deletion logged
+
+ArtistService_BE -> MusicRepository: updateArtistIdToNull(artistId)
+MusicRepository -> Database: UPDATE musics SET artist_id = NULL, updated_at = NOW() WHERE artist_id = ?
+Database --> MusicRepository: Music artist references cleared
+MusicRepository --> ArtistService_BE: Music references updated
+
+ArtistService_BE -> ArtistFollowRepository: deleteByArtistId(artistId)
+ArtistFollowRepository -> Database: DELETE FROM artist_follows WHERE artist_id = ?
+Database --> ArtistFollowRepository: Follows deleted
+ArtistFollowRepository --> ArtistService_BE: Follows cleanup completed
+
+ArtistService_BE -> ArtistImageService_BE: deleteAllArtistImages(artistId)
+ArtistImageService_BE -> ArtistImageRepository: findByArtistId(artistId)
+ArtistImageRepository --> ArtistImageService_BE: Images to delete
+
+loop For each image
+    ArtistImageService_BE -> FileStorageService: deleteFile(image.urls)
+    FileStorageService --> ArtistImageService_BE: File deleted
+end
+
+ArtistImageService_BE -> ArtistImageRepository: deleteByArtistId(artistId)
+ArtistImageRepository -> Database: DELETE FROM artist_images WHERE artist_id = ?
+Database --> ArtistImageRepository: Images deleted
+ArtistImageRepository --> ArtistImageService_BE: Images cleanup completed
+ArtistImageService_BE --> ArtistService_BE: All images deleted
+
+ArtistService_BE -> ArtistRepository: delete(artist)
+ArtistRepository -> Database: UPDATE artists SET active = false, deleted_at = NOW(), deleted_by = ? WHERE id = ?
+Database --> ArtistRepository: Artist soft deleted
+ArtistRepository --> ArtistService_BE: Artist deletion completed
+
+ArtistService_BE --> ArtistController: Artist deleted successfully
+ArtistController --> ArtistService: Artist deletion completed
+ArtistService --> ArtistManagementComponent: Artist deletion completed
+
+ArtistManagementComponent -> ArtistManagementComponent: removeArtistFromList(artistId)
+ArtistManagementComponent -> ArtistManagementComponent: showSuccessMessage("Nghệ sĩ đã được xóa thành công")
+ArtistManagementComponent --> Admin: Danh sách cập nhật với thông báo thành công
+
+== Import nghệ sĩ từ file ==
+
+Admin -> ArtistManagementComponent: Click "Import Artists"
+ArtistManagementComponent -> ArtistImportComponent: open()
+ArtistImportComponent -> ArtistImportComponent: ngOnInit()
+
+ArtistImportComponent --> Admin: Hiển thị import modal
+
+Admin -> ArtistImportComponent: Select Excel/CSV file
+ArtistImportComponent -> ArtistImportComponent: onFileSelect(file)
+ArtistImportComponent -> ArtistImportService: previewImport(file)
+ArtistImportService -> ArtistImportController: POST /api/admin/artists/import/preview
+ArtistImportController -> ArtistImportService_BE: previewImport(file)
+
+ArtistImportService_BE -> ArtistImportService_BE: parseImportFile(file)
+ArtistImportService_BE -> ArtistImportService_BE: validateImportData(parsedData)
+ArtistImportService_BE -> ArtistImportService_BE: checkDuplicateNames(parsedData)
+ArtistImportService_BE -> ArtistImportService_BE: validateGenreReferences(parsedData)
+
+ArtistImportService_BE -> ArtistImportService_BE: buildImportPreview(validatedData)
+ArtistImportService_BE --> ArtistImportController: List<ArtistImportPreview>
+ArtistImportController --> ArtistImportService: Import preview generated
+ArtistImportService --> ArtistImportComponent: Import preview received
+
+ArtistImportComponent -> ArtistImportComponent: displayImportPreview(preview)
+ArtistImportComponent --> Admin: Hiển thị preview với warnings và errors
+
+Admin -> ArtistImportComponent: Configure import options
+Admin -> ArtistImportComponent: Click "Start Import"
+ArtistImportComponent -> ArtistImportService: importArtists(file, options)
+ArtistImportService -> ArtistImportController: POST /api/admin/artists/import
+ArtistImportController -> ArtistImportService_BE: importArtists(file, options, adminId)
+
+ArtistImportService_BE -> ArtistImportService_BE: parseAndValidateFile(file)
+ArtistImportService_BE -> ArtistImportService_BE: processImportData(data, options)
+
+loop Import each artist
+    ArtistImportService_BE -> ArtistValidationService_BE: validateCreateArtistRequest(artistData)
+    ArtistValidationService_BE --> ArtistImportService_BE: Validation result
+
+    alt Artist is valid
+        ArtistImportService_BE -> ArtistService_BE: createArtist(artistData, adminId)
+        ArtistService_BE --> ArtistImportService_BE: Artist created
+        ArtistImportService_BE -> ArtistImportService_BE: successCount++
+    else Artist has errors
+        ArtistImportService_BE -> ArtistImportService_BE: failedCount++
+        ArtistImportService_BE -> ArtistImportService_BE: Add to error list
+    end
+end
+
+ArtistImportService_BE -> ArtistAuditService: logArtistImport(successCount, failedCount, adminId, options)
+ArtistAuditService --> ArtistImportService_BE: Import logged
+
+ArtistImportService_BE -> ArtistImportService_BE: buildImportResult()
+ArtistImportService_BE --> ArtistImportController: ImportResult
+ArtistImportController --> ArtistImportService: Import completed
+ArtistImportService --> ArtistImportComponent: Import result received
+
+ArtistImportComponent -> ArtistImportComponent: displayImportResults(results)
+ArtistImportComponent --> Admin: Hiển thị kết quả import
+
+ArtistImportComponent -> ArtistImportComponent: close()
+ArtistImportComponent --> ArtistManagementComponent: Modal closed
+ArtistManagementComponent -> ArtistManagementComponent: refreshArtistList()
+ArtistManagementComponent --> Admin: Danh sách nghệ sĩ đã được cập nhật
+
+== Bulk actions trên nhiều nghệ sĩ ==
+
+Admin -> ArtistManagementComponent: Select multiple artists
+Admin -> ArtistManagementComponent: Click "Bulk Actions"
+ArtistManagementComponent -> BulkArtistActionComponent: open(selectedArtists)
+BulkArtistActionComponent -> BulkArtistActionComponent: ngOnInit()
+
+BulkArtistActionComponent --> Admin: Hiển thị bulk action modal
+
+Admin -> BulkArtistActionComponent: Select action (Delete/Activate/Deactivate/etc.)
+Admin -> BulkArtistActionComponent: Click "Execute Action"
+BulkArtistActionComponent -> ArtistService: executeBulkAction(artistIds, action)
+ArtistService -> ArtistController: POST /api/admin/artists/bulk-action
+ArtistController -> ArtistService_BE: executeBulkAction(artistIds, action, adminId)
+
+ArtistService_BE -> ArtistService_BE: processBulkAction(artistIds, action)
+
+loop For each selected artist
+    alt Action is DELETE
+        ArtistService_BE -> ArtistService_BE: deleteArtist(artistId, adminId)
+    else Action is ACTIVATE
+        ArtistService_BE -> ArtistRepository: updateActiveStatus(artistId, true)
+    else Action is DEACTIVATE
+        ArtistService_BE -> ArtistRepository: updateActiveStatus(artistId, false)
+    end
+end
+
+ArtistService_BE -> ArtistAuditService: logBulkAction(action, artistIds, adminId, result)
+ArtistAuditService --> ArtistService_BE: Bulk action logged
+
+ArtistService_BE -> ArtistService_BE: buildBulkActionResult()
+ArtistService_BE --> ArtistController: BulkActionResult
+ArtistController --> ArtistService: Bulk action completed
+ArtistService --> BulkArtistActionComponent: Bulk action result
+
+BulkArtistActionComponent -> BulkArtistActionComponent: displayActionResults(result)
+BulkArtistActionComponent --> Admin: Hiển thị kết quả bulk action
+
+BulkArtistActionComponent -> BulkArtistActionComponent: close()
+BulkArtistActionComponent --> ArtistManagementComponent: Modal closed
+ArtistManagementComponent -> ArtistManagementComponent: refreshArtistList()
+ArtistManagementComponent --> Admin: Danh sách nghệ sĩ đã được cập nhật
+
+== Xử lý lỗi ==
+
+note over Admin, Database: Các trường hợp lỗi có thể xảy ra trong quá trình quản lý nghệ sĩ
+
+note over ArtistValidationService_BE: Lỗi tên nghệ sĩ trùng lặp
+note over Admin: "Tên nghệ sĩ đã tồn tại"
+
+note over ArtistValidationService_BE: Lỗi email trùng lặp
+note over Admin: "Email nghệ sĩ đã được sử dụng"
+
+note over ArtistImageService_BE: Lỗi upload hình ảnh
+note over Admin: "Không thể upload hình ảnh, vui lòng thử file khác"
+
+note over ArtistValidationService_BE: Lỗi nghệ sĩ không tồn tại
+note over Admin: "Nghệ sĩ được chọn không tồn tại"
+
+note over ArtistValidationService_BE: Lỗi xóa nghệ sĩ có ràng buộc
+note over Admin: "Không thể xóa nghệ sĩ có bài hát hoặc album"
+
+note over ArtistImportService_BE: Lỗi import file
+note over Admin: "File import không đúng định dạng hoặc có lỗi dữ liệu"
+
+note over Database: Lỗi database constraint
+note over Admin: "Không thể thực hiện thao tác do ràng buộc dữ liệu"
+
+note over FileStorageService: Lỗi storage service
+note over Admin: "Lỗi hệ thống lưu trữ file"
+
+@enduml

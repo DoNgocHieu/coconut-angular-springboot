@@ -1,0 +1,98 @@
+@startuml UC010-Sequence-Diagram-Phat-Nhac
+!theme plain
+
+title Biểu đồ trình tự - UC010: Phát nhạc
+
+actor User
+participant "MusicPlayerUI" as UI
+participant "MusicPlayerController" as Controller
+participant "MusicService" as MusicService
+participant "MusicRepository" as MusicRepo
+participant "HistoryService" as HistoryService
+participant "FileStorageService" as FileService
+database "Database" as DB
+participant "FileSystem" as FS
+
+User -> UI: Click play button on music
+activate UI
+
+UI -> Controller: GET /api/music/{musicId}/play
+activate Controller
+
+Controller -> MusicService: getMusicById(musicId)
+activate MusicService
+
+MusicService -> MusicRepo: findById(musicId)
+activate MusicRepo
+MusicRepo -> DB: SELECT * FROM music WHERE id = ?
+DB --> MusicRepo: Music result
+MusicRepo --> MusicService: Optional<Music>
+deactivate MusicRepo
+
+alt Music không tồn tại
+    MusicService --> Controller: ResourceNotFoundException
+    Controller --> UI: 404 Not Found
+    UI --> User: "Bài hát không tồn tại"
+else Music tồn tại
+    ' Update play count
+    MusicService -> MusicService: incrementPlayCount(music)
+    MusicService -> MusicRepo: save(music)
+    activate MusicRepo
+    MusicRepo -> DB: UPDATE music SET play_count = play_count + 1 WHERE id = ?
+    DB --> MusicRepo: success
+    deactivate MusicRepo
+
+    ' Add to user history (if user is logged in)
+    alt User đã đăng nhập
+        MusicService -> HistoryService: addToHistory(userId, musicId)
+        activate HistoryService
+        HistoryService -> DB: INSERT INTO history (user_id, music_id, played_at) VALUES (?, ?, ?)
+        DB --> HistoryService: success
+        deactivate HistoryService
+    end
+
+    ' Create music DTO with stream URL
+    MusicService -> MusicService: createMusicDto(music)
+    MusicService --> Controller: MusicDto
+    deactivate MusicService
+
+    Controller --> UI: 200 OK + MusicDto
+    deactivate Controller
+
+    ' Request music stream
+    UI -> Controller: GET /api/music/{musicId}/stream
+    activate Controller
+
+    Controller -> MusicService: getMusicStream(musicId)
+    activate MusicService
+
+    MusicService -> FileService: loadFileAsResource(filePath)
+    activate FileService
+    FileService -> FS: read audio file
+    FS --> FileService: File resource
+    FileService --> MusicService: Resource
+    deactivate FileService
+
+    MusicService --> Controller: Resource (audio stream)
+    deactivate MusicService
+
+    Controller --> UI: 200 OK + Audio stream (Content-Type: audio/mpeg)
+    deactivate Controller
+
+    UI -> UI: Initialize audio player
+    UI -> UI: Load audio stream
+    UI -> UI: Start playback
+    UI --> User: Music starts playing
+    deactivate UI
+end
+
+note over UI, FS
+  Music streaming process:
+  1. Get music metadata
+  2. Update play statistics
+  3. Record in user history
+  4. Stream audio file
+  5. Client-side playback
+end note
+
+@enduml

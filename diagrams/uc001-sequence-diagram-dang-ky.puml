@@ -1,0 +1,72 @@
+@startuml UC001-Sequence-Diagram-Dang-Ky
+!theme plain
+
+title Biểu đồ trình tự - UC001: Đăng ký
+
+actor User
+participant "RegistrationUI" as UI
+participant "RegistrationController" as Controller
+participant "RegistrationService" as Service
+participant "UserRepository" as UserRepo
+participant "ModeratorRequestRepository" as ModRepo
+database "Database" as DB
+
+User -> UI: Điền form đăng ký
+activate UI
+
+UI -> UI: Validate form client-side
+UI -> Controller: submitRegistration(form: RegistrationForm)
+activate Controller
+
+Controller -> Service: validateRegistration(form)
+activate Service
+
+Service -> UserRepo: findByUsername(username)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users WHERE username = ?
+DB --> UserRepo: result
+UserRepo --> Service: User hoặc null
+deactivate UserRepo
+
+Service -> UserRepo: findByEmail(email)
+activate UserRepo
+UserRepo -> DB: SELECT * FROM users WHERE email = ?
+DB --> UserRepo: result
+UserRepo --> Service: User hoặc null
+deactivate UserRepo
+
+alt Username hoặc Email đã tồn tại
+    Service --> Controller: ValidationException
+    Controller --> UI: Error: "Username/Email đã tồn tại"
+    UI --> User: Hiển thị lỗi
+else Validation thành công
+    Service -> Service: encryptPassword(password)
+
+    Service -> UserRepo: save(newUser)
+    activate UserRepo
+    UserRepo -> DB: INSERT INTO users...
+    DB --> UserRepo: success
+    UserRepo --> Service: User saved
+    deactivate UserRepo
+
+    alt Đăng ký làm Moderator
+        Service -> ModRepo: save(moderatorRequest)
+        activate ModRepo
+        ModRepo -> DB: INSERT INTO moderator_requests...
+        DB --> ModRepo: success
+        ModRepo --> Service: ModeratorRequest saved
+        deactivate ModRepo
+
+        Service --> Controller: Success + "Yêu cầu Moderator đã được gửi"
+    else Đăng ký User thường
+        Service --> Controller: Success
+    end
+
+    deactivate Service
+    Controller --> UI: Success message
+    deactivate Controller
+    UI --> User: "Đăng ký thành công"
+    deactivate UI
+end
+
+@enduml

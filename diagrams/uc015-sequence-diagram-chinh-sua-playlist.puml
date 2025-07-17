@@ -1,0 +1,359 @@
+@startuml UC015-Sequence-Diagram-Chinh-Sua-Playlist
+!theme plain
+
+title Biểu đồ trình tự - UC015: Chỉnh sửa playlist
+
+actor User
+participant "Angular\nMusic App" as Client
+participant "Playlist\nController" as PlaylistController
+participant "Playlist\nService" as PlaylistService
+participant "File Storage\nService" as FileService
+participant "Playlist Stats\nService" as StatsService
+participant "Playlist\nRepository" as PlaylistRepo
+participant "PlaylistMusic\nRepository" as PlaylistMusicRepo
+participant "Music\nRepository" as MusicRepo
+participant "Playlist\nMapper" as PlaylistMapper
+participant "Playlist\nValidationService" as PlaylistValidation
+database "MySQL\nDatabase" as DB
+
+User -> Client: Navigate to "My Playlists" and click "Edit" on "Chill Study Mix"
+activate Client
+
+Client -> Client: Check user authentication
+Client -> Client: Navigate to playlist edit page
+Client -> Client: Show loading spinner
+
+' Load playlist details for editing
+Client -> PlaylistController: GET /api/playlists/15/edit
+activate PlaylistController
+
+PlaylistController -> PlaylistController: Extract userId from JWT token
+PlaylistController -> PlaylistService: getPlaylistForEdit(playlistId=15, userId)
+activate PlaylistService
+
+' Validate playlist ownership
+PlaylistService -> PlaylistValidation: validatePlaylistOwnership(playlistId=15, userId)
+activate PlaylistValidation
+PlaylistValidation -> PlaylistRepo: findByIdAndUserIdAndDeletedFalse(playlistId=15, userId)
+activate PlaylistRepo
+PlaylistRepo -> DB: SELECT * FROM playlists WHERE id = 15 AND user_id = ? AND deleted = false
+DB --> PlaylistRepo: Playlist "Chill Study Mix"
+PlaylistRepo --> PlaylistValidation: Optional<Playlist>
+deactivate PlaylistRepo
+
+alt Playlist exists and user is owner
+    PlaylistValidation --> PlaylistService: void (validation passed)
+    deactivate PlaylistValidation
+
+    ' Get playlist with all music details
+    PlaylistService -> PlaylistMusicRepo: findByPlaylistIdOrderByOrderIndex(playlistId=15)
+    activate PlaylistMusicRepo
+    PlaylistMusicRepo -> DB: SELECT pm.*, m.title, m.artist, m.album, m.duration, m.cover_image_url,\nc.name as category_name, c.color, u.username, u.display_name\nFROM playlist_musics pm\nJOIN musics m ON pm.music_id = m.id\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.user_id = u.id\nWHERE pm.playlist_id = 15\nORDER BY pm.order_index ASC
+    DB --> PlaylistMusicRepo: List<PlaylistMusic> with Music details (25 songs)
+    PlaylistMusicRepo --> PlaylistService: List<PlaylistMusic>
+    deactivate PlaylistMusicRepo
+
+    ' Get playlist statistics
+    PlaylistService -> StatsService: getPlaylistMetrics(playlistId=15)
+    activate StatsService
+    StatsService -> PlaylistMusicRepo: sumDurationByPlaylistId(playlistId=15)
+    activate PlaylistMusicRepo
+    PlaylistMusicRepo -> DB: SELECT SUM(m.duration) FROM playlist_musics pm\nJOIN musics m ON pm.music_id = m.id\nWHERE pm.playlist_id = 15
+    DB --> PlaylistMusicRepo: totalDuration = 6420 seconds (1h 47m)
+    PlaylistMusicRepo --> StatsService: 6420
+    deactivate PlaylistMusicRepo
+
+    StatsService -> StatsService: Calculate genre distribution and artist stats
+    StatsService --> PlaylistService: PlaylistMetricsDto
+    deactivate StatsService
+
+    ' Convert to edit DTO
+    PlaylistService -> PlaylistMapper: toEditDto(playlist, playlistMusics, metrics)
+    activate PlaylistMapper
+    PlaylistMapper -> PlaylistMapper: Create PlaylistEditDto with all details
+    PlaylistMapper -> PlaylistMapper: Set playlist info: name="Chill Study Mix", description, coverImageUrl
+    PlaylistMapper -> PlaylistMapper: Set isPublic=true, musicCount=25, totalDuration="1h 47m"
+    PlaylistMapper -> PlaylistMapper: Convert PlaylistMusic list to PlaylistMusicDto list
+    PlaylistMapper -> PlaylistMapper: Set canEdit=true, canDelete=true for owner
+    PlaylistMapper -> PlaylistMapper: Set canRemove=true, canReorder=true for all music items
+    PlaylistMapper --> PlaylistService: PlaylistEditDto
+    deactivate PlaylistMapper
+
+    PlaylistService --> PlaylistController: PlaylistEditDto
+    deactivate PlaylistService
+
+    PlaylistController --> Client: 200 OK\nPlaylistEditDto
+    deactivate PlaylistController
+
+    ' Display edit form
+    Client -> Client: Hide loading spinner
+    Client -> Client: Initialize playlist edit form
+    Client -> Client: Set form values: name, description, privacy setting
+    Client -> Client: Display current cover image
+    Client -> Client: Load draggable music list (25 songs)
+    Client -> Client: Show playlist stats: "25 songs, 1h 47m total"
+    Client -> Client: Enable form validation and change detection
+    Client --> User: Playlist edit page loaded with all details and drag & drop interface
+
+else Playlist not found or unauthorized
+    PlaylistValidation --> PlaylistService: throw UnauthorizedException
+    PlaylistService --> PlaylistController: throw UnauthorizedException
+    PlaylistController --> Client: 403 Forbidden\n{"error": "Không có quyền chỉnh sửa playlist này"}
+    Client -> Client: Hide loading spinner
+    Client -> Client: Show error message
+    Client --> User: "Lỗi: Bạn không có quyền chỉnh sửa playlist này"
+end
+
+' User updates playlist information
+User -> Client: Change name to "Study & Work Mix" and description to "Perfect for focus"
+Client -> Client: Update form values
+Client -> Client: Mark form as dirty (hasChanges = true)
+Client -> Client: Enable "Save Changes" button
+
+User -> Client: Toggle privacy to "Private"
+Client -> Client: Update isPublic to false
+Client -> Client: Show privacy indicator
+
+' User uploads new cover image
+User -> Client: Click "Change Cover" and select new image file
+Client -> Client: Open file picker with image restrictions
+User -> Client: Select "study-cover.jpg" (800x800, 2MB)
+Client -> Client: Validate file type and size
+Client -> Client: Show image preview
+Client -> Client: Mark cover as changed
+
+User -> Client: Click "Save Changes"
+Client -> Client: Show loading spinner on save button
+Client -> Client: Disable form during save
+
+' Update playlist information
+Client -> PlaylistController: PUT /api/playlists/15\n{"name": "Study & Work Mix", "description": "Perfect for focus", "isPublic": false}
+activate PlaylistController
+
+PlaylistController -> PlaylistController: Extract userId from JWT token
+PlaylistController -> PlaylistService: updatePlaylist(playlistId=15, userId, updateRequest)
+activate PlaylistService
+
+' Validate update request
+PlaylistService -> PlaylistValidation: validatePlaylistName("Study & Work Mix", playlistId=15, userId)
+activate PlaylistValidation
+PlaylistValidation -> PlaylistRepo: existsByNameAndUserIdAndIdNot("Study & Work Mix", userId, playlistId=15)
+activate PlaylistRepo
+PlaylistRepo -> DB: SELECT EXISTS(SELECT 1 FROM playlists WHERE name = ? AND user_id = ? AND id != ? AND deleted = false)
+DB --> PlaylistRepo: exists = false (name is unique)
+PlaylistRepo --> PlaylistValidation: false
+deactivate PlaylistRepo
+PlaylistValidation --> PlaylistService: void (validation passed)
+deactivate PlaylistValidation
+
+PlaylistService -> PlaylistValidation: validateDescription("Perfect for focus")
+activate PlaylistValidation
+PlaylistValidation -> PlaylistValidation: Check description length (max 500 chars)
+PlaylistValidation --> PlaylistService: void (validation passed)
+deactivate PlaylistValidation
+
+' Update playlist in database
+PlaylistService -> PlaylistRepo: updatePlaylistInfo(id=15, name="Study & Work Mix", description="Perfect for focus", isPublic=false)
+activate PlaylistRepo
+PlaylistRepo -> DB: UPDATE playlists SET\nname = 'Study & Work Mix',\ndescription = 'Perfect for focus',\nis_public = false,\nupdated_at = NOW()\nWHERE id = 15 AND user_id = ?
+DB --> PlaylistRepo: 1 row updated
+PlaylistRepo --> PlaylistService: void
+deactivate PlaylistRepo
+
+PlaylistService -> PlaylistService: playlist.markAsUpdated()
+PlaylistService --> PlaylistController: Updated playlist info
+deactivate PlaylistService
+
+PlaylistController --> Client: 200 OK\n{"message": "Đã cập nhật thông tin playlist"}
+deactivate PlaylistController
+
+' Upload new cover image
+Client -> PlaylistController: POST /api/playlists/15/cover\n(multipart/form-data with study-cover.jpg)
+activate PlaylistController
+
+PlaylistController -> PlaylistService: updatePlaylistCover(playlistId=15, userId, file)
+activate PlaylistService
+
+' Validate cover image file
+PlaylistService -> PlaylistValidation: validateCoverImageFile(file)
+activate PlaylistValidation
+PlaylistValidation -> PlaylistValidation: Check file type (JPG/PNG only)
+PlaylistValidation -> PlaylistValidation: Check file size (max 5MB for playlists)
+PlaylistValidation -> PlaylistValidation: Check image dimensions
+PlaylistValidation --> PlaylistService: void (validation passed)
+deactivate PlaylistValidation
+
+' Store new cover image
+PlaylistService -> FileService: storePlaylistCover(file, playlistId=15)
+activate FileService
+FileService -> FileService: Generate unique filename: "playlist_15_1234567890.jpg"
+FileService -> FileService: Resize image to optimal playlist cover size (400x400)
+FileService -> FileService: Save file to uploads/playlists/covers/
+FileService -> FileService: Delete old cover image if exists
+FileService --> PlaylistService: newCoverUrl = "/uploads/playlists/covers/playlist_15_1234567890.jpg"
+deactivate FileService
+
+' Update cover URL in database
+PlaylistService -> PlaylistRepo: updateCoverImage(id=15, coverImageUrl=newCoverUrl)
+activate PlaylistRepo
+PlaylistRepo -> DB: UPDATE playlists SET cover_image_url = ?, updated_at = NOW()\nWHERE id = 15 AND user_id = ?
+DB --> PlaylistRepo: 1 row updated
+PlaylistRepo --> PlaylistService: void
+deactivate PlaylistRepo
+
+PlaylistService --> PlaylistController: newCoverUrl
+deactivate PlaylistService
+
+PlaylistController --> Client: 200 OK\n{"coverImageUrl": "/uploads/playlists/covers/playlist_15_1234567890.jpg"}
+deactivate PlaylistController
+
+Client -> Client: Update cover image display
+Client -> Client: Hide loading spinner
+Client -> Client: Mark form as saved (hasChanges = false)
+Client -> Client: Show success notification
+Client --> User: "Đã cập nhật playlist thành công"
+
+' User wants to reorder songs using drag & drop
+User -> Client: Drag "Lo-fi Hip Hop Beats" from position 15 to position 3
+Client -> Client: Visual feedback during drag operation
+Client -> Client: Update local music order
+Client -> Client: Mark playlist as changed
+
+User -> Client: Drag "Calm Piano Study" from position 8 to position 5
+Client -> Client: Update local order again
+Client -> Client: Show "Save Order" button
+
+User -> Client: Click "Save Order"
+Client -> Client: Show loading indicator on reorder section
+
+' Save new music order
+Client -> PlaylistController: PUT /api/playlists/15/reorder\n{"orderMappings": {"67": 3, "45": 4, "32": 5, "78": 6, "23": 7, ...}}
+activate PlaylistController
+
+PlaylistController -> PlaylistService: reorderPlaylistMusics(playlistId=15, userId, orderMappings)
+activate PlaylistService
+
+' Validate reorder request
+PlaylistService -> PlaylistValidation: validateReorderRequest(orderMappings, playlistId=15)
+activate PlaylistValidation
+PlaylistValidation -> PlaylistValidation: Check all music IDs belong to playlist
+PlaylistValidation -> PlaylistValidation: Check order indices are valid and unique
+PlaylistValidation --> PlaylistService: void (validation passed)
+deactivate PlaylistValidation
+
+' Update order indices in batch
+PlaylistService -> PlaylistMusicRepo: updateOrderIndexBatch(orderMappings)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: UPDATE playlist_musics SET order_index = CASE id\nWHEN 67 THEN 3\nWHEN 45 THEN 4\nWHEN 32 THEN 5\nWHEN 78 THEN 6\nWHEN 23 THEN 7\n...\nEND,\nupdated_at = NOW()\nWHERE id IN (67, 45, 32, 78, 23, ...)
+DB --> PlaylistMusicRepo: 25 rows updated
+PlaylistMusicRepo --> PlaylistService: void
+deactivate PlaylistMusicRepo
+
+PlaylistService --> PlaylistController: void (success)
+deactivate PlaylistService
+
+PlaylistController --> Client: 200 OK\n{"message": "Đã cập nhật thứ tự bài hát"}
+deactivate PlaylistController
+
+Client -> Client: Confirm new order in UI
+Client -> Client: Hide loading indicator
+Client -> Client: Mark order as saved
+Client --> User: "Đã lưu thứ tự bài hát mới"
+
+' User wants to remove a song from playlist
+User -> Client: Click "Remove" (X) button on "Rainy Day Vibes" song
+Client -> Client: Show confirmation modal
+Client -> Client: "Bạn có chắc muốn xóa bài hát này khỏi playlist?"
+
+User -> Client: Confirm removal
+Client -> PlaylistController: DELETE /api/playlists/15/musics/89
+activate PlaylistController
+
+PlaylistController -> PlaylistController: Extract userId from JWT token
+PlaylistController -> PlaylistService: removeMusicFromPlaylist(playlistId=15, musicId=89, userId)
+activate PlaylistService
+
+' Validate removal
+PlaylistService -> PlaylistValidation: validatePlaylistOwnership(playlistId=15, userId)
+activate PlaylistValidation
+PlaylistValidation --> PlaylistService: void (validation passed)
+deactivate PlaylistValidation
+
+' Remove music from playlist
+PlaylistService -> PlaylistMusicRepo: findByPlaylistIdAndMusicId(playlistId=15, musicId=89)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: SELECT * FROM playlist_musics WHERE playlist_id = 15 AND music_id = 89
+DB --> PlaylistMusicRepo: PlaylistMusic with orderIndex = 12
+PlaylistMusicRepo --> PlaylistService: PlaylistMusic
+deactivate PlaylistMusicRepo
+
+PlaylistService -> PlaylistMusicRepo: deleteByPlaylistIdAndMusicId(playlistId=15, musicId=89)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: DELETE FROM playlist_musics WHERE playlist_id = 15 AND music_id = 89
+DB --> PlaylistMusicRepo: 1 row deleted
+PlaylistMusicRepo --> PlaylistService: void
+deactivate PlaylistMusicRepo
+
+' Reorder remaining songs to fill gap
+PlaylistService -> PlaylistMusicRepo: reorderAfterPosition(playlistId=15, fromPosition=12)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: UPDATE playlist_musics SET order_index = order_index - 1\nWHERE playlist_id = 15 AND order_index > 12
+DB --> PlaylistMusicRepo: 12 rows updated (songs 13-25 moved up)
+PlaylistMusicRepo --> PlaylistService: void
+deactivate PlaylistMusicRepo
+
+' Update playlist stats
+PlaylistService -> StatsService: updatePlaylistStats(playlistId=15)
+activate StatsService
+StatsService -> PlaylistMusicRepo: countByPlaylistId(playlistId=15)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: SELECT COUNT(*) FROM playlist_musics WHERE playlist_id = 15
+DB --> PlaylistMusicRepo: newMusicCount = 24
+PlaylistMusicRepo --> StatsService: 24
+deactivate PlaylistMusicRepo
+
+StatsService -> PlaylistMusicRepo: sumDurationByPlaylistId(playlistId=15)
+activate PlaylistMusicRepo
+PlaylistMusicRepo -> DB: SELECT SUM(m.duration) FROM playlist_musics pm\nJOIN musics m ON pm.music_id = m.id\nWHERE pm.playlist_id = 15
+DB --> PlaylistMusicRepo: newTotalDuration = 6180 seconds (1h 43m)
+PlaylistMusicRepo --> StatsService: 6180
+deactivate PlaylistMusicRepo
+
+StatsService -> PlaylistRepo: updatePlaylistStats(id=15, musicCount=24, totalDuration=6180)
+activate PlaylistRepo
+PlaylistRepo -> DB: UPDATE playlists SET music_count = 24, total_duration = 6180, updated_at = NOW()\nWHERE id = 15
+DB --> PlaylistRepo: 1 row updated
+PlaylistRepo --> StatsService: void
+deactivate PlaylistRepo
+
+StatsService --> PlaylistService: void
+deactivate StatsService
+
+PlaylistService --> PlaylistController: void (success)
+deactivate PlaylistService
+
+PlaylistController --> Client: 200 OK\n{"message": "Đã xóa bài hát khỏi playlist"}
+deactivate PlaylistController
+
+Client -> Client: Remove song from UI list
+Client -> Client: Update playlist stats: "24 songs, 1h 43m total"
+Client -> Client: Reorder remaining songs visually
+Client -> Client: Close confirmation modal
+Client --> User: "Đã xóa 'Rainy Day Vibes' khỏi playlist"
+
+' User tries to leave page with unsaved changes
+User -> Client: Click browser back button
+Client -> Client: Detect navigation attempt
+Client -> Client: Check for unsaved changes (form is dirty)
+Client -> Client: Show unsaved changes modal
+Client -> Client: "Bạn có thay đổi chưa lưu. Bạn muốn làm gì?"
+
+User -> Client: Click "Save & Leave"
+Client -> Client: Trigger save process for remaining changes
+Client -> Client: Wait for save completion
+Client -> Client: Navigate away after successful save
+Client --> User: Changes saved and navigated to previous page
+
+deactivate Client
+
+@enduml

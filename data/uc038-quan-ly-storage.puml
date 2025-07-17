@@ -1,0 +1,9 @@
+@startuml UC038-Quan-Ly-Storage
+!theme plain
+
+actor Admin
+usecase "Quản lý file và storage" as UC038
+
+Admin --> UC038
+
+@enduml

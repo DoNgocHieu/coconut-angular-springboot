@@ -1,0 +1,9 @@
+@startuml UC036-Quan-Ly-Banner
+!theme plain
+
+actor Admin
+usecase "Quản lý banner/quảng cáo" as UC036
+
+Admin --> UC036
+
+@enduml

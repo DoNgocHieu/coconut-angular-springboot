@@ -1,0 +1,9 @@
+@startuml UC015-Sua-Playlist
+!theme plain
+
+actor User
+usecase "Chỉnh sửa playlist" as UC015
+
+User --> UC015
+
+@enduml

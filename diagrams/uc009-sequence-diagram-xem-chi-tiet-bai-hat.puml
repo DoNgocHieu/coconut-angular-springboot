@@ -1,0 +1,311 @@
+@startuml UC009-Sequence-Diagram-Xem-Chi-Tiet-Bai-Hat
+!theme plain
+
+title Biểu đồ trình tự - UC009: Xem chi tiết bài hát
+
+actor User
+participant "Angular\nMusic App" as Client
+participant "Music\nController" as MusicController
+participant "Music\nService" as MusicService
+participant "View History\nController" as ViewHistoryController
+participant "View History\nService" as ViewHistoryService
+participant "Favorite\nController" as FavoriteController
+participant "Favorite\nService" as FavoriteService
+participant "Music\nRepository" as MusicRepo
+participant "View History\nRepository" as ViewHistoryRepo
+participant "Favorite\nRepository" as FavoriteRepo
+participant "Music\nMapper" as MusicMapper
+participant "Music\nValidationService" as ValidationService
+database "MySQL\nDatabase" as DB
+
+User -> Client: Click vào tên bài hát hoặc icon "info"
+activate Client
+
+Client -> Client: Navigate to music detail page
+Client -> Client: Show loading spinner
+Client -> Client: Extract musicId from route params
+
+' Load music detail information
+Client -> MusicController: GET /api/musics/{musicId}/detail
+activate MusicController
+
+MusicController -> MusicController: Extract userId from JWT token (if authenticated)
+MusicController -> MusicService: getMusicDetail(musicId, userId)
+activate MusicService
+
+' Validate music exists and is available
+MusicService -> ValidationService: validateMusicExists(musicId)
+activate ValidationService
+ValidationService -> MusicRepo: findByIdAndDeletedFalse(musicId)
+activate MusicRepo
+MusicRepo -> DB: SELECT * FROM musics WHERE id = ? AND deleted = false
+DB --> MusicRepo: Music entity
+MusicRepo --> ValidationService: Optional<Music>
+deactivate MusicRepo
+
+alt Music exists
+    ValidationService -> ValidationService: Check music is public or user has access
+    ValidationService --> MusicService: void (validation passed)
+    deactivate ValidationService
+
+    ' Get music detail with related information
+    MusicService -> MusicRepo: findMusicWithDetails(musicId)
+    activate MusicRepo
+    MusicRepo -> DB: SELECT m.*, c.name as category_name, c.color, c.image_url as category_image,\nu.username, u.display_name, u.avatar_url\nFROM musics m\nJOIN categories c ON m.category_id = c.id\nJOIN users u ON m.user_id = u.id\nWHERE m.id = ? AND m.deleted = false
+    DB --> MusicRepo: Music with Category and User details
+    MusicRepo --> MusicService: Music entity
+    deactivate MusicRepo
+
+    ' Check if user has favorited this music
+    alt User is authenticated
+        MusicService -> FavoriteRepo: findByUserIdAndMusicId(userId, musicId)
+        activate FavoriteRepo
+        FavoriteRepo -> DB: SELECT * FROM favorites WHERE user_id = ? AND music_id = ?
+        DB --> FavoriteRepo: Optional<Favorite>
+        FavoriteRepo --> MusicService: Optional<Favorite>
+        deactivate FavoriteRepo
+    end
+
+    ' Get favorite count for this music
+    MusicService -> FavoriteRepo: countByMusicId(musicId)
+    activate FavoriteRepo
+    FavoriteRepo -> DB: SELECT COUNT(*) FROM favorites WHERE music_id = ?
+    DB --> FavoriteRepo: favoriteCount = 1247
+    FavoriteRepo --> MusicService: 1247
+    deactivate FavoriteRepo
+
+    ' Convert to detailed DTO
+    MusicService -> MusicMapper: toDetailDto(music, user, isFavorite, favoriteCount)
+    activate MusicMapper
+    MusicMapper -> MusicMapper: Create MusicDetailDto with all information
+    MusicMapper -> MusicMapper: Set title, artist, album, duration, coverImageUrl
+    MusicMapper -> MusicMapper: Set audioFileUrl, lyrics, viewCount, commentCount
+    MusicMapper -> MusicMapper: Set category info, uploader info
+    MusicMapper -> MusicMapper: Set isFavorite = true, favoriteCount = 1247
+    MusicMapper -> MusicMapper: Set canEdit, canDelete based on user permissions
+    MusicMapper -> MusicMapper: Set canDownload based on music settings
+    MusicMapper --> MusicService: MusicDetailDto
+    deactivate MusicMapper
+
+    MusicService --> MusicController: MusicDetailDto
+    deactivate MusicService
+
+    MusicController --> Client: 200 OK\nMusicDetailDto
+    deactivate MusicController
+
+    ' Display music detail on UI
+    Client -> Client: Hide loading spinner
+    Client -> Client: Display music information (title, artist, album, duration)
+    Client -> Client: Display large cover image
+    Client -> Client: Display view count, favorite count, upload date
+    Client -> Client: Display category badge with color
+    Client -> Client: Display uploader information
+    Client -> Client: Show lyrics section (if available)
+    Client -> Client: Show action buttons (Play, Favorite, Add to Playlist, Share)
+    Client --> User: Music detail page displayed with full information
+
+else Music not found
+    ValidationService --> MusicService: throw MusicNotFoundException
+    MusicService --> MusicController: throw MusicNotFoundException
+    MusicController --> Client: 404 Not Found\n{"error": "Bài hát không tồn tại hoặc đã bị xóa"}
+    Client -> Client: Hide loading spinner
+    Client -> Client: Show error message
+    Client --> User: "Bài hát không tồn tại hoặc đã bị xóa"
+end
+
+' Record view history when user stays on page
+Client -> Client: Start timer to track view duration
+Client -> Client: Wait 5 seconds (threshold for valid view)
+
+alt User stays on page > 5 seconds
+    Client -> ViewHistoryController: POST /api/view-history\n{musicId: musicId, deviceInfo: "browser"}
+    activate ViewHistoryController
+
+    ViewHistoryController -> ViewHistoryController: Extract userId from JWT token
+    ViewHistoryController -> ViewHistoryService: recordView(userId, musicId, deviceInfo)
+    activate ViewHistoryService
+
+    ' Check if user already viewed this music recently
+    ViewHistoryService -> ViewHistoryRepo: findByUserIdAndMusicId(userId, musicId)
+    activate ViewHistoryRepo
+    ViewHistoryRepo -> DB: SELECT * FROM view_histories WHERE user_id = ? AND music_id = ?\nORDER BY viewed_at DESC LIMIT 1
+    DB --> ViewHistoryRepo: Optional<ViewHistory>
+    ViewHistoryRepo --> ViewHistoryService: Optional<ViewHistory>
+    deactivate ViewHistoryRepo
+
+    alt No recent view or last view > 1 hour ago
+        ' Create new view history record
+        ViewHistoryService -> ViewHistoryService: Create new ViewHistory entity
+        ViewHistoryService -> ViewHistoryService: Set userId, musicId, viewedAt = now()
+        ViewHistoryService -> ViewHistoryService: Set deviceInfo from user agent
+
+        ViewHistoryService -> ViewHistoryRepo: save(viewHistory)
+        activate ViewHistoryRepo
+        ViewHistoryRepo -> DB: INSERT INTO view_histories\n(user_id, music_id, viewed_at, device_info)\nVALUES (?, ?, NOW(), ?)
+        DB --> ViewHistoryRepo: ViewHistory with ID
+        ViewHistoryRepo --> ViewHistoryService: ViewHistory
+        deactivate ViewHistoryRepo
+
+        ' Increment music view count
+        ViewHistoryService -> MusicRepo: incrementViewCount(musicId)
+        activate MusicRepo
+        MusicRepo -> DB: UPDATE musics SET view_count = view_count + 1\nWHERE id = ?
+        DB --> MusicRepo: 1 row updated
+        MusicRepo --> ViewHistoryService: void
+        deactivate MusicRepo
+
+        ViewHistoryService --> ViewHistoryController: ViewHistoryDto
+        deactivate ViewHistoryService
+
+        ViewHistoryController --> Client: 201 Created\nViewHistoryDto
+        deactivate ViewHistoryController
+
+        Client -> Client: Update view count display on UI
+        Client --> User: View count updated (not visible to user)
+
+    else Recent view exists
+        ViewHistoryService --> ViewHistoryController: ViewHistoryDto (existing)
+        ViewHistoryController --> Client: 200 OK\nViewHistoryDto
+        Client --> User: View recorded (no UI change)
+    end
+end
+
+' User wants to play music from detail page
+User -> Client: Click "Play" button
+Client -> Client: Load audio player component
+Client -> Client: Set currentMusic to this music
+Client -> Client: Start audio playback
+
+Client -> Client: Update play button to "Pause"
+Client -> Client: Show audio progress bar
+Client -> Client: Update player UI with music info
+Client --> User: Music starts playing
+
+' User wants to toggle favorite
+User -> Client: Click heart icon to favorite/unfavorite
+Client -> FavoriteController: POST /api/favorites/toggle\n{musicId: musicId}
+activate FavoriteController
+
+FavoriteController -> FavoriteController: Extract userId from JWT token
+FavoriteController -> FavoriteService: toggleFavorite(userId, musicId)
+activate FavoriteService
+
+' Check current favorite status
+FavoriteService -> FavoriteRepo: findByUserIdAndMusicId(userId, musicId)
+activate FavoriteRepo
+FavoriteRepo -> DB: SELECT * FROM favorites WHERE user_id = ? AND music_id = ?
+DB --> FavoriteRepo: Optional<Favorite>
+FavoriteRepo --> FavoriteService: Optional<Favorite>
+deactivate FavoriteRepo
+
+alt Music is not favorited
+    ' Add to favorites
+    FavoriteService -> FavoriteService: Create new Favorite entity
+    FavoriteService -> FavoriteService: Set userId, musicId, createdAt = now()
+
+    FavoriteService -> FavoriteRepo: save(favorite)
+    activate FavoriteRepo
+    FavoriteRepo -> DB: INSERT INTO favorites (user_id, music_id, created_at)\nVALUES (?, ?, NOW())
+    DB --> FavoriteRepo: Favorite with ID
+    FavoriteRepo --> FavoriteService: Favorite
+    deactivate FavoriteRepo
+
+    ' Update music favorite count
+    FavoriteService -> MusicRepo: incrementFavoriteCount(musicId)
+    activate MusicRepo
+    MusicRepo -> DB: UPDATE musics SET favorite_count = favorite_count + 1\nWHERE id = ?
+    DB --> MusicRepo: 1 row updated
+    MusicRepo --> FavoriteService: void
+    deactivate MusicRepo
+
+    FavoriteService -> FavoriteService: newFavoriteCount = oldCount + 1 = 1248
+    FavoriteService --> FavoriteController: FavoriteStatusDto{isFavorite: true, favoriteCount: 1248}
+
+else Music is already favorited
+    ' Remove from favorites
+    FavoriteService -> FavoriteRepo: deleteByUserIdAndMusicId(userId, musicId)
+    activate FavoriteRepo
+    FavoriteRepo -> DB: DELETE FROM favorites WHERE user_id = ? AND music_id = ?
+    DB --> FavoriteRepo: 1 row deleted
+    FavoriteRepo --> FavoriteService: void
+    deactivate FavoriteRepo
+
+    ' Update music favorite count
+    FavoriteService -> MusicRepo: decrementFavoriteCount(musicId)
+    activate MusicRepo
+    MusicRepo -> DB: UPDATE musics SET favorite_count = favorite_count - 1\nWHERE id = ?
+    DB --> MusicRepo: 1 row updated
+    MusicRepo --> FavoriteService: void
+    deactivate MusicRepo
+
+    FavoriteService -> FavoriteService: newFavoriteCount = oldCount - 1 = 1246
+    FavoriteService --> FavoriteController: FavoriteStatusDto{isFavorite: false, favoriteCount: 1246}
+end
+
+deactivate FavoriteService
+
+FavoriteController --> Client: 200 OK\nFavoriteStatusDto
+deactivate FavoriteController
+
+Client -> Client: Update heart icon state (filled/outlined)
+Client -> Client: Update favorite count display
+alt Added to favorites
+    Client --> User: "Đã thêm vào yêu thích" (heart icon turns red)
+else Removed from favorites
+    Client --> User: "Đã xóa khỏi yêu thích" (heart icon turns gray)
+end
+
+' User wants to see lyrics
+User -> Client: Click "Xem lời bài hát" button
+Client -> Client: Toggle lyrics section visibility
+alt Lyrics available
+    Client -> Client: Display lyrics in formatted text area
+    Client -> Client: Enable lyrics auto-scroll with music
+    Client --> User: Lyrics displayed below music info
+else No lyrics
+    Client -> Client: Show "Lời bài hát chưa có sẵn"
+    Client --> User: "Lời bài hát chưa có sẵn cho bài hát này"
+end
+
+' Load related musics in background
+Client -> MusicController: GET /api/musics/{musicId}/related
+activate MusicController
+
+MusicController -> MusicService: getRelatedMusics(musicId, limit=10)
+activate MusicService
+
+' Get musics by same artist
+MusicService -> MusicRepo: findRelatedMusicsByArtist(artistId, musicId, pageable)
+activate MusicRepo
+MusicRepo -> DB: SELECT * FROM musics m\nWHERE m.artist = (SELECT artist FROM musics WHERE id = ?)\nAND m.id != ? AND m.deleted = false AND m.is_public = true\nORDER BY m.view_count DESC\nLIMIT 5
+DB --> MusicRepo: List<Music> (same artist)
+MusicRepo --> MusicService: List<Music>
+deactivate MusicRepo
+
+' Get musics by same category
+MusicService -> MusicRepo: findRelatedMusicsByCategory(categoryId, musicId, pageable)
+activate MusicRepo
+MusicRepo -> DB: SELECT * FROM musics m\nWHERE m.category_id = (SELECT category_id FROM musics WHERE id = ?)\nAND m.id != ? AND m.deleted = false AND m.is_public = true\nORDER BY m.view_count DESC\nLIMIT 5
+DB --> MusicRepo: List<Music> (same category)
+MusicRepo --> MusicService: List<Music>
+deactivate MusicRepo
+
+MusicService -> MusicService: Combine and deduplicate related musics
+MusicService -> MusicMapper: toDtoList(relatedMusics)
+activate MusicMapper
+MusicMapper --> MusicService: List<MusicDto>
+deactivate MusicMapper
+
+MusicService --> MusicController: List<MusicDto>
+deactivate MusicService
+
+MusicController --> Client: 200 OK\nList<MusicDto>
+deactivate MusicController
+
+Client -> Client: Display "Bài hát liên quan" section
+Client -> Client: Show related musics in horizontal scroll list
+Client --> User: Related musics displayed with play buttons
+
+deactivate Client
+
+@enduml

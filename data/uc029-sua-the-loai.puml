@@ -1,0 +1,9 @@
+@startuml UC029-Sua-The-Loai
+!theme plain
+
+actor Admin
+usecase "Chỉnh sửa thể loại" as UC029
+
+Admin --> UC029
+
+@enduml
