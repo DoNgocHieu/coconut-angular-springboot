@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8080/api',
-  backendUrl: 'http://localhost:8080',
+  apiUrl: 'https://coconut-angular-backend.onrender.com/api',
+  backendUrl: 'https://coconut-angular-backend.onrender.com',
   appName: 'Coconut Music'
 };
