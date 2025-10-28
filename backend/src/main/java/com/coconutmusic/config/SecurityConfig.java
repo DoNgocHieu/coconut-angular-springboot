@@ -61,7 +61,7 @@ public class SecurityConfig {
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(authz -> authz
             // Public endpoints
-            .requestMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+            .requestMatchers("/","/health","/swagger-ui/**", "/v3/api-docs/**").permitAll()
             .requestMatchers("/api/auth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/music/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/music/*/play").permitAll()
