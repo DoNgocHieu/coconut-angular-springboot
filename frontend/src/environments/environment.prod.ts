@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.coconutmusic.com/api',
+  apiUrl: 'https://coconut-angular-backend.onrender.com/api',
   appName: 'Coconut Music'
 };

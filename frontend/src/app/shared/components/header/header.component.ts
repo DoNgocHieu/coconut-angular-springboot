@@ -50,7 +50,7 @@ import { Subscription } from 'rxjs';
             <button (click)="goToLogin()" class="login-btn" type="button">Đăng nhập</button>
             <button (click)="goToRegister()" class="register-btn" type="button">Đăng ký</button>
             <!-- Backup links -->
-            <a routerLink="/auth/login" class="login-btn backup-link" (click)="testClick('login')">Login Link</a>
+           
           </div>
 
           <!-- Dropdown menu for logged in users -->
