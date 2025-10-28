@@ -54,53 +54,63 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz                // Public endpoints
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/music/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/music/*/play").permitAll() // Allow play count increment
-                .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()                .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/playlists/*").permitAll() // Allow get single playlist
-                .requestMatchers(HttpMethod.GET, "/api/playlists/*/music").permitAll() // Allow get playlist music
-                .requestMatchers("/api/playlists/**").permitAll() // Temporarily allow for testing
-                .requestMatchers("/uploads/**").permitAll()
-                .requestMatchers("/api/user/**").permitAll() // Temporary: Allow user endpoints for testing
-                .requestMatchers("/api/user-admin/**").permitAll() // Temporary: Allow user-admin endpoints for testing
-                // Admin endpoints
-                .requestMatchers("/api/admin/**").permitAll() // Temporarily allow for testing
-                // .requestMatchers("/api/admin/**").hasRole("ADMIN")
+  @Bean
+   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+     http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(authz -> authz
+            // Public endpoints
+            .requestMatchers("/", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+            .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/music/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/music/*/play").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/artists/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/playlists/public/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/playlists/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/playlists/*/music").permitAll()
+            .requestMatchers("/uploads/**").permitAll()
+            
+            // Admin endpoints
+            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+            
+            // User endpoints
+            .requestMatchers("/api/user/**").hasRole("USER")
+            .requestMatchers("/api/playlists/**").hasRole("USER")
 
-                // User endpoints (commented out for testing)
-                // .requestMatchers("/api/user/**").hasRole("USER")
-                // .requestMatchers("/api/playlists/**").hasRole("USER")
-                // recently added endpoints
+            // All other requests require authentication
+            .anyRequest().authenticated()
+        );
 
-                // All other requests need authentication
-                .anyRequest().authenticated()
-            );
+    http.authenticationProvider(authenticationProvider());
+    http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        http.authenticationProvider(authenticationProvider());
-        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+    return http.build();
+}
 
-        return http.build();
-    }
+   @Bean
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+    // Cho phép tất cả các origin (hoặc bạn có thể thay bằng domain Angular của bạn)
+    configuration.setAllowedOriginPatterns(List.of("*"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    // Cho phép tất cả các method frontend có thể dùng
+    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+    // Cho phép tất cả các header từ frontend
+    configuration.setAllowedHeaders(List.of("*"));
+
+    // Cho phép gửi cookie/token nếu cần
+    configuration.setAllowCredentials(true);
+
+    // Thiết lập đường dẫn áp dụng config CORS
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
+}
+
 }
